@@ -253,7 +253,8 @@ def persisted_models():
         'credential': Credential,
         'guest_status': GuestStatus,
         'service_flavor': ServiceFlavor,
-        'snapshot': Snapshot
+        'snapshot': Snapshot,
+        'quota': Quota
         }
 
 

@@ -18,6 +18,7 @@
 #    under the License.
 
 import logging
+import urlparse
 import routes
 import webob.exc
 
@@ -32,8 +33,6 @@ from reddwarf.database import views
 
 from reddwarf.database import snapshots as snapshots
 from snapshots import SnapshotController
-from reddwarf.database import root as root
-from root import RootController
 
 CONFIG = config.Config
 LOG = logging.getLogger(__name__)
@@ -157,7 +156,50 @@ class InstanceController(BaseController):
         LOG.debug("Called reset_password() with %s, %s" % (tenant_id, id))
         
         return wsgi.Result(200)
+
     
+class SnapshotController(BaseController):
+    """Controller for snapshot functionality"""
+
+    def show(self, req, tenant_id, id):
+        """Return a list of all snapshots for all instances."""
+        LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
+        LOG.debug("Showing all snapshots")
+        return wsgi.Result(200)
+
+    def index(self, req, tenant_id):
+        """Return a list of all snapshots for a specific instance."""
+        LOG.debug("Snapshots.index() called with %s, %s" % (tenant_id, id))
+
+        instance_id = ''
+        if req.query_string is not '':
+            # returns list of tuples
+            name_value_pairs = urlparse.parse_qsl(req.query_string,
+                                         keep_blank_values=True,
+                                         strict_parsing=False)
+            for name_value in name_value_pairs:
+                if name_value[0] == 'instanceId':
+                    instance_id = name_value[1]
+                    break
+        
+        if instance_id and len(instance_id) > 0:
+            LOG.debug("Listing snapshots by instance_id %s", instance_id)
+        else:
+            LOG.debug("Listing snapshots by tenant_id %s", tenant_id)
+        
+        return wsgi.Result(200)
+
+    def delete(self, req, tenant_id, id):
+        """Delete a single snapshot."""
+        LOG.debug("Snapshots.delete() called with %s, %s" % (tenant_id, id))
+        LOG.debug("Deleting snapshot")
+        return wsgi.Result(204)
+
+    def create(self, req, body, tenant_id):
+        """Creates a snapshot."""
+        LOG.debug("Snapshots.create() called with %s, %s" % (tenant_id, id))
+        LOG.debug("Creating snapshot")
+        return wsgi.Result(201)
             
 
 class API(wsgi.Router):
@@ -167,11 +209,9 @@ class API(wsgi.Router):
         super(API, self).__init__(mapper)
         self._instance_router(mapper)
         self._snapshot_router(mapper)
-        self._root_router(mapper)
 
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
-        root_resource = RootController().create_resource()
         path = "/{tenant_id}/instances"
         mapper.resource("instance", path, controller=instance_resource)
         mapper.connect("/{tenant_id}/instances/{id}/restart",
@@ -186,16 +226,6 @@ class API(wsgi.Router):
         path = "/{tenant_id}/snapshots"
         mapper.resource("snapshot", path, controller=snapshot_resource)
     
-    def _root_router(self, mapper):
-        root_resource = RootController().create_resource()
-        path = "/{tenant_id}/instances/{id}/root"
-        mapper.connect("/{tenant_id}/instances/{id}/root",
-                       controller=root_resource,
-                       action="create", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/instances/{id}/root",
-                       controller=root_resource,
-                       action="is_root_enabled", conditions=dict(method=["GET"]))
-
 
 def app_factory(global_conf, **local_conf):
     return API()
