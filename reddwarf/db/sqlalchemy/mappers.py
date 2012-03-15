@@ -1,5 +1,6 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
+# Copyright 2012 Hewlett-Packard Development Company, L.P.
 # Copyright 2011 OpenStack LLC.
 # All Rights Reserved.
 #
@@ -28,9 +29,20 @@ def map(engine, models):
         return
 
     orm.mapper(models['instance'], Table('instances', meta, autoload=True))
+    orm.mapper(models['user'], Table('users', meta, autoload=True))
+    orm.mapper(models['credential'], Table('credentials', meta, autoload=True))
+    orm.mapper(models['guest_status'], Table('guest_status', meta, autoload=True))
+    
     orm.mapper(models['service_image'],
                Table('service_images', meta, autoload=True))
-    
+
+    orm.mapper(models['service_flavor'],
+               Table('service_flavors', meta, autoload=True))
+
+    orm.mapper(models['snapshot'],
+               Table('snapshots', meta, autoload=True))
+    orm.mapper(models['quota'],
+               Table('quotas', meta, autoload=True))
 
 def mapping_exists(model):
     try:

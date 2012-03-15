@@ -33,30 +33,21 @@ from reddwarf.db.sqlalchemy.migrate_repo.schema import Table
 
 meta = MetaData()
 
-service_images = Table('service_images', meta,
-    Column('id', String(36), primary_key=True, nullable=False),
-    Column('service_name', String(255)),
-    Column('image_id', String(255)),
-    Column('deleted', Boolean()),
-    Column('created_at', DateTime()),
-    Column('updated_at', DateTime()),
-    Column('deleted_at', DateTime()))
-
-service_flavors = Table('service_flavors', meta,
-    Column('id', String(36), primary_key=True, nullable=False),
-    Column('service_name', String(255)),
-    Column('flavor_name', String(255)),
-    Column('flavor_id', String(255)),
-    Column('deleted', Boolean()),
-    Column('created_at', DateTime()),
-    Column('updated_at', DateTime()),
-    Column('deleted_at', DateTime()))    
+quotas = Table('quotas', meta,
+        Column('id', String(36), primary_key=True, nullable=False),
+        Column('tenant_id', String(255)),
+        Column('resource', String(255)),
+        Column('hard_limit', Integer()),
+        Column('deleted', Boolean()),
+        Column('created_at', DateTime()),
+        Column('updated_at', DateTime()),
+        Column('deleted_at', DateTime()))
 
 def upgrade(migrate_engine):
     meta.bind = migrate_engine
-    create_tables([service_images, service_flavors, ])
+    create_tables([quotas, ])
 
 
 def downgrade(migrate_engine):
     meta.bind = migrate_engine
-    drop_tables([service_images, service_flavors, ])
+    drop_tables([quotas, ])
