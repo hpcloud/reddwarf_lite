@@ -87,14 +87,14 @@ class RemoteModelBase(ModelBase):
                                         'admin')
         PROXY_AUTH_URL = CONFIG.get('reddwarf_auth_url',
                                     'http://0.0.0.0:5000/v2.0')
-
+        print PROXY_AUTH_URL
         client = Client(PROXY_ADMIN_USER, PROXY_ADMIN_PASS,
             PROXY_ADMIN_TENANT_NAME, PROXY_AUTH_URL,
-            proxy_tenant_id=context.tenant,
-            proxy_token=context.auth_tok,
-            region_name='RegionOne',
-            service_type='compute',
-            service_name="'Compute Service'")
+            #proxy_tenant_id=context.tenant,
+            #proxy_token=context.auth_tok,
+            region_name='az-2.region-a.geo-1',
+            #service_type='compute',
+            service_name="Compute")
         client.authenticate()
         return client
 

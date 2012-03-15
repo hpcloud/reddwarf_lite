@@ -1,7 +1,9 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-# Copyright 2011 OpenStack LLC.
-# All Rights Reserved.
+#    Copyright 2012 Hewlett-Packard Development Company, L.P.
+#
+#    Copyright 2011 OpenStack LLC.
+#    All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -27,6 +29,11 @@ from reddwarf.common import utils
 from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
+
+from reddwarf.database import snapshots as snapshots
+from snapshots import SnapshotController
+from reddwarf.database import root as root
+from root import RootController
 
 CONFIG = config.Config
 LOG = logging.getLogger(__name__)
@@ -65,6 +72,8 @@ class InstanceController(BaseController):
 
     def index(self, req, tenant_id):
         """Return all instances."""
+        LOG.debug("Show() called with req: %s" % req)
+        LOG.debug("Show() called with tenant_id: %s" % tenant_id)        
         # TODO(hub-cap): turn this into middleware
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
@@ -75,18 +84,24 @@ class InstanceController(BaseController):
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
+        LOG.debug("Show() called with req: %s" % req)
+        LOG.debug("Show() called with tenant_id: %s" % tenant_id)
+        LOG.debug("Show() called with id: %s" % id)
         # TODO(hub-cap): turn this into middleware
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        LOG.debug("Context: %s" % dir(context))
         try:
             # TODO(hub-cap): start testing the failure cases here
             server = models.Instance(context=context, uuid=id).data()
         except exception.ReddwarfError, e:
             # TODO(hub-cap): come up with a better way than
             #    this to get the message
+            LOG.debug("Show() failed with an exception")
             return wsgi.Result(str(e), 404)
         # TODO(cp16net): need to set the return code correctly
+        LOG.debug("Show() executed correctly")
         return wsgi.Result(views.InstanceView(server).data(), 201)
 
     def delete(self, req, tenant_id, id):
@@ -102,6 +117,7 @@ class InstanceController(BaseController):
         return wsgi.Result(202)
 
     def create(self, req, body, tenant_id):
+        
         # find the service id (cant be done yet at startup due to
         # inconsitencies w/ the load app paste
         # TODO(hub-cap): figure out how to get this to work in __init__ time
@@ -130,6 +146,19 @@ class InstanceController(BaseController):
         #TODO(cp16net): need to set the return code correctly
         return wsgi.Result(views.InstanceView(server).data(), 201)
 
+    def restart(self, req, tenant_id, id):
+        """Restart an instance."""
+        LOG.debug("Called restart() with %s, %s" % (tenant_id, id))
+        
+        return wsgi.Result(204)
+    
+    def reset_password(self, req, tenant_id, id):
+        """Change the password on an instance."""
+        LOG.debug("Called reset_password() with %s, %s" % (tenant_id, id))
+        
+        return wsgi.Result(200)
+    
+            
 
 class API(wsgi.Router):
     """API"""
@@ -137,11 +166,35 @@ class API(wsgi.Router):
         mapper = routes.Mapper()
         super(API, self).__init__(mapper)
         self._instance_router(mapper)
+        self._snapshot_router(mapper)
+        self._root_router(mapper)
 
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
+        root_resource = RootController().create_resource()
         path = "/{tenant_id}/instances"
         mapper.resource("instance", path, controller=instance_resource)
+        mapper.connect("/{tenant_id}/instances/{id}/restart",
+                       controller=instance_resource,
+                       action="restart", conditions=dict(method=["POST"]))
+        mapper.connect("/{tenant_id}/instances/{id}/resetpassword",
+                       controller=instance_resource,
+                       action="reset_password", conditions=dict(method=["POST"]))
+        
+    def _snapshot_router(self, mapper):
+        snapshot_resource = SnapshotController().create_resource()
+        path = "/{tenant_id}/snapshots"
+        mapper.resource("snapshot", path, controller=snapshot_resource)
+    
+    def _root_router(self, mapper):
+        root_resource = RootController().create_resource()
+        path = "/{tenant_id}/instances/{id}/root"
+        mapper.connect("/{tenant_id}/instances/{id}/root",
+                       controller=root_resource,
+                       action="create", conditions=dict(method=["POST"]))
+        mapper.connect("/{tenant_id}/instances/{id}/root",
+                       controller=root_resource,
+                       action="is_root_enabled", conditions=dict(method=["GET"]))
 
 
 def app_factory(global_conf, **local_conf):
