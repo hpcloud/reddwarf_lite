@@ -1,7 +1,6 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 # Copyright 2012 Hewlett-Packard Development Company, L.P.
-# Copyright 2011 OpenStack LLC.
 # All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -30,33 +29,28 @@ from reddwarf.db.sqlalchemy.migrate_repo.schema import BigInteger
 from reddwarf.db.sqlalchemy.migrate_repo.schema import String
 from reddwarf.db.sqlalchemy.migrate_repo.schema import Table
 
-
 meta = MetaData()
 
-service_images = Table('service_images', meta,
-    Column('id', String(36), primary_key=True, nullable=False),
-    Column('service_name', String(255)),
-    Column('image_id', String(255)),
-    Column('deleted', Boolean()),
-    Column('created_at', DateTime()),
-    Column('updated_at', DateTime()),
-    Column('deleted_at', DateTime()))
-
-service_flavors = Table('service_flavors', meta,
-    Column('id', String(36), primary_key=True, nullable=False),
-    Column('service_name', String(255)),
-    Column('flavor_name', String(255)),
-    Column('flavor_id', String(255)),
-    Column('deleted', Boolean()),
-    Column('created_at', DateTime()),
-    Column('updated_at', DateTime()),
-    Column('deleted_at', DateTime()))    
+snapshots = Table('snapshots', meta,
+        Column('id', String(36), primary_key=True, nullable=False),
+        Column('instance_id', String(36)),
+        Column('name', String(255)),
+        Column('state', String(36)),
+        Column('user_id', String(36)),
+        Column('tenant_id', String(36)),
+        Column('storage_uri', String(512)),
+        Column('credential', String(36)),
+        Column('storage_size', BigInteger()),
+        Column('deleted', Boolean()),
+        Column('created_at', DateTime()),
+        Column('updated_at', DateTime()),
+        Column('deleted_at', DateTime()))   
 
 def upgrade(migrate_engine):
     meta.bind = migrate_engine
-    create_tables([service_images, service_flavors, ])
+    create_tables([snapshots, ])
 
 
 def downgrade(migrate_engine):
     meta.bind = migrate_engine
-    drop_tables([service_images, service_flavors, ])
+    drop_tables([snapshots, ])

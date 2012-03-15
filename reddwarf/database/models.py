@@ -1,5 +1,6 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
+# Copyright 2012 Hewlett-Packard Development Company, L.P.
 # Copyright 2010-2011 OpenStack LLC.
 # All Rights Reserved.
 #
@@ -165,13 +166,13 @@ class Instances(Instance):
 
 
 class DatabaseModelBase(ModelBase):
-    _auto_generated_attrs = ['id']
+    _auto_generated_attrs = ["id", "created_at", "updated_at", "deleted_at"]
 
     @classmethod
     def create(cls, **values):
         values['id'] = utils.generate_uuid()
         print values
-#        values['created_at'] = utils.utcnow()
+        values['created_at'] = utils.utcnow()
         instance = cls(**values).save()
 #        instance._notify_fields("create")
         return instance
@@ -211,17 +212,48 @@ class DatabaseModelBase(ModelBase):
 
 
 class DBInstance(DatabaseModelBase):
-    _data_fields = ['name', 'status']
+    _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
+                    'credential', 'address', 'port', 'flavor']
+                    
 
+class User(DatabaseModelBase):
+    _data_fields = ['name', 'enabled']
+
+
+class Credential(DatabaseModelBase):
+    _data_fields = ['user_name', 'password', 'tenant_id', 'type', 'enabled']
+    
+
+class GuestStatus(DatabaseModelBase):
+    _data_fields = ['instance_id', 'state']
+    
 
 class ServiceImage(DatabaseModelBase):
     _data_fields = ['service_name', 'image_id']
 
 
+class ServiceFlavor(DatabaseModelBase):
+    _data_fields = ['service_name', 'flavor_name', 'flavor_id']
+
+
+class Snapshots(DatabaseModelBase):
+    _data_fields = ['instance_id', 'name', 'state', 'user_id', 
+                    'tenant_id', 'storage_uri', 'credential', 'storage_size']
+    
+    
+class Quota(DatabaseModelBase):
+    _data_fields = ['tenant_id', 'resource', 'hard_limit']
+    
+        
 def persisted_models():
     return {
         'instance': DBInstance,
         'service_image': ServiceImage,
+        'user': User,
+        'credential': Credential,
+        'guest_status': GuestStatus,
+        'service_flavor': ServiceFlavor,
+        'snapshot': Snapshot
         }
 
 

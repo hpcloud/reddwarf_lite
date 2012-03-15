@@ -3,10 +3,13 @@ vagrant/
 .idea
 reddwarf_test.sqlite
 .venv
+.project
+.pydevproject
 run_tests.log
 guest-agent-files.txt
 reddwarf.egg*
 reddwarf/vcsversion.py
+bin/reddwarf.conf
 *py*.egg
 .coverage
 covhtml/
