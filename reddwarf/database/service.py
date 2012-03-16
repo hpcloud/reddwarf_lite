@@ -75,7 +75,8 @@ class InstanceController(BaseController):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
-        servers = models.DBInstance(context=context).list()
+        servers = models.DBInstance().list()
+        LOG.debug(servers)
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
         return wsgi.Result(views.DBInstancesView(servers).list(), 200)

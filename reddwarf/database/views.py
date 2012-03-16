@@ -190,10 +190,11 @@ class DBInstancesView(object):
 
     def __init__(self, instances):
         self.instances = instances
-        LOG.debug(self.instances)
+        LOG.debug(dir(self.instances))
 
     def list(self):
         data = []
+        LOG.debug("Instances: %s" % self.instances)
         # These are model instances
         for instance in self.instances:
             LOG.debug(instance)
@@ -211,7 +212,8 @@ class SnapshotsView(object):
         data = []
         # These are model snapshots
         for snapshot in self.snapshots:
-            LOG.debug(snapshot)
+            snapshot = snapshot['instances']
+            LOG.debug("Snapshot %s" % snapshot)
             data.append(SnapshotView(snapshot)._build_list())
         LOG.debug("Returning from SnapshotsView.data()")
         return data

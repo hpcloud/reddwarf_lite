@@ -208,6 +208,10 @@ class DatabaseModelBase(ModelBase):
         """dict.update() behavior."""
         for k, v in values.iteritems():
             self[k] = v
+            
+    @classmethod
+    def list(cls):
+        return db.db_api.find_all(cls)
 
     @classmethod
     def find_by(cls, **conditions):
@@ -231,9 +235,9 @@ class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
                     'remote_hostname', 'availability_zone', 'deleted']
-    @classmethod
-    def list(cls):
-        return db.db_api.find_by(cls)
+#    @classmethod
+#    def list(cls):
+#        return db.db_api.find_by(cls)
     
     def delete(self):
         return self.update(deleted=True)
