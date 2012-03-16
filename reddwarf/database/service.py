@@ -196,7 +196,7 @@ class InstanceController(BaseController):
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
 
-        return wsgi.Result(views.DBInstanceView(instance).data(), 201)
+        return wsgi.Result(views.DBInstanceView(instance.data())._build_detailed(), 201)
 
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
