@@ -140,23 +140,44 @@ class InstanceController(BaseController):
         image_id = database['image_id']
         print context.to_dict(), image_id, body
         
-#        flavor = models.ServiceFlavor.find_by(service_name="database")
-#        flavor_id = flavor['flavor_id']
-#        
-#        storage_uri = None
+        flavor = models.ServiceFlavor.find_by(service_name="database")
+        flavor_id = flavor['flavor_id']
+        
+        storage_uri = None
 #        if 'snapshotId' in body['instance']:
 #            snapshot_id = body['instance']['snapshotId']
 #            if snapshot_id and len(snapshot_id) > 0:
+#                try:
+#                    # TODO(hub-cap): start testing the failure cases here
+#                    server = models.Snapshot(context=context, uuid=id).one()
+#                except exception.ReddwarfError, e:
+#                    # TODO(hub-cap): come up with a better way than
+#                    #    this to get the message
+#                    LOG.debug("Show() failed with an exception")
+#                    return wsgi.Result(str(e), 404)
+#
 #                db_snapshot = dbapi.db_snapshot_get(snapshot_id)
 #                storage_uri = db_snapshot.storage_uri
 #                LOG.debug("Found Storage URI for snapshot: %s" % storage_uri)
         
-        server = models.DBInstance.create().data()
+        server = self._try_create_server(context, body, image_id, flavor_id).data()
         LOG.debug("Wrote instance: %s" % server)
+        
+        instance = models.DBInstance().create(name=body['instance']['name'],
+                                     status='building',
+                                     remote_id=server['id'],
+                                     remote_uuid=server['uuid'],
+                                     remote_hostname=server['name'],
+                                     user_id=context.user,
+                                     tenant_id=context.tenant,
+                                     address='ip',
+                                     port='3306',
+                                     flavor=1)
+        #server = models.DBInstance.create().data()
 
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstanceView(server).data(), 201)
+        return wsgi.Result(views.DBInstanceView(instance).data(), 201)
 
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
@@ -177,9 +198,36 @@ class InstanceController(BaseController):
         
         return wsgi.Result(None, 200)
 
-    def _try_create_server(self):
-        pass
-    
+    def _try_create_server(self, context, body, image_id, flavor_id, snapshot_uri=None):
+        """Create remote Server """
+        try:
+            # TODO(vipulsabhaya): Create a ServiceSecgroup model
+            sec_group = ['mysql']
+
+            conf_file = '[messaging]\n'\
+                        'rabbit_host: ' + 'localhost' + '\n'\
+                        '\n'\
+                        '[database]\n'\
+                        'initial_password: ' + utils.generate_password(length=8)
+
+            LOG.debug('%s',conf_file)
+
+            files = { '/home/nova/agent.config': conf_file }
+            keypair = 'hpdefault'
+
+            server = models.Instance.create(context, body, image_id, flavor_id, 
+                                            security_groups=sec_group, key_name=keypair,
+                                            userdata=None, files=files)
+            
+            if not server:
+                raise exception.ReddwarfError("Remote server not created")
+            return server
+        except (Exception) as e:
+            LOG.error(e)
+            raise exception.ReddwarfError(e)
+
+
+
 class SnapshotController(BaseController):
     """Controller for snapshot functionality"""
 
