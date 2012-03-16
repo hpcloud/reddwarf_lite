@@ -90,7 +90,7 @@ class InstanceController(BaseController):
         LOG.debug("Context: %s" % context.to_dict())
         try:
             # TODO(hub-cap): start testing the failure cases here
-            server = models.DBInstance(context=context, id=id).data()
+            server = models.DBInstance().find_by(id=id).data()
         except exception.ReddwarfError, e:
             # TODO(hub-cap): come up with a better way than
             #    this to get the message
