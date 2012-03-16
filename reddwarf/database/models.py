@@ -209,6 +209,10 @@ class DatabaseModelBase(ModelBase):
         """dict.update() behavior."""
         for k, v in values.iteritems():
             self[k] = v
+            
+    @classmethod
+    def list(cls):
+        return db.db_api.find_by(cls)
 
     @classmethod
     def find_by(cls, **conditions):
