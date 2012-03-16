@@ -17,7 +17,7 @@
 import mox
 import logging
 import json
-import novaclient
+import novaclient.v1_1
 
 from reddwarf import tests
 from reddwarf.common import config

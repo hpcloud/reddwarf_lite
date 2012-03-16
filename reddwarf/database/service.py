@@ -136,12 +136,25 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
         print context.to_dict(), image_id, body
         
+#        flavor = models.ServiceFlavor.find_by(service_name="database")
+#        flavor_id = flavor['flavor_id']
+#        
+#        storage_uri = None
+#        if 'snapshotId' in body['instance']:
+#            snapshot_id = body['instance']['snapshotId']
+#            if snapshot_id and len(snapshot_id) > 0:
+#                db_snapshot = dbapi.db_snapshot_get(snapshot_id)
+#                storage_uri = db_snapshot.storage_uri
+#                LOG.debug("Found Storage URI for snapshot: %s" % storage_uri)
+        
         server = models.DBInstance.create().data()
         LOG.debug("Wrote instance: %s" % server)
+
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
         return wsgi.Result(views.DBInstanceView(server).data(), 201)
@@ -165,6 +178,8 @@ class InstanceController(BaseController):
         
         return wsgi.Result(None, 200)
 
+    def _try_create_server(self):
+        pass
     
 class SnapshotController(BaseController):
     """Controller for snapshot functionality"""
