@@ -193,15 +193,14 @@ class DatabaseModelBase(ModelBase):
         self['updated_at'] = utils.utcnow()
         LOG.debug("Saving %s: %s" % (self.__class__.__name__, self.__dict__))
         return db.db_api.save(self)
-    
-    @classmethod
-    def delete(cls, **conditions):
-        LOG.debug(cls)
-        LOG.debug(conditions)
-        model = cls.get_by(**conditions)
-        db.db_api.update(model, **{"deleted": "1"})
-        db.db_api.save(model)
 
+    def update(self, **values):
+        attrs = utils.exclude(values, *self._auto_generated_attrs)
+        self.merge_attributes(attrs)
+        result = self.save()
+#        self._notify_fields("update")
+        return result
+    
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
 
@@ -235,6 +234,9 @@ class DBInstance(DatabaseModelBase):
     @classmethod
     def list(cls):
         return db.db_api.find_by(cls)
+    
+    def delete(self):
+        return self.update(deleted=True)
 
 class User(DatabaseModelBase):
     _data_fields = ['name', 'enabled']
