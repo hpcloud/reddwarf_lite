@@ -52,28 +52,43 @@ class DBInstanceView(object):
     def __init__(self, instance):
         self.instance = instance
         
-    def data(self):
+    def _build_basic(self):
         LOG.debug(self.instance)
+
         return {"instance": {
-            "id": self.instance['id'],
-            "name": self.instance['name'],
             "status": self.instance['status'],
-            "remote_id": self.instance['remote_id'],
-            "remote_uuid": self.instance['remote_uuid'],
-            "remote_hostname": self.instance['remote_hostname'],
-            "user_id": self.instance['user_id'],
-            "tenant_id": self.instance['tenant_id'],
-            "credential": self.instance['credential'],
-            "address": self.instance['address'],                        
-            "port": self.instance['port'],
-            "flavor": self.instance['flavor'],
-            #"availability_zone": self._build_links(self.instance['availability_zone']),
-            "deleted": self.instance['deleted'],
+            "id": self.instance['id'],                                
+            "name": self.instance['name'],            
             "created_at": self.instance['created_at'], 
-            "updated_at": self.instance['updated_at'],
-            "deleted_at": self.instance['deleted_at'],           
             },
         } 
+ 
+    def _build_list(self):
+        LOG.debug("INSTANCE: %s" % self.instance)
+            
+        return {"instance": {
+            "status": self.instance['status'],                    
+            "name": self.instance['name'],
+            "id": self.instance['id'],            
+            "remote_hostname": self.instance['remote_hostname'],
+            "created_at": self.instance['created_at'],            
+            "credential": self.instance['credential'], 
+            },
+        }
+        
+    def _build_detailed(self):
+        LOG.debug(self.instance)
+
+        return {"instance": {
+            "status": self.instance['status'],                    
+            "name": self.instance['name'],
+            "id": self.instance['id'],            
+            "remote_hostname": self.instance['remote_hostname'],
+            "created_at": self.instance['created_at'],  
+            "port": self.instance['port'],          
+            "updated_at": self.instance['updated_at'], 
+            },
+        }         
         
     @staticmethod
     def _build_links(links):
@@ -86,6 +101,77 @@ class DBInstanceView(object):
             except Exception, err:
                 continue
         return links               
+
+    def list(self):
+        return self._build_list()
+    
+    def show(self):
+        return self._build_detailed()
+    
+    def create(self):
+        return self._build_basic()
+
+
+class SnapshotView(object):
+    
+    def __init__(self, snapshot):
+        self.snapshot = snapshot
+        
+    def _build_basic(self):
+        LOG.debug(self.snapshot)
+
+        return {"snapshot": {
+            "id": self.snapshot['id'],
+            "status": self.snapshot['status'],
+            "created_at": self.snapshot['created_at'],
+            "instanceId": self.snapshot['instance_id'],
+            # Links  
+            },
+        } 
+ 
+    def _build_list(self):
+        LOG.debug(self.snapshot)
+            
+        return {"snapshot": {
+            "id": self.snapshot['id'],
+            "created_at": self.snapshot['created_at'],
+            "instanceId": self.snapshot['instance_id'],
+            # Links  
+            },
+        }
+        
+    def _build_detailed(self):
+        LOG.debug(self.snapshot)
+
+        return {"snapshot": {
+            "id": self.snapshot['id'],
+            "status": self.snapshot['status'],
+            "created_at": self.snapshot['created_at'],
+            "instanceId": self.snapshot['instance_id'],
+            # Links  
+            },
+        }         
+        
+    @staticmethod
+    def _build_links(links):
+        """Build the links for the snapshot"""
+        LOG.debug(links)
+        for link in links:
+            LOG.debug(link)
+            try:
+                link['href'] = link['href'].replace('servers', 'snapshots')
+            except Exception, err:
+                continue
+        return links 
+    
+    def list(self):
+        return self._build_list()
+    
+    def show(self):
+        return self._build_detailed()
+    
+    def create(self):
+        return self._build_basic()
 
 class InstancesView(object):
 
@@ -106,11 +192,26 @@ class DBInstancesView(object):
         self.instances = instances
         LOG.debug(self.instances)
 
-    def data(self):
+    def list(self):
         data = []
         # These are model instances
         for instance in self.instances:
             LOG.debug(instance)
-            data.append(DBInstanceView(instance).data())
+            data.append(DBInstanceView(instance)._build_list())
         LOG.debug("Returning from DBInstancesView.data()")
+        return data
+
+class SnapshotsView(object):
+    
+    def __init__(self, snapshots):
+        self.snapshots = snapshots
+        LOG.debug(self.snapshots)
+
+    def list(self):
+        data = []
+        # These are model snapshots
+        for snapshot in self.snapshots:
+            LOG.debug(snapshot)
+            data.append(SnapshotView(snapshot)._build_list())
+        LOG.debug("Returning from SnapshotsView.data()")
         return data
