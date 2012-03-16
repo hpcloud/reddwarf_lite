@@ -195,18 +195,18 @@ class DatabaseModelBase(ModelBase):
         return db.db_api.save(self)
     
     @classmethod
-    def delete(cls):
-        pass
-    
-    @classmethod
-    def list(cls):
-        return db.db_api.find_all(cls)
+    def delete(cls, **conditions):
+        LOG.debug(cls)
+        LOG.debug(conditions)
+        model = cls.get_by(**conditions)
+        db.db_api.update(model, **{"deleted": "1"})
+        db.db_api.save(model)
 
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
 
     def merge_attributes(self, values):
-        """dict.update() behaviour."""
+        """dict.update() behavior."""
         for k, v in values.iteritems():
             self[k] = v
 
@@ -234,16 +234,7 @@ class DBInstance(DatabaseModelBase):
                     'remote_hostname', 'availability_zone', 'deleted']
     @classmethod
     def list(cls):
-        return db.db_api.find_all(cls)
- 
-class DBInstances(DBInstance):
-
-    def __init__(self, context):
-        self._data_object = self.list(DBInstance)
-
-    def __iter__(self):
-        for item in self._data_object:
-            yield item                   
+        return db.db_api.find_by(cls)
 
 class User(DatabaseModelBase):
     _data_fields = ['name', 'enabled']
@@ -269,7 +260,6 @@ class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
                     'tenant_id', 'storage_uri', 'credential', 'storage_size',
                     'deleted']
-    
     
 class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']

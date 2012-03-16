@@ -78,7 +78,7 @@ class InstanceController(BaseController):
         servers = models.DBInstance(context=context).list()
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers).data(), 200)
+        return wsgi.Result(views.DBInstancesView(servers).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -98,7 +98,7 @@ class InstanceController(BaseController):
             return wsgi.Result(str(e), 404)
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server).data(), 200)
+        return wsgi.Result(views.DBInstanceView(server).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -195,6 +195,7 @@ class InstanceController(BaseController):
 
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
+
         return wsgi.Result(views.DBInstanceView(instance).data(), 201)
 
     def restart(self, req, tenant_id, id):
@@ -269,13 +270,22 @@ class SnapshotController(BaseController):
                 if name_value[0] == 'instanceId':
                     instance_id = name_value[1]
                     break
+
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+        LOG.debug("Context: %s" % context.to_dict())
         
         if instance_id and len(instance_id) > 0:
             LOG.debug("Listing snapshots by instance_id %s", instance_id)
+            servers = models.Snapshot().find_by(instance_id=instance_id)
+            LOG.debug("Servers: %s" % servers)
+            return wsgi.Result(views.SnapshotsView(servers).list(), 200)
         else:
-            LOG.debug("Listing snapshots by tenant_id %s", tenant_id)
-        
-        return wsgi.Result(None, 200)
+            LOG.debug("Listing snapshots by tenant_id %s", tenant_id)            
+            servers = models.Snapshot().find_by(tenant_id=tenant_id)
+            LOG.debug("Servers: %s" % servers)
+            return wsgi.Result(views.SnapshotsView(servers).list(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single snapshot."""

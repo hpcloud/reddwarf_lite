@@ -36,6 +36,8 @@ def count(query, *args, **kwargs):
 
 
 def find_all(model, **conditions):
+    print "MODEL: ", model
+    print "CONDITIONS: ", conditions    
     return _query_by(model, **conditions)
 
 
@@ -69,10 +71,14 @@ def delete(model):
 
 
 def delete_all(query_func, model, **conditions):
+    print "MODEL: ", model
+    print "CONDITIONS: ", conditions
     query_func(model, **conditions).delete()
 
 
 def update(model, **values):
+    print "MODEL: ", dir(model)
+    print "VALUES: ", values
     for k, v in values.iteritems():
         model[k] = v
 
