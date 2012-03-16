@@ -31,8 +31,7 @@ from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
 
-from reddwarf.database import snapshots as snapshots
-from snapshots import SnapshotController
+
 
 CONFIG = config.Config
 LOG = logging.getLogger(__name__)
