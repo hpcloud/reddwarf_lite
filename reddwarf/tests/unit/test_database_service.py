@@ -74,7 +74,7 @@ class TestInstanceController(ControllerTestBase):
                                            self.DUMMY_INSTANCE_ID),
                                            headers={'X-Auth-Token': '123'})
 
-        self.assertEqual(response.status_int, 201)
+        self.assertEqual(response.status_int, 200)
 
     def test_index(self):
         self.mock.StubOutWithMock(models.Instances, 'data')
@@ -84,7 +84,7 @@ class TestInstanceController(ControllerTestBase):
         self.mock.ReplayAll()
         response = self.app.get("%s" % (self.instances_path),
                                            headers={'X-Auth-Token': '123'})
-        self.assertEqual(response.status_int, 201)
+        self.assertEqual(response.status_int, 200)
 
     def mock_out_client_create(self):
         """Stubs out a fake server returned from novaclient.
