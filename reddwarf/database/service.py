@@ -167,13 +167,13 @@ class InstanceController(BaseController):
     def reset_password(self, req, tenant_id, id):
         """Change the password on an instance."""
         LOG.debug("Called reset_password() with %s, %s" % (tenant_id, id))
-        password = utils.generate_password()
-        # get instance from DB
-        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
-        return rpc.call(context, instance['hostname'],
-                {"method": "reset_password",
-                 "args": {"password": password}},
-                timeout, connection_pool)
+#        password = utils.generate_password()
+#        # get instance from DB
+#        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
+#        return rpc.call(context, instance['hostname'],
+#                {"method": "reset_password",
+#                 "args": {"password": password}},
+#                timeout, connection_pool)
         
         return wsgi.Result(None, 200)
 
