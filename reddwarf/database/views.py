@@ -47,6 +47,45 @@ class InstanceView(object):
             link['href'] = link['href'].replace('servers', 'instances')
         return links
 
+class DBInstanceView(object):
+    
+    def __init__(self, instance):
+        self.instance = instance
+        
+    def data(self):
+        LOG.debug(self.instance)
+        return {"instance": {
+            "id": self.instance['id'],
+            "name": self.instance['name'],
+            "status": self.instance['status'],
+            "remote_id": self.instance['remote_id'],
+            "remote_uuid": self.instance['remote_uuid'],
+            "remote_hostname": self.instance['remote_hostname'],
+            "user_id": self.instance['user_id'],
+            "tenant_id": self.instance['tenant_id'],
+            "credential": self.instance['credential'],
+            "address": self.instance['address'],                        
+            "port": self.instance['port'],
+            "flavor": self.instance['flavor'],
+            #"availability_zone": self._build_links(self.instance['availability_zone']),
+            "deleted": self.instance['deleted'],
+            "created_at": self.instance['created_at'], 
+            "updated_at": self.instance['updated_at'],
+            "deleted_at": self.instance['deleted_at'],           
+            },
+        } 
+        
+    @staticmethod
+    def _build_links(links):
+        """Build the links for the instance"""
+        LOG.debug(links)
+        for link in links:
+            LOG.debug(link)
+            try:
+                link['href'] = link['href'].replace('servers', 'instances')
+            except Exception, err:
+                continue
+        return links               
 
 class InstancesView(object):
 
@@ -59,4 +98,19 @@ class InstancesView(object):
         for instance in self.instances:
             data.append(InstanceView(instance).data())
         LOG.debug("Returning from InstancesView.data()")
+        return data
+    
+class DBInstancesView(object):
+
+    def __init__(self, instances):
+        self.instances = instances
+        LOG.debug(self.instances)
+
+    def data(self):
+        data = []
+        # These are model instances
+        for instance in self.instances:
+            LOG.debug(instance)
+            data.append(DBInstanceView(instance).data())
+        LOG.debug("Returning from DBInstancesView.data()")
         return data

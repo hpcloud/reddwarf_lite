@@ -171,8 +171,12 @@ class DatabaseModelBase(ModelBase):
     @classmethod
     def create(cls, **values):
         values['id'] = utils.generate_uuid()
-        print values
         values['created_at'] = utils.utcnow()
+#        values['remote_hostname'] = None
+#        values['tenant_id'] = "12345"
+#        values['availability_zone'] = "1"
+#        values['deleted'] = "0"
+#        values['updated_at'] = "1"
         instance = cls(**values).save()
 #        instance._notify_fields("create")
         return instance
@@ -185,6 +189,14 @@ class DatabaseModelBase(ModelBase):
         self['updated_at'] = utils.utcnow()
         LOG.debug("Saving %s: %s" % (self.__class__.__name__, self.__dict__))
         return db.db_api.save(self)
+    
+    @classmethod
+    def delete(cls):
+        pass
+    
+    @classmethod
+    def list(cls):
+        return db.db_api.find_all(cls)
 
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
@@ -196,6 +208,7 @@ class DatabaseModelBase(ModelBase):
 
     @classmethod
     def find_by(cls, **conditions):
+        LOG.debug("CLS: %s" % conditions)
         model = cls.get_by(**conditions)
         if model == None:
             raise ModelNotFoundError(_("%s Not Found") % cls.__name__)
@@ -213,8 +226,20 @@ class DatabaseModelBase(ModelBase):
 
 class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
-                    'credential', 'address', 'port', 'flavor']
-                    
+                    'tenant_id', 'credential', 'address', 'port', 'flavor', 
+                    'remote_hostname', 'availability_zone', 'deleted']
+    @classmethod
+    def list(cls):
+        return db.db_api.find_all(cls)
+ 
+class DBInstances(DBInstance):
+
+    def __init__(self, context):
+        self._data_object = self.list(DBInstance)
+
+    def __iter__(self):
+        for item in self._data_object:
+            yield item                   
 
 class User(DatabaseModelBase):
     _data_fields = ['name', 'enabled']
@@ -238,7 +263,8 @@ class ServiceFlavor(DatabaseModelBase):
 
 class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
-                    'tenant_id', 'storage_uri', 'credential', 'storage_size']
+                    'tenant_id', 'storage_uri', 'credential', 'storage_size',
+                    'deleted']
     
     
 class Quota(DatabaseModelBase):

@@ -23,6 +23,7 @@ import routes
 import webob.exc
 
 from reddwarf import rpc
+from reddwarf import utils
 from reddwarf.common import config
 from reddwarf.common import context as rd_context
 from reddwarf.common import exception
@@ -30,7 +31,6 @@ from reddwarf.common import utils
 from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
-
 
 
 CONFIG = config.Config
@@ -75,11 +75,11 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
-        LOG.debug("Context: %s" % dir(context))
-        servers = models.Instances(context).data()
+        LOG.debug("Context: %s" % context.to_dict())
+        servers = models.DBInstance(context=context).list()
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.InstancesView(servers).data(), 200)
+        return wsgi.Result(views.DBInstancesView(servers).data(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -88,10 +88,10 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
-        LOG.debug("Context: %s" % dir(context))
+        LOG.debug("Context: %s" % context.to_dict())
         try:
             # TODO(hub-cap): start testing the failure cases here
-            server = models.Instance(context=context, uuid=id).data()
+            server = models.DBInstance(context=context, uuid=id).data()
         except exception.ReddwarfError, e:
             # TODO(hub-cap): come up with a better way than
             #    this to get the message
@@ -99,7 +99,7 @@ class InstanceController(BaseController):
             return wsgi.Result(str(e), 404)
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.InstanceView(server).data(), 200)
+        return wsgi.Result(views.DBInstanceView(server).data(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -110,7 +110,7 @@ class InstanceController(BaseController):
                           tenant=tenant_id)
         LOG.debug("Delete() context")
         # TODO(cp16net) : need to handle exceptions here if the delete fails
-        models.Instance.delete(context=context, uuid=id)
+        models.DBInstance.delete(context=context, uuid=id)
 
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Returning value")
@@ -138,13 +138,13 @@ class InstanceController(BaseController):
                           tenant=tenant_id)
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
-        server = models.Instance.create(context,
-                                        image_id,
-                                        body).data()
-
+        print context.to_dict(), image_id, body
+        
+        server = models.DBInstance.create().data()
+        LOG.debug("Wrote instance: %s" % server)
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.InstanceView(server).data(), 201)
+        return wsgi.Result(views.DBInstanceView(server).data(), 201)
 
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
@@ -155,6 +155,13 @@ class InstanceController(BaseController):
     def reset_password(self, req, tenant_id, id):
         """Change the password on an instance."""
         LOG.debug("Called reset_password() with %s, %s" % (tenant_id, id))
+        password = utils.generate_password()
+        # get instance from DB
+        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
+        return rpc.call(context, instance['hostname'],
+                {"method": "reset_password",
+                 "args": {"password": password}},
+                timeout, connection_pool)
         
         return wsgi.Result(None, 200)
 
@@ -199,7 +206,15 @@ class SnapshotController(BaseController):
     def create(self, req, body, tenant_id):
         """Creates a snapshot."""
         LOG.debug("Snapshots.create() called with %s, %s" % (tenant_id, id))
-        LOG.debug("Creating snapshot")
+        LOG.info("Creating a database snapshot for tenant '%s'" % tenant_id)
+        LOG.info("req : '%s'\n\n" % req)
+        LOG.info("body : '%s'\n\n" % body)
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+        
+        server = models.Snapshot.create().data()
+        LOG.debug("Wrote snapshot: %s" % server)        
         return wsgi.Result(None, 201)
             
 

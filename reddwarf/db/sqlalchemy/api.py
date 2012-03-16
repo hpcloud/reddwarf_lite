@@ -46,6 +46,7 @@ def find_all_by_limit(query_func, model, conditions, limit, marker=None,
 
 
 def find_by(model, **kwargs):
+    print "FIND_BY: ", model, kwargs
     return _query_by(model, **kwargs).first()
 
 
@@ -122,6 +123,8 @@ def _base_query(cls):
 
 def _query_by(cls, **conditions):
     query = _base_query(cls)
+    print "QUERY: ", query
+    print "conditions: ", conditions
     if conditions:
         query = query.filter_by(**conditions)
     return query
