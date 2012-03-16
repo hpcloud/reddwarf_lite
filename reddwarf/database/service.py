@@ -70,21 +70,20 @@ class InstanceController(BaseController):
 
     def index(self, req, tenant_id):
         """Return all instances."""
-        LOG.debug("Show() called with req: %s" % req)
-        LOG.debug("Show() called with tenant_id: %s" % tenant_id)        
+        LOG.debug("Index() called with %s, %s" % (tenant_id, id))  
         # TODO(hub-cap): turn this into middleware
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        LOG.debug("Context: %s" % dir(context))
         servers = models.Instances(context).data()
+        LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.InstancesView(servers).data(), 201)
+        return wsgi.Result(views.InstancesView(servers).data(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
-        LOG.debug("Show() called with req: %s" % req)
-        LOG.debug("Show() called with tenant_id: %s" % tenant_id)
-        LOG.debug("Show() called with id: %s" % id)
+        LOG.debug("Show() called with %s, %s" % (tenant_id, id))
         # TODO(hub-cap): turn this into middleware
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
@@ -100,19 +99,22 @@ class InstanceController(BaseController):
             return wsgi.Result(str(e), 404)
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.InstanceView(server).data(), 201)
+        return wsgi.Result(views.InstanceView(server).data(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
+        LOG.debug("Delete() called with %s, %s" % (tenant_id, id))
         # TODO(hub-cap): turn this into middleware
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        LOG.debug("Delete() context")
         # TODO(cp16net) : need to handle exceptions here if the delete fails
         models.Instance.delete(context=context, uuid=id)
 
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(202)
+        LOG.debug("Returning value")
+        return wsgi.Result(None, 204)
 
     def create(self, req, body, tenant_id):
         
@@ -161,13 +163,13 @@ class InstanceController(BaseController):
         """Restart an instance."""
         LOG.debug("Called restart() with %s, %s" % (tenant_id, id))
         
-        return wsgi.Result(204)
+        return wsgi.Result(None, 204)
     
     def reset_password(self, req, tenant_id, id):
         """Change the password on an instance."""
         LOG.debug("Called reset_password() with %s, %s" % (tenant_id, id))
         
-        return wsgi.Result(200)
+        return wsgi.Result(None, 200)
 
     def _try_create_server(self):
         pass
@@ -179,7 +181,7 @@ class SnapshotController(BaseController):
         """Return a list of all snapshots for all instances."""
         LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
         LOG.debug("Showing all snapshots")
-        return wsgi.Result(200)
+        return wsgi.Result(None, 200)
 
     def index(self, req, tenant_id):
         """Return a list of all snapshots for a specific instance."""
@@ -201,19 +203,19 @@ class SnapshotController(BaseController):
         else:
             LOG.debug("Listing snapshots by tenant_id %s", tenant_id)
         
-        return wsgi.Result(200)
+        return wsgi.Result(None, 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single snapshot."""
         LOG.debug("Snapshots.delete() called with %s, %s" % (tenant_id, id))
         LOG.debug("Deleting snapshot")
-        return wsgi.Result(204)
+        return wsgi.Result(None, 204)
 
     def create(self, req, body, tenant_id):
         """Creates a snapshot."""
         LOG.debug("Snapshots.create() called with %s, %s" % (tenant_id, id))
         LOG.debug("Creating snapshot")
-        return wsgi.Result(201)
+        return wsgi.Result(None, 201)
             
 
 class API(wsgi.Router):

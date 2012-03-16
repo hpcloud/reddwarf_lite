@@ -15,6 +15,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import logging
+
+logging.basicConfig()
+
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
 
 class InstanceView(object):
 
@@ -52,5 +58,5 @@ class InstancesView(object):
         # These are model instances
         for instance in self.instances:
             data.append(InstanceView(instance).data())
-
+        LOG.debug("Returning from InstancesView.data()")
         return data
