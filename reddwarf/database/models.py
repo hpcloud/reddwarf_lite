@@ -118,7 +118,7 @@ class RemoteModelBase(ModelBase):
 class Instance(RemoteModelBase):
 
     _data_fields = ['name', 'status', 'id', 'created', 'updated',
-                    'flavor', 'links', 'addresses']
+                    'flavor', 'links', 'addresses', 'uuid']
 
     def __init__(self, server=None, context=None, uuid=None):
         if server is None and context is None and uuid is None:
@@ -145,13 +145,17 @@ class Instance(RemoteModelBase):
             raise rd_exceptions.ReddwarfError()
 
     @classmethod
-    def create(cls, context, image_id, body):
+    def create(cls, context, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
         # self.is_valid()
         LOG.info("instance body : '%s'\n\n" % body)
         flavorRef = body['instance']['flavorRef']
         srv = cls.get_client(context).servers.create(body['instance']['name'],
                                                      image_id,
-                                                     flavorRef)
+                                                     flavorRef,
+                                                     files=files, 
+                                                     key_name=key_name, 
+                                                     security_groups=security_groups, 
+                                                     userdata=userdata)
         return Instance(server=srv)
 
 
