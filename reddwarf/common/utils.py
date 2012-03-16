@@ -53,6 +53,22 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
+# Default symbols to use for passwords. Avoids visually confusing characters.
+# ~6 bits per symbol
+VALID_SYMBOLS = ('23456789'  # Removed: 0,1
+                 'ABCDEFGHJKLMNPQRSTUVWXYZ'  # Removed: I, O
+                 'abcdefghijkmnopqrstuvwxyz')  # Removed: l 
+
+def generate_password(length=20, symbols=VALID_SYMBOLS):
+    """Generate a random password from the supplied symbols.
+
+    Believed to be reasonably secure (with a reasonable password length!)
+
+    """
+    r = random.SystemRandom()
+    return ''.join([r.choice(symbols) for _i in xrange(length)])
+
+
 def utcnow():
     return datetime.datetime.utcnow()
 

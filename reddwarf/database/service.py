@@ -23,7 +23,6 @@ import routes
 import webob.exc
 
 from reddwarf import rpc
-from reddwarf import utils
 from reddwarf.common import config
 from reddwarf.common import context as rd_context
 from reddwarf.common import exception
