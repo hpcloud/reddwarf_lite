@@ -90,7 +90,7 @@ class InstanceController(BaseController):
         LOG.debug("Context: %s" % context.to_dict())
         try:
             # TODO(hub-cap): start testing the failure cases here
-            server = models.DBInstance(context=context, uuid=id).data()
+            server = models.DBInstance(context=context, id=id).data()
         except exception.ReddwarfError, e:
             # TODO(hub-cap): come up with a better way than
             #    this to get the message
@@ -107,10 +107,29 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
-        LOG.debug("Delete() context")
-        # TODO(cp16net) : need to handle exceptions here if the delete fails
-        models.DBInstance.delete(context=context, uuid=id)
-
+        LOG.debug("Delete() context")                   
+        
+        try:
+            server = models.DBInstance().find_by(id=id)
+        except exception.ReddwarfError, e:
+            LOG.debug("Fail fetching instance")
+            return wsgi.Result(None,404)
+        
+        remote_id = server.data()["remote_id"]
+        try:
+            LOG.debug("Deleting remote instance with id %s" % remote_id)
+            # TODO(cp16net) : need to handle exceptions here if the delete fails
+            models.Instance.delete(context, remote_id)
+        except exception.ReddwarfError:
+            LOG.debug("Fail Deleting Remote instance")
+            return wsgi.Result(None,404)
+    
+        try:
+            server = models.DBInstance().find_by(id=id).delete()
+        except exception.ReddwarfError, e:
+            LOG.debug("Fail to delete DB instance")
+            return wsgi.Result(None,500)
+        
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Returning value")
         return wsgi.Result(None, 204)
@@ -173,7 +192,6 @@ class InstanceController(BaseController):
                                      address='ip',
                                      port='3306',
                                      flavor=1)
-        #server = models.DBInstance.create().data()
 
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
