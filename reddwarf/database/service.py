@@ -255,7 +255,15 @@ class SnapshotController(BaseController):
         """Return a list of all snapshots for all instances."""
         LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
         LOG.debug("Showing all snapshots")
-        return wsgi.Result(None, 200)
+        
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+        LOG.debug("Context: %s" % context.to_dict())
+        
+        server = models.Snapshot().find_by(id=id)
+        LOG.debug("Servers: %s" % server)       
+        return wsgi.Result(views.SnapshotView(server).list(), 200)
 
     def index(self, req, tenant_id):
         """Return a list of all snapshots for a specific instance."""
@@ -279,12 +287,12 @@ class SnapshotController(BaseController):
         
         if instance_id and len(instance_id) > 0:
             LOG.debug("Listing snapshots by instance_id %s", instance_id)
-            servers = models.Snapshot().find_by(instance_id=instance_id)
+            servers = models.Snapshot().list_by_instance(instance_id)
             LOG.debug("Servers: %s" % servers)
             return wsgi.Result(views.SnapshotsView(servers).list(), 200)
         else:
             LOG.debug("Listing snapshots by tenant_id %s", tenant_id)            
-            servers = models.Snapshot().find_by(tenant_id=tenant_id)
+            servers = models.Snapshot().list_by_tenant(tenant_id)
             LOG.debug("Servers: %s" % servers)
             return wsgi.Result(views.SnapshotsView(servers).list(), 200)
 
@@ -292,6 +300,26 @@ class SnapshotController(BaseController):
         """Delete a single snapshot."""
         LOG.debug("Snapshots.delete() called with %s, %s" % (tenant_id, id))
         LOG.debug("Deleting snapshot")
+        
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+        LOG.debug("Delete() context") 
+        
+        try:
+            snapshot = models.Snapshot().find_by(id=id)
+        except exception.ReddwarfError, e:
+            LOG.debug("Fail fetching instance")
+            return wsgi.Result(None,404)
+    
+        try:
+            server = models.Snapshot().find_by(id=id).delete()
+        except exception.ReddwarfError, e:
+            LOG.debug("Fail to delete DB instance")
+            return wsgi.Result(None,500)
+        
+        # TODO(cp16net): need to set the return code correctly
+        LOG.debug("Returning value")              
         return wsgi.Result(None, 204)
 
     def create(self, req, body, tenant_id):
@@ -303,9 +331,13 @@ class SnapshotController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
-        
-        server = models.Snapshot.create().data()
-        LOG.debug("Wrote snapshot: %s" % server)        
+        LOG.debug("Context: %s" % context.to_dict())
+        snapshot = models.Snapshot().create(name=body['snapshot']['name'],
+                                     instance_id=body['snapshot']['instanceId'],
+                                     state='building',
+                                     user_id=context.user,
+                                     tenant_id=context.tenant)
+        LOG.debug("Wrote snapshot: %s" % snapshot)        
         return wsgi.Result(None, 201)
             
 

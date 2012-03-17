@@ -201,6 +201,9 @@ class DatabaseModelBase(ModelBase):
 #        self._notify_fields("update")
         return result
     
+    def delete(self):
+        return self.update(deleted=True)
+    
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
 
@@ -235,12 +238,6 @@ class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
                     'remote_hostname', 'availability_zone', 'deleted']
-#    @classmethod
-#    def list(cls):
-#        return db.db_api.find_by(cls)
-    
-    def delete(self):
-        return self.update(deleted=True)
 
 class User(DatabaseModelBase):
     _data_fields = ['name', 'enabled']
@@ -266,6 +263,14 @@ class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
                     'tenant_id', 'storage_uri', 'credential', 'storage_size',
                     'deleted']
+    
+    @classmethod
+    def list_by_tenant(cls, tenant_id):
+        return db.db_api.find_all(cls, **{"tenant_id": tenant_id})
+
+    @classmethod
+    def list_by_instance(cls, instance_id):
+        return db.db_api.find_all(cls, **{"instance_id": instance_id})
     
 class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']

@@ -210,9 +210,9 @@ class SnapshotsView(object):
 
     def list(self):
         data = []
+        LOG.debug("Snapshot: %s" % self.snapshots)
         # These are model snapshots
         for snapshot in self.snapshots:
-            snapshot = snapshot['instances']
             LOG.debug("Snapshot %s" % snapshot)
             data.append(SnapshotView(snapshot)._build_list())
         LOG.debug("Returning from SnapshotsView.data()")
