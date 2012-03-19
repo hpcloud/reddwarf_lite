@@ -29,14 +29,14 @@ class InstanceView(object):
 
     def data(self):
         return {"instance": {
-            "id": self.instance['id'],
-            "name": self.instance['name'],
-            "status": self.instance['status'],
-            "created": self.instance['created'],
-            "updated": self.instance['updated'],
-            "flavor": self.instance['flavor'],
-            "links": self._build_links(self.instance['links']),
-            "addresses": self.instance['addresses'],
+                    "id": self.instance['id'],
+                    "name": self.instance['name'],
+                    "status": self.instance['status'],
+                    "created": self.instance['created'],
+                    "updated": self.instance['updated'],
+                    "flavor": self.instance['flavor'],
+                    "links": self._build_links(self.instance['links']),
+                    "addresses": self.instance['addresses'],
             },
         }
 
@@ -52,42 +52,44 @@ class DBInstanceView(object):
     def __init__(self, instance):
         self.instance = instance
         
-    def _build_basic(self):
+    def _build_create(self):
         LOG.debug(self.instance)
 
         return {"instance": {
-            "status": self.instance['status'],
-            "id": self.instance['id'],                                
-            "name": self.instance['name'],            
-            "created_at": self.instance['created_at'], 
-            },
+                    "status": self.instance['status'], 
+                    # links                               
+                    "name": self.instance['name'],
+                    "id": self.instance['id'],                        
+                    "remote_hostname": self.instance['remote_hostname'],
+                    "created_at": self.instance['created_at'],            
+                    "credential": self.instance['credential'],
+                } 
         } 
  
     def _build_list(self):
         LOG.debug("INSTANCE: %s" % self.instance)
             
-        return {"instance": {
-            "status": self.instance['status'],                    
-            "name": self.instance['name'],
-            "id": self.instance['id'],            
-            "remote_hostname": self.instance['remote_hostname'],
-            "created_at": self.instance['created_at'],            
-            "credential": self.instance['credential'], 
-            },
+        # TODO: add links to each view, fix 'instances' on list/aggregation
+        return {"status": self.instance['status'],                    
+                "id": self.instance['id'],                
+                # links        
+                "name": self.instance['name'],
+                "created_at": self.instance['created_at'],                
         }
         
-    def _build_detailed(self):
+    def _build_show(self):
         LOG.debug(self.instance)
 
         return {"instance": {
-            "status": self.instance['status'],                    
-            "name": self.instance['name'],
-            "id": self.instance['id'],            
-            "remote_hostname": self.instance['remote_hostname'],
-            "created_at": self.instance['created_at'],  
-            "port": self.instance['port'],          
-            "updated_at": self.instance['updated_at'], 
-            },
+                    "status": self.instance['status'],    
+                    # links                
+                    "name": self.instance['name'],
+                    "id": self.instance['id'],            
+                    "remote_hostname": self.instance['remote_hostname'],
+                    "created_at": self.instance['created_at'],  
+                    "port": self.instance['port'],          
+                    "updated_at": self.instance['updated_at'],
+                } 
         }         
         
     @staticmethod
@@ -106,10 +108,10 @@ class DBInstanceView(object):
         return self._build_list()
     
     def show(self):
-        return self._build_detailed()
+        return self._build_show()
     
     def create(self):
-        return self._build_basic()
+        return self._build_create()
 
 
 class SnapshotView(object):
@@ -117,7 +119,7 @@ class SnapshotView(object):
     def __init__(self, snapshot):
         self.snapshot = snapshot
         
-    def _build_basic(self):
+    def _build_create(self):
         LOG.debug(self.snapshot)
 
         return {"snapshot": {
@@ -132,15 +134,13 @@ class SnapshotView(object):
     def _build_list(self):
         LOG.debug(self.snapshot)
             
-        return {"snapshot": {
-            "id": self.snapshot['id'],
-            "created_at": self.snapshot['created_at'],
-            "instanceId": self.snapshot['instance_id'],
-            # Links  
-            },
+        return {"id": self.snapshot['id'],
+                "created_at": self.snapshot['created_at'],
+                "instanceId": self.snapshot['instance_id'],
+                # Links  
         }
         
-    def _build_detailed(self):
+    def _build_show(self):
         LOG.debug(self.snapshot)
 
         return {"snapshot": {
@@ -168,10 +168,10 @@ class SnapshotView(object):
         return self._build_list()
     
     def show(self):
-        return self._build_detailed()
+        return self._build_show()
     
     def create(self):
-        return self._build_basic()
+        return self._build_create()
 
 class InstancesView(object):
 
@@ -198,9 +198,9 @@ class DBInstancesView(object):
         # These are model instances
         for instance in self.instances:
             LOG.debug(instance)
-            data.append(DBInstanceView(instance)._build_list())
+            data.append(DBInstanceView(instance).list())
         LOG.debug("Returning from DBInstancesView.data()")
-        return data
+        return {"instances": data}
 
 class SnapshotsView(object):
     
@@ -214,6 +214,6 @@ class SnapshotsView(object):
         # These are model snapshots
         for snapshot in self.snapshots:
             LOG.debug("Snapshot %s" % snapshot)
-            data.append(SnapshotView(snapshot)._build_list())
+            data.append(SnapshotView(snapshot).list())
         LOG.debug("Returning from SnapshotsView.data()")
-        return data
+        return {"snapshots" : data}

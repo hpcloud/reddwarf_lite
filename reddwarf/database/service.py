@@ -197,7 +197,7 @@ class InstanceController(BaseController):
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
 
-        return wsgi.Result(views.DBInstanceView(instance.data())._build_detailed(), 201)
+        return wsgi.Result(views.DBInstanceView(instance.data()).create(), 201)
 
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
@@ -252,7 +252,7 @@ class SnapshotController(BaseController):
     """Controller for snapshot functionality"""
 
     def show(self, req, tenant_id, id):
-        """Return a list of all snapshots for all instances."""
+        """Return information about a specific snapshot."""
         LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
         LOG.debug("Showing all snapshots")
         
@@ -263,10 +263,10 @@ class SnapshotController(BaseController):
         
         server = models.Snapshot().find_by(id=id)
         LOG.debug("Servers: %s" % server)       
-        return wsgi.Result(views.SnapshotView(server).list(), 200)
+        return wsgi.Result(views.SnapshotView(server).show(), 200)
 
     def index(self, req, tenant_id):
-        """Return a list of all snapshots for a specific instance."""
+        """Return a list of all snapshots for a specific instance or tenant."""
         LOG.debug("Snapshots.index() called with %s, %s" % (tenant_id, id))
 
         instance_id = ''
