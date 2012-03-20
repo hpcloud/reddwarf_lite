@@ -25,6 +25,7 @@ from reddwarf.common import utils
 from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import service
+from reddwarf.database import views
 from reddwarf.tests import unit
 
 import unittest
@@ -54,6 +55,7 @@ class TestInstanceController(ControllerTestBase):
     "port": "12345",
     "flavor": {},
     "links": [],
+    "credential": "credential",
     "addresses": {}}
     
     DUMMY_SERVER = {
@@ -133,7 +135,6 @@ class TestInstanceController(ControllerTestBase):
         models.RemoteModelBase.get_client(mox.IgnoreArg()).AndReturn(client)
 
     def test_create(self):
-        return
         self.ServiceImage = {"image_id": "image"}
         self.ServiceFlavor = {"flavor_id": "flavor"}
         body = {
@@ -162,31 +163,25 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         service.InstanceController._try_create_server(mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(mock_server)
-#        self.mock.StubOutWithMock(mock_server, "__init__")
-#        mock_server.__init__()
-        # return a dummy server here intstead, yeah?
+        
         self.mock.StubOutWithMock(mock_server, 'data')
-        mock_server.data().AndReturn(self.DUMMY_SERVER)
+        mock_server.data().AndReturn(self.DUMMY_SERVER)       
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
         models.DBInstance.create(address='ip', port='3306', flavor=1,
-                name=self.DUMMY_INSTANCE['name'],
+                name=body['instance']['name'],
                 status='building',
                 remote_id=self.DUMMY_SERVER['id'],
                 remote_uuid=self.DUMMY_SERVER['uuid'],
                 remote_hostname=self.DUMMY_SERVER['name'],
                 user_id=None,
-                tenant_id='tenant')           
-        
-#        self.mock.StubOutWithMock(models.DBInstance, 'data')
-#        models.DBInstance.data().AndReturn(self.DUMMY_INSTANCE)
-        
-#        self.mock.StubOutWithMock(models.DBInstance, '__init__')
-#        models.DBInstance.__init__(context=mox.IgnoreArg(), uuid=mox.IgnoreArg())
+                tenant_id='tenant').AndReturn(models.DBInstance())  
 
+        self.mock.StubOutWithMock(models.DBInstance, 'data')
+        models.DBInstance.data().AndReturn(self.DUMMY_INSTANCE)
+                 
         #self.mock_out_client_create()
         self.mock.ReplayAll()
-
 
         response = self.app.post_json("%s" % (self.instances_path), body=body,
                                            headers={'X-Auth-Token': '123'},
