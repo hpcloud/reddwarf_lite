@@ -590,6 +590,13 @@ class Connection(object):
         responses for call/multicall
         """
         self.declare_consumer(DirectConsumer, topic, callback)
+        
+    def declare_passive_consumer(self, topic, callback):
+        """Create a 'passive' queue.
+        In reddwarf's use, this is generally a direct queue used for
+        passively listening on phone home message from remote agents
+        """
+        self.declare_consumer(PassiveConsumer, topic, callback)        
 
     def declare_topic_consumer(self, topic, callback=None):
         """Create a 'topic' consumer."""
@@ -692,3 +699,46 @@ def notify(context, topic, msg):
 
 def cleanup():
     return rpc_amqp.cleanup(Connection.pool)
+
+
+def listen(exchange, msg_handler):
+    """Passively listen on direct exchange for phone home messages."""
+    conn = ConnectionContext()
+    wait_msg = PassiveWaiter(conn, msg_handler)
+    conn.declare_passive_consumer(exchange, wait_msg)
+    list(wait_msg)
+    return wait_msg
+
+
+class PassiveWaiter(object):
+    """Passively wait on the channel for multiple messages."""
+    def __init__(self, connection, msg_handler):
+        self._connection = connection
+        self._msg_handler = msg_handler
+        self._iterator = connection.iterconsume()
+        self._done = False
+
+    def done(self):
+        self._done = True
+        self._iterator.close()
+        self._iterator = None
+        self._connection.close()
+
+    def __call__(self, data):
+        """The consume() callback will call this.  Store the result."""
+        LOG.debug(_('rpc.listen raw data received: %r') % (data,))
+        message = data
+        try:
+            message = ast.literal_eval(data)
+        except Exception:
+            LOG.exception('Invalid string received from message.')
+            pass
+        # pass the message dictionary to message handler class
+        self._msg_handler(message)
+
+    def __iter__(self):
+        """Keep consuming incoming messages"""
+        if self._done:
+            raise StopIteration
+        while True:
+            self._iterator.next()

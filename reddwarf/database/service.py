@@ -26,10 +26,12 @@ from reddwarf import rpc
 from reddwarf.common import config
 from reddwarf.common import context as rd_context
 from reddwarf.common import exception
+from reddwarf.common import result_state
 from reddwarf.common import utils
 from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
+from reddwarf.database import guest
 
 
 CONFIG = config.Config
@@ -91,7 +93,7 @@ class InstanceController(BaseController):
         LOG.debug("Context: %s" % context.to_dict())
         try:
             # TODO(hub-cap): start testing the failure cases here
-            server = models.DBInstance().find_by(id=id).data()
+            server = models.DBInstance().find_by(id=id)
         except exception.ReddwarfError, e:
             # TODO(hub-cap): come up with a better way than
             #    this to get the message
@@ -206,15 +208,18 @@ class InstanceController(BaseController):
         return wsgi.Result(None, 204)
     
     def reset_password(self, req, tenant_id, id):
-        """Change the password on an instance."""
-        LOG.debug("Called reset_password() with %s, %s" % (tenant_id, id))
+        """Resets DB password on remote instance"""
+        LOG.info("Resets DB password on Instance %s", id)
 #        password = utils.generate_password()
-#        # get instance from DB
-#        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
-#        return rpc.call(context, instance['hostname'],
-#                {"method": "reset_password",
-#                 "args": {"password": password}},
-#                timeout, connection_pool)
+#        context = req.environ['nova.context']
+#        result = self.guest_api.reset_password(context, id, password)
+#        if result == result_state.ResultState.SUCCESS:
+#            return {'password': password}
+#        else:
+#            LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
+#                result_state.ResultState.name(result))
+#            return exc.HTTPInternalServerError("Smart Agent failed to reset password.")
+
         
         return wsgi.Result(None, 200)
 
@@ -256,10 +261,10 @@ class SnapshotController(BaseController):
         LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
         LOG.debug("Showing all snapshots")
         
-        context = rd_context.ReddwarfContext(
-                          auth_tok=req.headers["X-Auth-Token"],
-                          tenant=tenant_id)
-        LOG.debug("Context: %s" % context.to_dict())
+#        context = rd_context.ReddwarfContext(
+#                          auth_tok=req.headers["X-Auth-Token"],
+#                          tenant=tenant_id)
+#        LOG.debug("Context: %s" % context.to_dict())
         
         server = models.Snapshot().find_by(id=id)
         LOG.debug("Servers: %s" % server)       

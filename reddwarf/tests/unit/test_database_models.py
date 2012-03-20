@@ -43,6 +43,7 @@ class TestInstance(tests.BaseTest):
         self.FAKE_SERVER.updated = utils.utcnow()
         self.FAKE_SERVER.created = utils.utcnow()
         self.FAKE_SERVER.id = utils.generate_uuid()
+        self.FAKE_SERVER.uuid = self.FAKE_SERVER.id
         self.FAKE_SERVER.flavor = ('http://localhost/1234/flavors/',
                                    '52415800-8b69-11e0-9b19-734f1195ff37')
         self.FAKE_SERVER.links = [{
@@ -83,6 +84,7 @@ class TestInstance(tests.BaseTest):
         self.assertEqual(instance['updated'], self.FAKE_SERVER.updated)
         self.assertEqual(instance['created'], self.FAKE_SERVER.created)
         self.assertEqual(instance['id'], self.FAKE_SERVER.id)
+        self.assertEqual(instance['uuid'], self.FAKE_SERVER.uuid)        
         self.assertEqual(instance['flavor'], self.FAKE_SERVER.flavor)
         self.assertEqual(instance['links'], self.FAKE_SERVER.links)
         self.assertEqual(instance['addresses'], self.FAKE_SERVER.addresses)

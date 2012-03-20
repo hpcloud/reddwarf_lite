@@ -35,7 +35,7 @@ class InstanceView(object):
                     "created": self.instance['created'],
                     "updated": self.instance['updated'],
                     "flavor": self.instance['flavor'],
-                    "links": self._build_links(self.instance['links']),
+#                    "links": self._build_links(self.instance['links']),
                     "addresses": self.instance['addresses'],
             },
         }
@@ -57,7 +57,7 @@ class DBInstanceView(object):
 
         return {"instance": {
                     "status": self.instance['status'], 
-                    # links                               
+                    "links": self._build_links(self.instance['links']),    
                     "name": self.instance['name'],
                     "id": self.instance['id'],                        
                     "remote_hostname": self.instance['remote_hostname'],
