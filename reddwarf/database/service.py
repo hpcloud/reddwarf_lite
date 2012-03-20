@@ -344,7 +344,7 @@ class SnapshotController(BaseController):
                                      tenant_id=context.tenant)
         LOG.debug("Wrote snapshot: %s" % snapshot)        
         return wsgi.Result(None, 201)
-            
+                 
 
 class API(wsgi.Router):
     """API"""
@@ -369,7 +369,7 @@ class API(wsgi.Router):
         snapshot_resource = SnapshotController().create_resource()
         path = "/{tenant_id}/snapshots"
         mapper.resource("snapshot", path, controller=snapshot_resource)
-    
+
 
 def app_factory(global_conf, **local_conf):
     return API()
