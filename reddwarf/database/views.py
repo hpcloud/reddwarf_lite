@@ -57,7 +57,7 @@ class DBInstanceView(object):
 
         return {"instance": {
                     "status": self.instance['status'], 
-                    "links": self._build_links(self.instance['links']),    
+#                    "links": self._build_links(self.instance['links']),    
                     "name": self.instance['name'],
                     "id": self.instance['id'],                        
                     "remote_hostname": self.instance['remote_hostname'],
@@ -72,7 +72,7 @@ class DBInstanceView(object):
         # TODO: add links to each view, fix 'instances' on list/aggregation
         return {"status": self.instance['status'],                    
                 "id": self.instance['id'],                
-                # links        
+#                "links": self._build_links(self.instance['links']),       
                 "name": self.instance['name'],
                 "created_at": self.instance['created_at'],                
         }
@@ -82,7 +82,7 @@ class DBInstanceView(object):
 
         return {"instance": {
                     "status": self.instance['status'],    
-                    # links                
+#                    "links": self._build_links(self.instance['links']),                
                     "name": self.instance['name'],
                     "id": self.instance['id'],            
                     "remote_hostname": self.instance['remote_hostname'],

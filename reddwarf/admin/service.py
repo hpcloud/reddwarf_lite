@@ -103,26 +103,3 @@ class AdminController(BaseController):
              return wsgi.Result("Unauthorized", 401)
          
         return wsgi.Result(None, 200)
-                 
-
-class API(wsgi.Router):
-    """API"""
-    def __init__(self):
-        mapper = routes.Mapper()
-        super(API, self).__init__(mapper)
-        self._admin_router(mapper)
-    
-    def _admin_router(self, mapper):
-        admin_resource = AdminController().create_resource()
-        mapper.connect("/{tenant_id}/mgmt/{id}/agent",
-                       controller=admin_resource,
-                       action="agent", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/mgmt/{id}/messageserver",
-                       controller=admin_resource,
-                       action="message_server", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/mgmt/{id}/database",
-                       controller=admin_resource,
-                       action="database", conditions=dict(method=["POST"]))
-
-def app_factory(global_conf, **local_conf):
-    return API()

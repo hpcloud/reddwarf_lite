@@ -32,6 +32,7 @@ from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.database import guest
+from reddwarf.admin import service as admin
 
 
 CONFIG = config.Config
@@ -353,6 +354,7 @@ class API(wsgi.Router):
         super(API, self).__init__(mapper)
         self._instance_router(mapper)
         self._snapshot_router(mapper)
+        self._admin_router(mapper)
 
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
@@ -370,6 +372,18 @@ class API(wsgi.Router):
         path = "/{tenant_id}/snapshots"
         mapper.resource("snapshot", path, controller=snapshot_resource)
 
+    def _admin_router(self, mapper):
+        admin_resource = admin.AdminController().create_resource()
+        mapper.connect("/{tenant_id}/mgmt/{id}/agent",
+                       controller=admin_resource,
+                       action="agent", conditions=dict(method=["POST"]))
+        mapper.connect("/{tenant_id}/mgmt/{id}/messageserver",
+                       controller=admin_resource,
+                       action="message_server", conditions=dict(method=["POST"]))
+        mapper.connect("/{tenant_id}/mgmt/{id}/database",
+                       controller=admin_resource,
+                       action="database", conditions=dict(method=["POST"]))
+        
 
 def app_factory(global_conf, **local_conf):
     return API()
