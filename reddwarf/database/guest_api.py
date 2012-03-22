@@ -19,30 +19,37 @@
 Handles all request to the Platform or Guest VM
 """
 
-from nova import flags
-from nova import log as logging
-from nova import rpc
-from nova.db import api as nova_dbapi
-from nova.db import base
-from reddwarf.db import api as reddwarf_dbapi
-from reddwarf import rpc as reddwarf_rpc
-from reddwarf import exception
+#from nova import flags
+import logging
+#from nova import rpc
+#from nova.db import api as nova_dbapi
+#from nova.db import base
+
+#from reddwarf.db import api as reddwarf_dbapi
+#from reddwarf.rpc import rpc as reddwarf_rpc
+from reddwarf.database import utils as utils
+from reddwarf.common import exception
+from reddwarf.common import result_state
+from reddwarf.rpc import impl_kombu as rpc
 
 
-FLAGS = flags.FLAGS
-LOG = logging.getLogger('nova.guest.api')
+#FLAGS = flags.FLAGS
+#LOG = logging.getLogger('nova.guest.api')
+LOG = logging.getLogger(__name__)
 
-
-class API(base.Base):
+#class API(base.Base):
+class API():
     """API for interacting with the guest manager."""
 
-    def __init__(self, **kwargs):
-        super(API, self).__init__(**kwargs)
+#    def __init__(self, **kwargs):
+#        super(API, self).__init__(**kwargs)
 
     def _get_routing_key(self, context, id):
         """Create the routing key based on the container id"""
-        instance_ref = nova_dbapi.instance_get(context, id)
-        return "guest.%s" % instance_ref['hostname'].split(".")[0]
+        #instance_ref = nova_dbapi.instance_get(context, id)
+        server = models.DBInstance().find_by(id=id)
+        instance_ref = views.DBInstanceView(server).show()
+        return "guest.%s" % instance_ref['instance']['remote_hostname'].split(".")[0]
 
     def create_user(self, context, id, users):
         """Make an asynchronous call to create a new database user"""
@@ -117,7 +124,11 @@ class API(base.Base):
         """Make an asynchronous call to prepare the guest
            as a database container"""
         LOG.debug(_("Sending the call to prepare the Guest"))
-        reddwarf_rpc.cast_with_consumer(context, self._get_routing_key(context, id),
+#        reddwarf_rpc.cast_with_consumer(context, self._get_routing_key(context, id),
+#                 {"method": "prepare",
+#                  "args": {"databases": databases}
+#                 })
+        rpc.cast(context, self._get_routing_key(context, id),
                  {"method": "prepare",
                   "args": {"databases": databases}
                  })
@@ -126,29 +137,31 @@ class API(base.Base):
         """Make an asynchronous call to self upgrade the guest agent"""
         topic = self._get_routing_key(context, id)
         LOG.debug("Sending an upgrade call to nova-guest %s", topic)
-        reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
+        #reddwarf_rpc.cast_with_consumer(context, topic, {"method": "upgrade"})
+        rpc.cast(context, topic, {"method": "upgrade"})
 
     def check_mysql_status(self, context, id):
         """Make a synchronous call to trigger smart agent for checking MySQL status"""
-        instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Triggering smart agent on Instance %s (%s) to check MySQL status.", id, instance['hostname'])
-        result = rpc.call(context, instance['hostname'], {"method": "check_mysql_status"})
+        instance = utils.get_instance(id)
+        LOG.debug("Triggering smart agent on Instance %s (%s) to check MySQL status.", id, instance['remote_hostname'])
+        result = rpc.call(context, instance['remote_hostname'], {"method": "check_mysql_status"})
         # update instance state in guest_status table upon receiving smart agent response
-        reddwarf_dbapi.guest_status_update(instance['internal_id'], int(result))
+        utils.guest_status_update(id, int(result))
         return result
 
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
-        instance = reddwarf_dbapi.instance_from_uuid(id)
-        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['hostname'])
-        return rpc.call(context, instance['hostname'],
+        instance = utils.get_instance(id)['instance']
+        LOG.debug("Reset_password_instance is: %s" % instance)
+        LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
+        return rpc.call(context, instance['remote_hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
-        instance = reddwarf_dbapi.instance_from_uuid(instance_id)
-        rpc.cast(context, instance['hostname'],
+        instance = utils.get_instance(instance_id)
+        rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
                            "credential": {"user": credential.user,
@@ -158,9 +171,9 @@ class API(base.Base):
 
     def apply_snapshot(self, context, instance_id, snapshot_id, credential):
         LOG.debug("Triggering smart agent to apply Snapshot %s on Instance %s.", snapshot_id, instance_id)
-        instance = reddwarf_dbapi.instance_from_uuid(instance_id)
-        snapshot = reddwarf_dbapi.db_snapshot_get(snapshot_id)
-        rpc.cast(context, instance['hostname'],
+        instance = utils.get_instance(instance_id)
+        snapshot = utils.get_snapshot(snapshot_id)
+        rpc.cast(context, instance['remote_hostname'],
                  {"method": "apply_snapshot",
                   "args": {"storage_path": snapshot['storage_uri'],
                            "credential": {"user": credential.user,
@@ -171,6 +184,7 @@ class API(base.Base):
 class PhoneHomeMessageHandler():
     """Proxy class to handle phone home messages sent from smart agent."""
     def __init__(self):
+        LOG.debug("PhoneHomeMessageHandler() init")
         self.msg_count = 0
 
     def __call__(self, msg):
@@ -202,10 +216,10 @@ class PhoneHomeMessageHandler():
         if not msg['args']['state']:
             raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
         # update DB
-        instance = reddwarf_dbapi.instance_from_hostname(msg['args']['hostname'])
+        instance = utils.get_instance_by_hostname(msg['args']['hostname'])
         state = int(msg['args']['state'])
-        LOG.debug("Updating mysql instance state for Instance %s", instance['uuid'])
-        reddwarf_dbapi.guest_status_update(instance['internal_id'], state)
+        LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
+        utils.update_guest_status(instance['id'], state)
 
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
@@ -219,7 +233,8 @@ class PhoneHomeMessageHandler():
         if '' == msg['args']['storage_size']:
             raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
-        reddwarf_dbapi.db_snapshot_update(msg['args']['sid'],
-                                          msg['args']['state'],
-                                          msg['args']['storage_uri'],
-                                          msg['args']['storage_size'])
+        snapshot = utils.get_snapshot(msg['args']['sid'])
+        snapshot.update({'updated_at': datetime.datetime.utcnow(),
+                         'storage_uri': storage_uri,
+                         'storage_size': storage_size,
+                         'state': state})

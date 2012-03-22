@@ -21,6 +21,7 @@ import optparse
 import os
 import sys
 
+from reddwarf.common import service
 
 gettext.install('reddwarf', unicode=1)
 
@@ -60,9 +61,11 @@ if __name__ == '__main__':
     create_options(oparser)
     (options, args) = config.parse_options(oparser)
     try:
+        servers = []
         conf, app = config.Config.load_paste_app('reddwarf', options, args)
         db_api.configure_db(conf)
         server = wsgi.Server()
+        servers.append(server)
         server.start(app, options.get('port', conf['bind_port']),
             conf['bind_host'])
         server.wait()

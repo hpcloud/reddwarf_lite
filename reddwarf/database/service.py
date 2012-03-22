@@ -20,6 +20,7 @@
 import logging
 import urlparse
 import routes
+import threading
 import webob.exc
 
 from reddwarf import rpc
@@ -31,8 +32,9 @@ from reddwarf.common import utils
 from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
-from reddwarf.database import guest
+from reddwarf.database import guest_api
 from reddwarf.admin import service as admin
+from reddwarf.rpc.message_handler import MessageHandlerService
 
 
 CONFIG = config.Config
@@ -58,7 +60,9 @@ class BaseController(wsgi.Controller):
         }
 
     def __init__(self):
-        pass
+        self.guest_api = guest_api.API()
+        thread = MessageHandlerService()
+        thread.start()
 
     def _extract_required_params(self, params, model_name):
         params = params or {}
@@ -196,7 +200,10 @@ class InstanceController(BaseController):
                                      address='ip',
                                      port='3306',
                                      flavor=1)
-
+        
+        instance_id = instance.data()['id']
+        models.GuestInstance().create(instance_id=instance_id,
+                                      state=result_state.RUNNING)
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
 
@@ -211,16 +218,18 @@ class InstanceController(BaseController):
     def reset_password(self, req, tenant_id, id):
         """Resets DB password on remote instance"""
         LOG.info("Resets DB password on Instance %s", id)
-#        password = utils.generate_password()
-#        context = req.environ['nova.context']
-#        result = self.guest_api.reset_password(context, id, password)
-#        if result == result_state.ResultState.SUCCESS:
-#            return {'password': password}
-#        else:
-#            LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
-#                result_state.ResultState.name(result))
-#            return exc.HTTPInternalServerError("Smart Agent failed to reset password.")
-
+        password = utils.generate_password()
+        print req.environ
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+        result = self.guest_api.reset_password(context, id, password)
+        if result == result_state.ResultState.SUCCESS:
+            return {'password': password}
+        else:
+            LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
+                result_state.ResultState.name(result))
+            return exc.HTTPInternalServerError("Smart Agent failed to reset password.")
         
         return wsgi.Result(None, 200)
 
@@ -383,6 +392,12 @@ class API(wsgi.Router):
         mapper.connect("/{tenant_id}/mgmt/{id}/database",
                        controller=admin_resource,
                        action="database", conditions=dict(method=["POST"]))
+        mapper.connect("/{tenant_id}/mgmt/instances",
+                       controller=admin_resource,
+                       action="index_instances", conditions=dict(method=["GET"]))
+        mapper.connect("/{tenant_id}/mgmt/snapshots",
+                       controller=admin_resource,
+                       action="index_snapshots", conditions=dict(method=["GET"])) 
         
 
 def app_factory(global_conf, **local_conf):

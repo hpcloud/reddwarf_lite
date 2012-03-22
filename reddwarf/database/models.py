@@ -238,6 +238,7 @@ class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
                     'remote_hostname', 'availability_zone', 'deleted', 'links']
+    
 
 class User(DatabaseModelBase):
     _data_fields = ['name', 'enabled']
@@ -248,7 +249,7 @@ class Credential(DatabaseModelBase):
     
 
 class GuestStatus(DatabaseModelBase):
-    _data_fields = ['instance_id', 'state']
+    _data_fields = ['instance_id', 'state', 'deleted']
     
 
 class ServiceImage(DatabaseModelBase):

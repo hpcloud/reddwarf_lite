@@ -103,3 +103,9 @@ class AdminController(BaseController):
              return wsgi.Result("Unauthorized", 401)
          
         return wsgi.Result(None, 200)
+    
+    def index_instances(self, req, tenant_id):
+        return wsgi.Result(None, 200)
+    
+    def index_snapshots(self, req, tenant_id):
+        return wsgi.Result(None, 200)

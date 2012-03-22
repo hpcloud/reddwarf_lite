@@ -338,7 +338,7 @@ class Connection(object):
 
         params.setdefault('hostname', config.Config.get('rabbit_host',
                                                         '127.0.0.1'))
-        params.setdefault('port', config.Config.get('rabbit_port', 5672))
+        params.setdefault('port', int(config.Config.get('rabbit_port', 5672)))
         params.setdefault('userid',
                           config.Config.get('rabbit_userid', 'guest'))
         params.setdefault('password',
@@ -390,6 +390,7 @@ class Connection(object):
         been declared before if we are reconnecting.  Exceptions should
         be handled by the caller.
         """
+        print self.params
         if self.connection:
             LOG.info(_("Reconnecting to AMQP server on "
                     "%(hostname)s:%(port)d") % self.params)
@@ -703,10 +704,15 @@ def cleanup():
 
 def listen(exchange, msg_handler):
     """Passively listen on direct exchange for phone home messages."""
-    conn = ConnectionContext()
+    LOG.debug("1")
+    conn = rpc_amqp.ConnectionContext()
+    LOG.debug("2")
     wait_msg = PassiveWaiter(conn, msg_handler)
+    LOG.debug("3")
     conn.declare_passive_consumer(exchange, wait_msg)
+    LOG.debug("4")
     list(wait_msg)
+    LOG.debug("5")
     return wait_msg
 
 

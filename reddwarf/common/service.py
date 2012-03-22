@@ -146,6 +146,7 @@ class Service(object):
         """
         if not host:
             host = config.Config.get('host')
+            print host
         if not binary:
             binary = os.path.basename(inspect.stack()[-1][1])
         if not topic:
