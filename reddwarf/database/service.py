@@ -21,6 +21,7 @@ import logging
 import urlparse
 import routes
 import webob.exc
+import eventlet
 
 from reddwarf import rpc
 from reddwarf.common import config
@@ -78,11 +79,11 @@ class InstanceController(BaseController):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
-        servers = models.DBInstance().list()
+        servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers).list(), 200)
+        return wsgi.Result(views.DBInstancesView(servers, req, tenant_id).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -94,7 +95,7 @@ class InstanceController(BaseController):
         LOG.debug("Context: %s" % context.to_dict())
         try:
             # TODO(hub-cap): start testing the failure cases here
-            server = models.DBInstance().find_by(id=id)
+            server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
             # TODO(hub-cap): come up with a better way than
             #    this to get the message
@@ -102,7 +103,7 @@ class InstanceController(BaseController):
             return wsgi.Result(str(e), 404)
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, req, tenant_id).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -114,7 +115,7 @@ class InstanceController(BaseController):
         LOG.debug("Delete() context")                   
         
         try:
-            server = models.DBInstance().find_by(id=id)
+            server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
             LOG.debug("Fail fetching instance")
             return wsgi.Result(None,404)
@@ -129,7 +130,7 @@ class InstanceController(BaseController):
             return wsgi.Result(None,404)
     
         try:
-            server = models.DBInstance().find_by(id=id).delete()
+            server = server.delete()
         except exception.ReddwarfError, e:
             LOG.debug("Fail to delete DB instance")
             return wsgi.Result(None,500)
@@ -161,11 +162,12 @@ class InstanceController(BaseController):
         
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
-        print context.to_dict(), image_id, body
         
         flavor = models.ServiceFlavor.find_by(service_name="database")
         flavor_id = flavor['flavor_id']
-        
+
+        LOG.debug("Using ImageID %s" % image_id)
+        LOG.debug("Using FlavorID %s" % image_id)        
         storage_uri = None
 #        if 'snapshotId' in body['instance']:
 #            snapshot_id = body['instance']['snapshotId']
@@ -183,24 +185,27 @@ class InstanceController(BaseController):
 #                storage_uri = db_snapshot.storage_uri
 #                LOG.debug("Found Storage URI for snapshot: %s" % storage_uri)
         
-        server = self._try_create_server(context, body, image_id, flavor_id).data()
+        server, floating_ip = self._try_create_server(context, body, image_id, flavor_id)
+        server_dict = server.data()
+        floating_ip_dict = floating_ip.data()
+        
         LOG.debug("Wrote instance: %s" % server)
         
         instance = models.DBInstance().create(name=body['instance']['name'],
                                      status='building',
-                                     remote_id=server['id'],
-                                     remote_uuid=server['uuid'],
-                                     remote_hostname=server['name'],
+                                     remote_id=server_dict['id'],
+                                     remote_uuid=server_dict['uuid'],
+                                     remote_hostname=server_dict['name'],
                                      user_id=context.user,
                                      tenant_id=context.tenant,
-                                     address='ip',
+                                     address=floating_ip_dict['ip'],
                                      port='3306',
                                      flavor=1)
 
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly
 
-        return wsgi.Result(views.DBInstanceView(instance.data()).create(), 201)
+        return wsgi.Result(views.DBInstanceView(instance.data(), req, tenant_id).create(), 201)
 
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
@@ -239,19 +244,45 @@ class InstanceController(BaseController):
             LOG.debug('%s',conf_file)
 
             files = { '/home/nova/agent.config': conf_file }
-            keypair = 'hpdefault'
+            keypair = 'dbas-dev'
+            
+            userdata = open('../development/bootstrap/dbaas-image.sh')
 
+            floating_ip = models.FloatingIP.create(context)
+            if floating_ip is None:
+                print "No Floating IP assigned!"
             server = models.Instance.create(context, body, image_id, flavor_id, 
                                             security_groups=sec_group, key_name=keypair,
-                                            userdata=None, files=files)
+                                            userdata=userdata, files=files)
             
             if not server:
                 raise exception.ReddwarfError("Remote server not created")
-            return server
+            
+            server_dict = server.data()
+            flip_dict = floating_ip.data()
+            print server_dict
+            self._try_assign_ip(context, server_dict, flip_dict)
+            
+            return server, floating_ip
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)
 
+    def _try_assign_ip(self, context, server, floating_ip):
+        print "attempt to assign ip"
+        success = False
+        for i in range(90):
+            try:          
+                #print "attempt to assign ip 2 " + floating_ip['ip'] + " x:" + str(server['id'])
+                models.FloatingIP.assign(context, floating_ip, server['id'])
+                success = True
+                break
+            except Exception:
+                success = False
+                eventlet.sleep(1)
+                
+        if not success:
+            raise exception.ReddwarfError("Unable to assign IP to database instance")                
 
 
 class SnapshotController(BaseController):

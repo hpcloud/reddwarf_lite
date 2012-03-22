@@ -16,11 +16,16 @@
 #    under the License.
 
 import logging
+import os
 
 logging.basicConfig()
 
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
+
+def _base_url(req):
+    return req.application_url
+
 
 class InstanceView(object):
 
@@ -49,20 +54,24 @@ class InstanceView(object):
 
 class DBInstanceView(object):
     
-    def __init__(self, instance):
+    def __init__(self, instance, req, tenant_id):
         self.instance = instance
+        self.request = req
+        self.tenant_id = tenant_id
         
-    def _build_create(self):
+    def _build_create(self, initial_user, initial_password):
         LOG.debug(self.instance)
 
+        credential = { "username" : initial_user,
+                       "password" : initial_password }
         return {"instance": {
                     "status": self.instance['status'], 
-#                    "links": self._build_links(self.instance['links']),    
+                    "links": self._build_links(),    
                     "name": self.instance['name'],
                     "id": self.instance['id'],                        
-                    "remote_hostname": self.instance['remote_hostname'],
-                    "created_at": self.instance['created_at'],            
-                    "credential": self.instance['credential'],
+                    "hostname": self.instance['address'],
+                    "created": self.instance['created_at'],            
+                    "credential": credential
                 } 
         } 
  
@@ -72,9 +81,9 @@ class DBInstanceView(object):
         # TODO: add links to each view, fix 'instances' on list/aggregation
         return {"status": self.instance['status'],                    
                 "id": self.instance['id'],                
-#                "links": self._build_links(self.instance['links']),       
+                "links": self._build_links(),       
                 "name": self.instance['name'],
-                "created_at": self.instance['created_at'],                
+                "created": self.instance['created_at'],                
         }
         
     def _build_show(self):
@@ -82,27 +91,28 @@ class DBInstanceView(object):
 
         return {"instance": {
                     "status": self.instance['status'],    
-#                    "links": self._build_links(self.instance['links']),                
+                    "links": self._build_links(),                
                     "name": self.instance['name'],
                     "id": self.instance['id'],            
-                    "remote_hostname": self.instance['remote_hostname'],
-                    "created_at": self.instance['created_at'],  
+                    "hostname": self.instance['address'],
+                    "created": self.instance['created_at'],  
                     "port": self.instance['port'],          
-                    "updated_at": self.instance['updated_at'],
+                    "updated": self.instance['updated_at'],
                 } 
         }         
         
-    @staticmethod
-    def _build_links(links):
+    def _build_links(self):
         """Build the links for the instance"""
-        LOG.debug(links)
-        for link in links:
-            LOG.debug(link)
-            try:
-                link['href'] = link['href'].replace('servers', 'instances')
-            except Exception, err:
-                continue
-        return links               
+        base_url = _base_url(self.request)
+        href = os.path.join(base_url, self.tenant_id,
+                            "instances", str(self.instance['id']))
+        links = [
+            {
+                'rel': 'self',
+                'href': href
+            }
+        ]
+        return links       
 
     def list(self):
         return self._build_list()
@@ -116,8 +126,10 @@ class DBInstanceView(object):
 
 class SnapshotView(object):
     
-    def __init__(self, snapshot):
+    def __init__(self, snapshot, req, tenant_id):
         self.snapshot = snapshot
+        self.request = req
+        self.tenant_id = tenant_id
         
     def _build_create(self):
         LOG.debug(self.snapshot)
@@ -125,19 +137,19 @@ class SnapshotView(object):
         return {"snapshot": {
             "id": self.snapshot['id'],
             "status": self.snapshot['status'],
-            "created_at": self.snapshot['created_at'],
+            "created": self.snapshot['created_at'],
             "instanceId": self.snapshot['instance_id'],
-            # Links  
-            },
+            "links": self._build_links()       
+            }
         } 
  
     def _build_list(self):
         LOG.debug(self.snapshot)
             
         return {"id": self.snapshot['id'],
-                "created_at": self.snapshot['created_at'],
+                "created": self.snapshot['created_at'],
                 "instanceId": self.snapshot['instance_id'],
-                # Links  
+                "links": self._build_links() 
         }
         
     def _build_show(self):
@@ -146,22 +158,23 @@ class SnapshotView(object):
         return {"snapshot": {
             "id": self.snapshot['id'],
             "status": self.snapshot['status'],
-            "created_at": self.snapshot['created_at'],
+            "created": self.snapshot['created_at'],
             "instanceId": self.snapshot['instance_id'],
-            # Links  
+            "links": self._build_links()
             },
         }         
         
-    @staticmethod
-    def _build_links(links):
-        """Build the links for the snapshot"""
-        LOG.debug(links)
-        for link in links:
-            LOG.debug(link)
-            try:
-                link['href'] = link['href'].replace('servers', 'snapshots')
-            except Exception, err:
-                continue
+    def _build_links(self):
+        """Build the links for the instance"""
+        base_url = _base_url(self.request)
+        href = os.path.join(base_url, self.tenant_id,
+                            "snapshots", str(self.snapshot['id']))
+        links = [
+            {
+                'rel': 'self',
+                'href': href
+            }
+        ]
         return links 
     
     def list(self):

@@ -5,6 +5,7 @@ reddwarf_test.sqlite
 .venv
 .project
 .pydevproject
+.settings
 run_tests.log
 guest-agent-files.txt
 reddwarf.egg*

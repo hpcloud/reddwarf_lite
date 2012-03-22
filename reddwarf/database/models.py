@@ -93,7 +93,7 @@ class RemoteModelBase(ModelBase):
             PROXY_ADMIN_TENANT_NAME, PROXY_AUTH_URL,
             #proxy_tenant_id=context.tenant,
             #proxy_token=context.auth_tok,
-            region_name='az-2.region-a.geo-1',
+            region_name='az-1.region-a.geo-1',
             #service_type='compute',
             service_name="Compute")
         client.authenticate()
@@ -149,7 +149,8 @@ class Instance(RemoteModelBase):
         # self.is_valid()
         LOG.info("instance body : '%s'\n\n" % body)
         flavorRef = body['instance']['flavorRef']
-        srv = cls.get_client(context).servers.create(body['instance']['name'],
+        instance_name = utils.generate_uuid()
+        srv = cls.get_client(context).servers.create(instance_name,
                                                      image_id,
                                                      flavorRef,
                                                      files=files, 
@@ -157,6 +158,70 @@ class Instance(RemoteModelBase):
                                                      security_groups=security_groups, 
                                                      userdata=userdata)
         return Instance(server=srv)
+
+
+class FloatingIP(RemoteModelBase):
+
+    _data_fields = ['instance_id', 'ip', 'fixed_ip', 'id']
+
+    def __init__(self, floating_ip=None, context=None, id=None):
+        if id is None and floating_ip is None:
+            msg = "id is not defined"
+            raise InvalidModelError(msg)
+        elif floating_ip is None:
+            try:
+                self._data_object = self.get_client(context).servers.get(id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(id=id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.ReddwarfError(str(e))
+        else:
+            self._data_object = floating_ip
+            
+    @classmethod
+    def delete(cls, context, uuid):
+        try:
+            cls.get_client(context).servers.delete(uuid)
+        except nova_exceptions.NotFound, e:
+            raise rd_exceptions.NotFound(uuid=uuid)
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError()
+
+    @classmethod
+    def create(cls, context):
+        """Fetches an unassigned IP or creates a new one"""
+        ip = None
+        client = cls.get_client(context)
+        try:
+            fl = client.floating_ips.list()
+            for flip in fl:
+                if flip.instance_id is None:
+                    # Choose one of the unassigned IPs
+                    ip = flip.ip
+                    break
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError(str(e))
+        
+        if ip is None:
+            try:
+                flip = client.floating_ips.create(None)
+            except nova_exceptions.ClientException, e:
+                print str(e)
+                raise rd_exceptions.ReddwarfError(str(e))
+
+        return FloatingIP(floating_ip=flip)
+
+    @classmethod
+    def assign(cls, context, floating_ip, server_id):
+        """Assigns a floating ip to a server"""
+        client = cls.get_client(context)
+        print "here1"
+        try:
+            client.servers.add_floating_ip(server_id, floating_ip['ip'])
+            print "DONE"
+        except nova_exceptions.ClientException, e:
+            print e
+            raise rd_exceptions.ReddwarfError(str(e))
 
 
 class Instances(Instance):
@@ -179,7 +244,7 @@ class DatabaseModelBase(ModelBase):
 #        values['remote_hostname'] = None
 #        values['tenant_id'] = "12345"
 #        values['availability_zone'] = "1"
-#        values['deleted'] = "0"
+        values['deleted'] = False
 #        values['updated_at'] = "1"
         instance = cls(**values).save()
 #        instance._notify_fields("create")
@@ -229,6 +294,10 @@ class DatabaseModelBase(ModelBase):
         return db.db_api.find_by(cls, **cls._process_conditions(kwargs))
 
     @classmethod
+    def find_all(cls, **kwargs):
+        return db.db_query.find_all(cls, **cls._process_conditions(kwargs))
+    
+    @classmethod
     def _process_conditions(cls, raw_conditions):
         """Override in inheritors to format/modify any conditions."""
         return raw_conditions
@@ -238,7 +307,7 @@ class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
                     'remote_hostname', 'availability_zone', 'deleted', 'links']
-
+    
 class User(DatabaseModelBase):
     _data_fields = ['name', 'enabled']
 
