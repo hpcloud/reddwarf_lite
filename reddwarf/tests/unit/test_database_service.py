@@ -49,14 +49,12 @@ class TestInstanceController(ControllerTestBase):
     DUMMY_INSTANCE = {"id": DUMMY_INSTANCE_ID,
     "name": "DUMMY_NAME",
     "status": "BUILD",
-    "created_at": "createtime",
-    "updated_at": "updatedtime",
-    "remote_hostname": "remotehost",
-    "port": "12345",
-    "flavor": {},
+    "created": "createtime",
+    "updated": "updatedtime",
+    "hostname": "remotehost",
+    "port": "12345"
     "links": [],
-    "credential": "credential",
-    "addresses": {}}
+    "credential": "credential"}
     
     DUMMY_SERVER = {
         "uuid": utils.generate_uuid(), 
@@ -135,8 +133,8 @@ class TestInstanceController(ControllerTestBase):
         models.RemoteModelBase.get_client(mox.IgnoreArg()).AndReturn(client)
 
     def test_create(self):
-        self.ServiceImage = {"image_id": "image"}
-        self.ServiceFlavor = {"flavor_id": "flavor"}
+        self.ServiceImage = {"image_id": "1240"}
+        self.ServiceFlavor = {"flavor_id": "100"}
         body = {
             "instance": {
                 "databases": [

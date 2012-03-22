@@ -167,7 +167,7 @@ class InstanceController(BaseController):
         flavor_id = flavor['flavor_id']
 
         LOG.debug("Using ImageID %s" % image_id)
-        LOG.debug("Using FlavorID %s" % image_id)        
+        LOG.debug("Using FlavorID %s" % flavor_id)        
         storage_uri = None
 #        if 'snapshotId' in body['instance']:
 #            snapshot_id = body['instance']['snapshotId']
