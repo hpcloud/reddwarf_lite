@@ -49,12 +49,13 @@ class TestInstanceController(ControllerTestBase):
     DUMMY_INSTANCE = {"id": DUMMY_INSTANCE_ID,
     "name": "DUMMY_NAME",
     "status": "BUILD",
-    "created": "createtime",
-    "updated": "updatedtime",
-    "hostname": "remotehost",
+    "created_at": "createtime",
+    "updated_at": "updatedtime",
+    "remote_hostname": "remotehost",
     "port": "12345",
     "links": [],
-    "credential": "credential"}
+    "credential": "credential",
+    "address" : "ipaddress"}
     
     DUMMY_SERVER = {
         "uuid": utils.generate_uuid(), 
@@ -76,7 +77,7 @@ class TestInstanceController(ControllerTestBase):
     def test_show(self):
         id = self.DUMMY_INSTANCE_ID
         self.mock.StubOutWithMock(models.DBInstance, 'find_by')
-        models.DBInstance.find_by(id=id).AndReturn(self.DUMMY_INSTANCE)
+        models.DBInstance.find_by(deleted=False,id=id,tenant_id='tenant').AndReturn(self.DUMMY_INSTANCE)
 #        self.mock.StubOutWithMock(models.DBInstance, '__init__')
 #        models.Instance.__init__(context=mox.IgnoreArg(), uuid=mox.IgnoreArg())
         self.mock.ReplayAll()
@@ -88,8 +89,8 @@ class TestInstanceController(ControllerTestBase):
         self.assertEqual(response.status_int, 200)
 
     def test_index(self):
-        self.mock.StubOutWithMock(models.DBInstance, 'list')
-        models.DBInstance.list().AndReturn([self.DUMMY_INSTANCE])
+        self.mock.StubOutWithMock(models.DBInstance, 'find_all')
+        models.DBInstance.find_all(tenant_id='tenant', deleted=False).AndReturn([self.DUMMY_INSTANCE])
         self.mock.ReplayAll()
         response = self.app.get("%s" % (self.instances_path),
                                            headers={'X-Auth-Token': '123'})
@@ -158,15 +159,20 @@ class TestInstanceController(ControllerTestBase):
         models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)                
         
         mock_server = self.mock.CreateMock(models.Instance(server="server", uuid=utils.generate_uuid()))
+        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))
+
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         service.InstanceController._try_create_server(mox.IgnoreArg(),
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(mock_server)
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((mock_server, mock_flip))
         
+        self.mock.StubOutWithMock(mock_flip, 'data')
+        mock_flip.data().AndReturn({ "ip" : "blah" })       
+
         self.mock.StubOutWithMock(mock_server, 'data')
         mock_server.data().AndReturn(self.DUMMY_SERVER)       
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
-        models.DBInstance.create(address='ip', port='3306', flavor=1,
+        models.DBInstance.create(address='blah', port='3306', flavor=1,
                 name=body['instance']['name'],
                 status='building',
                 remote_id=self.DUMMY_SERVER['id'],

@@ -120,8 +120,8 @@ class DBInstanceView(object):
     def show(self):
         return self._build_show()
     
-    def create(self):
-        return self._build_create()
+    def create(self, initial_user, initial_password):
+        return self._build_create(initial_user, initial_password)
 
 
 class SnapshotView(object):
@@ -201,8 +201,10 @@ class InstancesView(object):
     
 class DBInstancesView(object):
 
-    def __init__(self, instances):
+    def __init__(self, instances, req, tenant_id):
         self.instances = instances
+        self.request = req
+        self.tenant_id = tenant_id
         LOG.debug(dir(self.instances))
 
     def list(self):
@@ -211,14 +213,16 @@ class DBInstancesView(object):
         # These are model instances
         for instance in self.instances:
             LOG.debug(instance)
-            data.append(DBInstanceView(instance).list())
+            data.append(DBInstanceView(instance, self.request, self.tenant_id).list())
         LOG.debug("Returning from DBInstancesView.data()")
         return {"instances": data}
 
 class SnapshotsView(object):
     
-    def __init__(self, snapshots):
+    def __init__(self, snapshots, req, tenant_id):
         self.snapshots = snapshots
+        self.request = req
+        self.tenant_id = tenant_id
         LOG.debug(self.snapshots)
 
     def list(self):
@@ -227,6 +231,6 @@ class SnapshotsView(object):
         # These are model snapshots
         for snapshot in self.snapshots:
             LOG.debug("Snapshot %s" % snapshot)
-            data.append(SnapshotView(snapshot).list())
+            data.append(SnapshotView(snapshot, self.request, self.tenant_id).list())
         LOG.debug("Returning from SnapshotsView.data()")
         return {"snapshots" : data}
