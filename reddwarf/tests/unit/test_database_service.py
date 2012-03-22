@@ -52,7 +52,7 @@ class TestInstanceController(ControllerTestBase):
     "created": "createtime",
     "updated": "updatedtime",
     "hostname": "remotehost",
-    "port": "12345"
+    "port": "12345",
     "links": [],
     "credential": "credential"}
     
