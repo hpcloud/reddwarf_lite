@@ -76,13 +76,19 @@ class ConnectionContext(rpc_common.Connection):
 
     def __init__(self, connection_pool, pooled=True, server_params=None):
         """Create a new connection, or get one from the pool"""
+        LOG.debug("?")
         self.connection = None
+        LOG.debug("a")
         self.connection_pool = connection_pool
+        LOG.debug("b")
         if pooled:
+            LOG.debug("b1")
             self.connection = connection_pool.get()
         else:
+            LOG.debug("b2")            
             self.connection = connection_pool.connection_cls(
                     server_params=server_params)
+        LOG.debug("c")            
         self.pooled = pooled
 
     def __enter__(self):

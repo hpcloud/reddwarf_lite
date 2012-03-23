@@ -306,7 +306,7 @@ class DatabaseModelBase(ModelBase):
 class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
-                    'remote_hostname', 'availability_zone', 'deleted', 'links']
+                    'remote_hostname', 'availability_zone', 'deleted']
     
 
 class User(DatabaseModelBase):

@@ -21,7 +21,7 @@ from reddwarf.database import views
 
 def get_instance(id):
     instance = models.DBInstance().find_by(id=id)
-    instance = views.DBInstanceView(instance).show()
+    instance = instance.data()
     return instance
 
 def get_instance_by_hostname(hostname):

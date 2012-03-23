@@ -35,7 +35,6 @@ from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.database import guest_api
 from reddwarf.admin import service as admin
-from reddwarf.rpc.message_handler import MessageHandlerService
 
 
 CONFIG = config.Config
@@ -62,8 +61,6 @@ class BaseController(wsgi.Controller):
 
     def __init__(self):
         self.guest_api = guest_api.API()
-        thread = MessageHandlerService()
-        thread.start()
 
     def _extract_required_params(self, params, model_name):
         params = params or {}
