@@ -452,6 +452,7 @@ class Connection(object):
             self.channel._new_queue('ae.undeliver')
         for consumer in self.consumers:
             consumer.reconnect(self.channel)
+        LOG.debug("Params: %s" % self.params)
         LOG.info(_('Connected to AMQP server on '
                 '%(hostname)s:%(port)d' % self.params))
 
@@ -742,14 +743,16 @@ def cleanup():
 def listen(exchange, msg_handler):
     """Passively listen on direct exchange for phone home messages."""
     LOG.debug("1*********************************")
+    LOG.debug("Listening to exchange: %s" % exchange)
+    LOG.debug("Using message handler %s" % msg_handler)
     conn = rpc_amqp.ConnectionContext(Connection.pool)
-    LOG.debug("2")
+    #LOG.debug("2")
     wait_msg = PassiveWaiter(conn, msg_handler)
-    LOG.debug("3")
+    #LOG.debug("3")
     conn.declare_passive_consumer(exchange, wait_msg)
-    LOG.debug("4")
+    LOG.debug("Waiting for messages...")
     list(wait_msg)
-    LOG.debug("5")
+    #LOG.debug("5")
     return wait_msg
 
 

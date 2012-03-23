@@ -72,6 +72,3 @@ class MessageHandlerService(Service):
         """Close consumer to MQ"""
         self._listener.done()
         LOG.debug("Message Handler Service is stopped.")
-        
-    def __str__(self):
-        return "This is me, a string"

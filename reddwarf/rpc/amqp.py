@@ -76,19 +76,14 @@ class ConnectionContext(rpc_common.Connection):
 
     def __init__(self, connection_pool, pooled=True, server_params=None):
         """Create a new connection, or get one from the pool"""
-        LOG.debug("?")
+        LOG.debug("Creating a ConnectionContext")
         self.connection = None
-        LOG.debug("a")
         self.connection_pool = connection_pool
-        LOG.debug("b")
         if pooled:
-            LOG.debug("b1")
             self.connection = connection_pool.get()
-        else:
-            LOG.debug("b2")            
+        else:            
             self.connection = connection_pool.connection_cls(
-                    server_params=server_params)
-        LOG.debug("c")            
+                    server_params=server_params)            
         self.pooled = pooled
 
     def __enter__(self):
@@ -324,7 +319,8 @@ def multicall(context, topic, msg, timeout, connection_pool):
     # that will continue to use the connection.  When it's done,
     # connection.close() will get called which will put it back into
     # the pool
-    LOG.debug(_('Making asynchronous call on %s ...'), topic)
+    LOG.debug(_('Making asynchronous call on topic %s ...'), topic)
+    LOG.debug("Sending the following message via multicall: %s" % msg)
     msg_id = uuid.uuid4().hex
     msg.update({'_msg_id': msg_id})
     LOG.debug(_('MSG_ID is %s') % (msg_id))
