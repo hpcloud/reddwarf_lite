@@ -62,8 +62,6 @@ class BaseController(wsgi.Controller):
 
     def __init__(self):
         self.guest_api = guest_api.API()
-        thread = MessageHandlerService()
-        thread.start()
 
     def _extract_required_params(self, params, model_name):
         params = params or {}
@@ -202,6 +200,7 @@ class InstanceController(BaseController):
                                      remote_hostname=server_dict['name'],
                                      user_id=context.user,
                                      tenant_id=context.tenant,
+                                     credential='None',
                                      address=floating_ip_dict['ip'],
                                      port='3306',
                                      flavor=1)
@@ -233,7 +232,7 @@ class InstanceController(BaseController):
         else:
             LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
                 result_state.ResultState.name(result))
-            return exc.HTTPInternalServerError("Smart Agent failed to reset password.")
+            return wsgi.Result("Smart Agent failed to reset password.",500)
         
         return wsgi.Result(None, 200)
 
@@ -271,7 +270,7 @@ class InstanceController(BaseController):
             print server_dict
             self._try_assign_ip(context, server_dict, flip_dict)
             
-            return server, floating_ip
+            return (server, floating_ip)
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)

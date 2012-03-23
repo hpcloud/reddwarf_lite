@@ -88,12 +88,12 @@ class RemoteModelBase(ModelBase):
                                         'admin')
         PROXY_AUTH_URL = CONFIG.get('reddwarf_auth_url',
                                     'http://0.0.0.0:5000/v2.0')
-        print PROXY_AUTH_URL
+
         client = Client(PROXY_ADMIN_USER, PROXY_ADMIN_PASS,
             PROXY_ADMIN_TENANT_NAME, PROXY_AUTH_URL,
             #proxy_tenant_id=context.tenant,
             #proxy_token=context.auth_tok,
-            region_name='az-1.region-a.geo-1',
+            region_name='az-2.region-a.geo-1',
             #service_type='compute',
             service_name="Compute")
         client.authenticate()
@@ -147,12 +147,10 @@ class Instance(RemoteModelBase):
     @classmethod
     def create(cls, context, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
         # self.is_valid()
-        LOG.info("instance body : '%s'\n\n" % body)
-        flavorRef = body['instance']['flavorRef']
         instance_name = utils.generate_uuid()
         srv = cls.get_client(context).servers.create(instance_name,
                                                      image_id,
-                                                     flavorRef,
+                                                     flavor_id,
                                                      files=files, 
                                                      key_name=key_name, 
                                                      security_groups=security_groups, 

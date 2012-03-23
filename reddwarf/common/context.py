@@ -43,6 +43,9 @@ class ReddwarfContext(context.RequestContext):
                 'show_deleted': self.show_deleted,
                 'read_only': self.read_only,
                 'auth_tok': self.auth_tok,
+                'proxy_user_name' : self.proxy_user_name,
+                'proxy_password': self.proxy_password,
+                'proxy_tenant_name': self.proxy_tenant_name
                 }
 
     @classmethod
