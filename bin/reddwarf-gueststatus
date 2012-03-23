@@ -23,6 +23,7 @@ import optparse
 import os
 import routes
 import sys
+import time
 import webob.exc
 
 gettext.install('reddwarf', unicode=1)
@@ -39,6 +40,7 @@ from reddwarf import version
 from reddwarf.common import config
 from reddwarf.common import wsgi
 from reddwarf.common import service
+import reddwarf.rpc.message_handler as message_handler
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(version="%%prog %s"
@@ -52,7 +54,8 @@ if __name__ == '__main__':
         conf2, app = config.Config.load_paste_app('reddwarf-gueststatus', 
                                                   options, args)
         conf = dict(conf.items() + conf2.items())
-        server = service.Service.create(binary='reddwarf-gueststatus')
+        #server = service.Service.create(binary='reddwarf-gueststatus')
+        server = message_handler.MessageHandlerService()
         service.serve(server)
         service.wait()
     except RuntimeError as error:

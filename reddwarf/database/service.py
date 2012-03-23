@@ -35,7 +35,6 @@ from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.database import guest_api
 from reddwarf.admin import service as admin
-from reddwarf.rpc.message_handler import MessageHandlerService
 
 
 CONFIG = config.Config

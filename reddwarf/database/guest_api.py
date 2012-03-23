@@ -151,10 +151,10 @@ class API():
 
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
-        instance = utils.get_instance(id)['instance']
+        instance = utils.get_instance(id)
         LOG.debug("Reset_password_instance is: %s" % instance)
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
-        return rpc.call(context, instance['remote_hostname'],
+        return rpc.call(context, "phonehome",
                 {"method": "reset_password",
                  "args": {"password": password}})
 

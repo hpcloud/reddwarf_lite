@@ -42,8 +42,9 @@ class Launcher(object):
     @staticmethod
     def run_server(server):
         """Start and wait for a server to finish."""
-
+        LOG.debug("CALLING SERVER START WITH SERVER %s" % server)
         server.start()
+        LOG.debug("CALLING SERVER WAIT")
         server.wait()
 
     def launch_server(self, server):
@@ -146,7 +147,6 @@ class Service(object):
         """
         if not host:
             host = config.Config.get('host')
-            print host
         if not binary:
             binary = os.path.basename(inspect.stack()[-1][1])
         if not topic:

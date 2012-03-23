@@ -136,6 +136,44 @@ class DirectConsumer(ConsumerBase):
                 **options)
 
 
+class PassiveConsumer(ConsumerBase):
+    """Queue/consumer class for non-exclusive direct queue"""
+
+    def __init__(self, channel, topic, callback, tag, **kwargs):
+        """Init a non-exclusive 'direct' queue so
+           it can be shared by different connections.
+
+        'channel' is the amqp channel to use
+        'topic' is the exchange name to listen on
+        'callback' is the callback to call when messages are received
+        'tag' is a unique ID for the consumer on the channel
+
+        Other kombu options may be passed
+        """
+
+        LOG.debug("Declaring PassiveConsumer exchange-name %s", topic)
+        LOG.debug("Declaring PassiveConsumer routing-key %s", topic)
+
+        # Default options
+        options = {'durable': False,
+                   'auto_delete': True,
+                   'exclusive': False}
+        options.update(kwargs)
+        exchange = kombu.entity.Exchange(
+            name=topic,
+            type='direct',
+            durable=options['durable'],
+            auto_delete=options['auto_delete'])
+        super(PassiveConsumer, self).__init__(
+            channel,
+            callback,
+            tag,
+            name=topic,
+            exchange=exchange,
+            routing_key=topic,
+            **options)
+        
+        
 class TopicConsumer(ConsumerBase):
     """Consumer class for 'topic'"""
 
@@ -390,7 +428,6 @@ class Connection(object):
         been declared before if we are reconnecting.  Exceptions should
         be handled by the caller.
         """
-        print self.params
         if self.connection:
             LOG.info(_("Reconnecting to AMQP server on "
                     "%(hostname)s:%(port)d") % self.params)
@@ -415,6 +452,7 @@ class Connection(object):
             self.channel._new_queue('ae.undeliver')
         for consumer in self.consumers:
             consumer.reconnect(self.channel)
+        LOG.debug("Params: %s" % self.params)
         LOG.info(_('Connected to AMQP server on '
                 '%(hostname)s:%(port)d' % self.params))
 
@@ -704,15 +742,17 @@ def cleanup():
 
 def listen(exchange, msg_handler):
     """Passively listen on direct exchange for phone home messages."""
-    LOG.debug("1")
-    conn = rpc_amqp.ConnectionContext()
-    LOG.debug("2")
+    LOG.debug("1*********************************")
+    LOG.debug("Listening to exchange: %s" % exchange)
+    LOG.debug("Using message handler %s" % msg_handler)
+    conn = rpc_amqp.ConnectionContext(Connection.pool)
+    #LOG.debug("2")
     wait_msg = PassiveWaiter(conn, msg_handler)
-    LOG.debug("3")
+    #LOG.debug("3")
     conn.declare_passive_consumer(exchange, wait_msg)
-    LOG.debug("4")
+    LOG.debug("Waiting for messages...")
     list(wait_msg)
-    LOG.debug("5")
+    #LOG.debug("5")
     return wait_msg
 
 
