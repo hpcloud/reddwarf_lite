@@ -178,6 +178,7 @@ class TestInstanceController(ControllerTestBase):
                 remote_id=self.DUMMY_SERVER['id'],
                 remote_uuid=self.DUMMY_SERVER['uuid'],
                 remote_hostname=self.DUMMY_SERVER['name'],
+                credential='None',
                 user_id=None,
                 tenant_id='tenant').AndReturn(models.DBInstance())  
 
