@@ -121,11 +121,12 @@ class InstanceController(BaseController):
             LOG.debug("Fail fetching instance")
             return wsgi.Result(None,404)
         
-        remote_id = server.data()["remote_id"]
+        remote_id = server["remote_id"]
+        credential = models.Credential().find_by(id=server['credential'])
         try:
             LOG.debug("Deleting remote instance with id %s" % remote_id)
             # TODO(cp16net) : need to handle exceptions here if the delete fails
-            models.Instance.delete(context, remote_id)
+            models.Instance.delete(credential, remote_id)
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
             return wsgi.Result(None,404)
@@ -172,7 +173,10 @@ class InstanceController(BaseController):
         
         snapshot = self._extract_snapshot(body, tenant_id)
         
-        server, floating_ip = self._try_create_server(context, body, image_id, flavor_id, snapshot)
+        # Get the credential to use for proxy compute resource
+        credential = models.Credential.find_by(type='compute')
+        
+        server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot)
         LOG.debug("Wrote remote server: %s" % server)
         
         instance = models.DBInstance().create(name=body['instance']['name'],
@@ -182,7 +186,7 @@ class InstanceController(BaseController):
                                      remote_hostname=server['name'],
                                      user_id=context.user,
                                      tenant_id=context.tenant,
-                                     credential='None',
+                                     credential=credential['id'],
                                      address=floating_ip['ip'],
                                      port='3306',
                                      flavor=1)
@@ -218,7 +222,7 @@ class InstanceController(BaseController):
         
         return wsgi.Result(None, 200)
 
-    def _try_create_server(self, context, body, image_id, flavor_id, snapshot=None):
+    def _try_create_server(self, context, body, credential, image_id, flavor_id, snapshot=None):
         """Create remote Server """
         try:
             # TODO (vipulsabhaya) move this into the db we should
@@ -233,28 +237,28 @@ class InstanceController(BaseController):
             
             userdata = open('../development/bootstrap/dbaas-image.sh')
 
-            floating_ip = models.FloatingIP.create(context).data()
+            floating_ip = models.FloatingIP.create(credential).data()
 
-            server = models.Instance.create(context, body, image_id, flavor_id, 
+            server = models.Instance.create(credential, body, image_id, flavor_id, 
                                             security_groups=sec_group, key_name=keypair,
                                             userdata=userdata, files=conf_file).data()
             
             if not server:
                 raise exception.ReddwarfError("Remote server not created")
             
-            self._try_assign_ip(context, server, floating_ip)
+            self._try_assign_ip(credential, server, floating_ip)
             
             return (server, floating_ip)
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)
 
-    def _try_assign_ip(self, context, server, floating_ip):
+    def _try_assign_ip(self, credential, server, floating_ip):
         LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']));
         success = False
         for i in range(90):
             try:          
-                models.FloatingIP.assign(context, floating_ip, server['id'])
+                models.FloatingIP.assign(credential, floating_ip, server['id'])
                 success = True
                 break
             except Exception:

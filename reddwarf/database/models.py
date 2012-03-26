@@ -77,20 +77,20 @@ class RemoteModelBase(ModelBase):
     _data_object = None
 
     @classmethod
-    def get_client(cls, context):
+    def get_client(cls, credential):
         # Quite annoying but due to a paste config loading bug.
         # TODO(hub-cap): talk to the openstack-common people about this
-        PROXY_ADMIN_USER = CONFIG.get('reddwarf_proxy_admin_user', 'admin')
-        PROXY_ADMIN_PASS = CONFIG.get('reddwarf_proxy_admin_pass',
-                                      '3de4922d8b6ac5a1aad9')
-        PROXY_ADMIN_TENANT_NAME = CONFIG.get(
-                                        'reddwarf_proxy_admin_tenant_name',
-                                        'admin')
+        #PROXY_ADMIN_USER = CONFIG.get('reddwarf_proxy_admin_user', 'admin')
+        #PROXY_ADMIN_PASS = CONFIG.get('reddwarf_proxy_admin_pass',
+        #                              '3de4922d8b6ac5a1aad9')
+        #PROXY_ADMIN_TENANT_NAME = CONFIG.get(
+        #                                'reddwarf_proxy_admin_tenant_name',
+        #                                'admin')
         PROXY_AUTH_URL = CONFIG.get('reddwarf_auth_url',
                                     'http://0.0.0.0:5000/v2.0')
 
-        client = Client(PROXY_ADMIN_USER, PROXY_ADMIN_PASS,
-            PROXY_ADMIN_TENANT_NAME, PROXY_AUTH_URL,
+        client = Client(credential['user_name'], credential['password'],
+            credential['tenant_id'], PROXY_AUTH_URL,
             #proxy_tenant_id=context.tenant,
             #proxy_token=context.auth_tok,
             region_name='az-2.region-a.geo-1',
@@ -120,14 +120,14 @@ class Instance(RemoteModelBase):
     _data_fields = ['name', 'status', 'id', 'created', 'updated',
                     'flavor', 'links', 'addresses', 'uuid']
 
-    def __init__(self, server=None, context=None, uuid=None):
-        if server is None and context is None and uuid is None:
+    def __init__(self, server=None, credential=None, uuid=None):
+        if server is None and credential is None and uuid is None:
             #TODO(cp16et): what to do now?
             msg = "server, content, and uuid are not defined"
             raise InvalidModelError(msg)
         elif server is None:
             try:
-                self._data_object = self.get_client(context).servers.get(uuid)
+                self._data_object = self.get_client(credential).servers.get(uuid)
             except nova_exceptions.NotFound, e:
                 raise rd_exceptions.NotFound(uuid=uuid)
             except nova_exceptions.ClientException, e:
@@ -136,19 +136,19 @@ class Instance(RemoteModelBase):
             self._data_object = server
 
     @classmethod
-    def delete(cls, context, uuid):
+    def delete(cls, credential, uuid):
         try:
-            cls.get_client(context).servers.delete(uuid)
+            cls.get_client(credential).servers.delete(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
             raise rd_exceptions.ReddwarfError()
 
     @classmethod
-    def create(cls, context, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
+    def create(cls, credential, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
         # self.is_valid()
         instance_name = utils.generate_uuid()
-        srv = cls.get_client(context).servers.create(instance_name,
+        srv = cls.get_client(credential).servers.create(instance_name,
                                                      image_id,
                                                      flavor_id,
                                                      files=files, 
@@ -162,13 +162,13 @@ class FloatingIP(RemoteModelBase):
 
     _data_fields = ['instance_id', 'ip', 'fixed_ip', 'id']
 
-    def __init__(self, floating_ip=None, context=None, id=None):
+    def __init__(self, floating_ip=None, credential=None, id=None):
         if id is None and floating_ip is None:
             msg = "id is not defined"
             raise InvalidModelError(msg)
         elif floating_ip is None:
             try:
-                self._data_object = self.get_client(context).servers.get(id)
+                self._data_object = self.get_client(credential).servers.get(id)
             except nova_exceptions.NotFound, e:
                 raise rd_exceptions.NotFound(id=id)
             except nova_exceptions.ClientException, e:
@@ -177,19 +177,19 @@ class FloatingIP(RemoteModelBase):
             self._data_object = floating_ip
             
     @classmethod
-    def delete(cls, context, uuid):
+    def delete(cls, credential, uuid):
         try:
-            cls.get_client(context).servers.delete(uuid)
+            cls.get_client(credential).servers.delete(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
             raise rd_exceptions.ReddwarfError()
 
     @classmethod
-    def create(cls, context):
+    def create(cls, credential):
         """Fetches an unassigned IP or creates a new one"""
         ip = None
-        client = cls.get_client(context)
+        client = cls.get_client(credential)
         try:
             fl = client.floating_ips.list()
             for flip in fl:
@@ -210,13 +210,11 @@ class FloatingIP(RemoteModelBase):
         return FloatingIP(floating_ip=flip)
 
     @classmethod
-    def assign(cls, context, floating_ip, server_id):
+    def assign(cls, credential, floating_ip, server_id):
         """Assigns a floating ip to a server"""
-        client = cls.get_client(context)
-        print "here1"
+        client = cls.get_client(credential)
         try:
             client.servers.add_floating_ip(server_id, floating_ip['ip'])
-            print "DONE"
         except nova_exceptions.ClientException, e:
             print e
             raise rd_exceptions.ReddwarfError(str(e))
@@ -224,8 +222,8 @@ class FloatingIP(RemoteModelBase):
 
 class Instances(Instance):
 
-    def __init__(self, context):
-        self._data_object = self.get_client(context).servers.list()
+    def __init__(self, credential):
+        self._data_object = self.get_client(credential).servers.list()
 
     def __iter__(self):
         for item in self._data_object:
@@ -233,7 +231,7 @@ class Instances(Instance):
 
 
 class DatabaseModelBase(ModelBase):
-    _auto_generated_attrs = ["id", "created_at", "updated_at", "deleted_at"]
+    _auto_generated_attrs = ["id", "created_at", "updated_at"]
 
     @classmethod
     def create(cls, **values):
@@ -265,7 +263,7 @@ class DatabaseModelBase(ModelBase):
         return result
     
     def delete(self):
-        return self.update(deleted=True)
+        return self.update(deleted=True, deleted_at=utils.utcnow())
     
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
