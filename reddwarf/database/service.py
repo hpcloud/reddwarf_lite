@@ -169,38 +169,21 @@ class InstanceController(BaseController):
 
         LOG.debug("Using ImageID %s" % image_id)
         LOG.debug("Using FlavorID %s" % flavor_id)        
-        storage_uri = None
-#        if 'snapshotId' in body['instance']:
-#            snapshot_id = body['instance']['snapshotId']
-#            if snapshot_id and len(snapshot_id) > 0:
-#                try:
-#                    # TODO(hub-cap): start testing the failure cases here
-#                    server = models.Snapshot(context=context, uuid=id).one()
-#                except exception.ReddwarfError, e:
-#                    # TODO(hub-cap): come up with a better way than
-#                    #    this to get the message
-#                    LOG.debug("Show() failed with an exception")
-#                    return wsgi.Result(str(e), 404)
-#
-#                db_snapshot = dbapi.db_snapshot_get(snapshot_id)
-#                storage_uri = db_snapshot.storage_uri
-#                LOG.debug("Found Storage URI for snapshot: %s" % storage_uri)
         
-        server, floating_ip = self._try_create_server(context, body, image_id, flavor_id)
-        server_dict = server.data()
-        floating_ip_dict = floating_ip.data()
+        snapshot = self._extract_snapshot(body, tenant_id)
         
+        server, floating_ip = self._try_create_server(context, body, image_id, flavor_id, snapshot)
         LOG.debug("Wrote remote server: %s" % server)
         
         instance = models.DBInstance().create(name=body['instance']['name'],
                                      status='building',
-                                     remote_id=server_dict['id'],
-                                     remote_uuid=server_dict['uuid'],
-                                     remote_hostname=server_dict['name'],
+                                     remote_id=server['id'],
+                                     remote_uuid=server['uuid'],
+                                     remote_hostname=server['name'],
                                      user_id=context.user,
                                      tenant_id=context.tenant,
                                      credential='None',
-                                     address=floating_ip_dict['ip'],
+                                     address=floating_ip['ip'],
                                      port='3306',
                                      flavor=1)
 
@@ -235,39 +218,31 @@ class InstanceController(BaseController):
         
         return wsgi.Result(None, 200)
 
-    def _try_create_server(self, context, body, image_id, flavor_id, snapshot_uri=None):
+    def _try_create_server(self, context, body, image_id, flavor_id, snapshot=None):
         """Create remote Server """
         try:
-            # TODO(vipulsabhaya): Create a ServiceSecgroup model
+            # TODO (vipulsabhaya) move this into the db we should
+            # have a service_secgroup table for mapping
             sec_group = ['mysql']
 
-            conf_file = '[messaging]\n'\
-                        'rabbit_host: ' + 'localhost' + '\n'\
-                        '\n'\
-                        '[database]\n'\
-                        'initial_password: ' + utils.generate_password(length=8)
-
+            conf_file = self._create_boot_config_file(snapshot)
             LOG.debug('%s',conf_file)
 
-            files = { '/home/nova/agent.config': conf_file }
+            #TODO (vipulsabhaya) move this to config or db
             keypair = 'dbas-dev'
             
             userdata = open('../development/bootstrap/dbaas-image.sh')
 
-            floating_ip = models.FloatingIP.create(context)
-            if floating_ip is None:
-                print "No Floating IP assigned!"
+            floating_ip = models.FloatingIP.create(context).data()
+
             server = models.Instance.create(context, body, image_id, flavor_id, 
                                             security_groups=sec_group, key_name=keypair,
-                                            userdata=userdata, files=files)
+                                            userdata=userdata, files=conf_file).data()
             
             if not server:
                 raise exception.ReddwarfError("Remote server not created")
             
-            server_dict = server.data()
-            flip_dict = floating_ip.data()
-            print server_dict
-            self._try_assign_ip(context, server_dict, flip_dict)
+            self._try_assign_ip(context, server, floating_ip)
             
             return (server, floating_ip)
         except (Exception) as e:
@@ -275,11 +250,10 @@ class InstanceController(BaseController):
             raise exception.ReddwarfError(e)
 
     def _try_assign_ip(self, context, server, floating_ip):
-        print "attempt to assign ip"
+        LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']));
         success = False
         for i in range(90):
             try:          
-                #print "attempt to assign ip 2 " + floating_ip['ip'] + " x:" + str(server['id'])
                 models.FloatingIP.assign(context, floating_ip, server['id'])
                 success = True
                 break
@@ -290,6 +264,41 @@ class InstanceController(BaseController):
         if not success:
             raise exception.ReddwarfError("Unable to assign IP to database instance")                
 
+    def _extract_snapshot(self, body, tenant_id):
+        if 'snapshotId' in body['instance']:
+            snapshot_id = body['instance']['snapshotId']
+            if snapshot_id and len(snapshot_id) > 0:
+                try:
+                    snapshot = models.Snapshot().find_by(id=snapshot_id, tenant_id=tenant_id, deleted=False)
+                    return snapshot
+                except exception.ReddwarfError, e:
+                    LOG.debug("No Snapshot Record with id %s" % snapshot_id)
+
+    def _create_boot_config_file(self, snapshot):
+        """Creates a config file that gets placed in the instance
+        for the Agent to configure itself"""
+        
+        conf_file = '[messaging]\n'\
+                    'rabbit_host: ' + 'localhost' + '\n'\
+                    '\n'\
+                    '[database]\n'\
+                    'initial_password: ' + utils.generate_password(length=8)
+        
+        storage_uri = None
+        if snapshot:
+            storage_uri = snapshot['storage_uri']
+            
+        if storage_uri and len(storage_uri) > 0:
+            #Fetch the swift credentials
+            credential = models.Credential().find_by(id=snapshot['credential'])
+            conf_file = conf_file + '\n'\
+                           '[snapshot]\n'\
+                           'snapshot_uri: ' + storage_uri + '\n'\
+                           'swift_auth_url: ' + CONFIG.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0')+ '\n'\
+                           'swift_auth_user: ' + credential['tenant_id'] + ":" + credential['user_name'] + '\n'\
+                           'swift_auth_key: ' + credential['password'] + '\n'
+
+        return { '/home/nova/agent.config': conf_file }
 
 class SnapshotController(BaseController):
     """Controller for snapshot functionality"""

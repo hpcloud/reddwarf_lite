@@ -39,7 +39,6 @@ from reddwarf import version
 from reddwarf.common import config
 from reddwarf.common import wsgi
 from reddwarf.db import db_api
-from reddwarf.rpc.message_handler import MessageHandlerService
 
 
 def create_options(parser):
@@ -68,9 +67,6 @@ if __name__ == '__main__':
         server = wsgi.Server()
         server.start(app, options.get('port', conf['bind_port']),
             conf['bind_host'])
-        
-#        handler_thread = MessageHandlerService()
-#        handler_thread.run()        
         server.wait()
     except RuntimeError as error:
         import traceback

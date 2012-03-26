@@ -161,15 +161,17 @@ class TestInstanceController(ControllerTestBase):
         mock_server = self.mock.CreateMock(models.Instance(server="server", uuid=utils.generate_uuid()))
         mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))
 
-        self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
-        service.InstanceController._try_create_server(mox.IgnoreArg(),
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((mock_server, mock_flip))
-        
         self.mock.StubOutWithMock(mock_flip, 'data')
         mock_flip.data().AndReturn({ "ip" : "blah" })       
 
         self.mock.StubOutWithMock(mock_server, 'data')
         mock_server.data().AndReturn(self.DUMMY_SERVER)       
+
+        self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
+        
+        service.InstanceController._try_create_server(mox.IgnoreArg(),
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((mock_server.data(), mock_flip.data()))
+        
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
         models.DBInstance.create(address='blah', port='3306', flavor=1,

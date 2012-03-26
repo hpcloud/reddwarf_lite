@@ -44,6 +44,7 @@ class AuthorizationMiddleware(wsgi.Middleware):
     @classmethod
     def factory(cls, global_config, **local_config):
         def _factory(app):
+            LOG.debug("Created auth middleware with config: %s" % global_config)
             LOG.debug("Created auth middleware with config: %s" % local_config)
             return cls(app, [TenantBasedAuth()],
                 **local_config)
