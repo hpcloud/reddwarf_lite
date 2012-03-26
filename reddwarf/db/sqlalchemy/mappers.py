@@ -39,6 +39,9 @@ def map(engine, models):
     orm.mapper(models['service_flavor'],
                Table('service_flavors', meta, autoload=True))
 
+    orm.mapper(models['service_secgroup'],
+               Table('service_secgroups', meta, autoload=True))
+
     orm.mapper(models['snapshot'],
                Table('snapshots', meta, autoload=True))
     orm.mapper(models['quota'],
