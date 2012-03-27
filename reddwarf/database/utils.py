@@ -15,7 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-#from reddwarf.database import service
+from reddwarf.common.result_state import ResultState as result_state
 from reddwarf.database import models
 from reddwarf.database import views
 
@@ -26,12 +26,12 @@ def get_instance(id):
 
 def get_instance_by_hostname(hostname):
     instance = models.DBInstance().find_by(remote_hostname=hostname)
-    instance = views.DBInstanceView(instance).show()
+    instance = instance.data()
     return instance        
 
 def get_snapshot(id):
     snapshot = models.Snapshot().find_by(id=id)
-    snapshot = views.SnapshotView(instance).show()
+    snapshot = snapshot.data()
     return instance    
 
 def update_guest_status(instance_id, state, description=None):
@@ -39,5 +39,7 @@ def update_guest_status(instance_id, state, description=None):
         description = result_state.name(state)
         
     guest = models.GuestStatus().find_by(instance_id=instance_id)
-    guest.update({'state': state,
+    # TODO: Handle situation where no matching record is found (e.g. if
+    # a write to GuestStatus fails during create() for some reason)
+    guest.update(**{'state': state,
                   'state_description': description})

@@ -14,6 +14,7 @@
 #    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #    License for the specific language governing permissions and limitations
 #    under the License.
+import logging
 
 import sqlalchemy.exc
 from sqlalchemy import and_
@@ -26,6 +27,7 @@ from reddwarf.db.sqlalchemy import migration
 from reddwarf.db.sqlalchemy import mappers
 from reddwarf.db.sqlalchemy import session
 
+LOG = logging.getLogger(__name__)
 
 def list(query_func, *args, **kwargs):
     return query_func(*args, **kwargs).all()
@@ -93,6 +95,9 @@ def configure_db(options, *plugins):
 
 
 def configure_db_for_plugins(options, *plugins):
+    LOG.debug("Configuring DB with options: %s" % options)
+    if plugins:
+        LOG.debug("Configuring DB with plugins: %s" % plugins)
     for plugin in plugins:
         session.configure_db(options, models_mapper=plugin.mapper)
 

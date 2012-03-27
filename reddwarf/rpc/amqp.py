@@ -25,6 +25,7 @@ Specifically, this includes impl_kombu and impl_qpid.  impl_carrot also uses
 AMQP, but is deprecated and predates this code.
 """
 
+import ast
 import inspect
 import logging
 import sys
@@ -284,7 +285,13 @@ class MulticallWaiter(object):
         self._connection.close()
 
     def __call__(self, data):
-        """The consume() callback will call this.  Store the result."""
+        """The consume() callback will call this.  Store the result."""        
+        try:
+            data = ast.literal_eval(data)
+        except Exception:
+            LOG.exception('Invalid string received from message.')
+            pass        
+        
         if data['failure']:
             self._result = rpc_common.RemoteError(*data['failure'])
         elif data.get('ending', False):

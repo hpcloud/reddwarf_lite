@@ -231,7 +231,7 @@ class Instances(Instance):
 
 
 class DatabaseModelBase(ModelBase):
-    _auto_generated_attrs = ["id", "created_at", "updated_at"]
+    _auto_generated_attrs = ["id", "created_at"]
 
     @classmethod
     def create(cls, **values):
@@ -302,7 +302,8 @@ class DatabaseModelBase(ModelBase):
 class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
-                    'remote_hostname', 'availability_zone', 'deleted']
+                    'remote_hostname', 'availability_zone', 'deleted',
+                    'created_at', 'deleted_at']
     
 
 class User(DatabaseModelBase):
@@ -314,7 +315,8 @@ class Credential(DatabaseModelBase):
     
 
 class GuestStatus(DatabaseModelBase):
-    _data_fields = ['instance_id', 'state', 'deleted']
+    _data_fields = ['instance_id', 'state', 'deleted', 
+                    'deleted_at', 'updated_at']
     
 
 class ServiceImage(DatabaseModelBase):
@@ -328,7 +330,7 @@ class ServiceFlavor(DatabaseModelBase):
 class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
                     'tenant_id', 'storage_uri', 'credential', 'storage_size',
-                    'deleted']
+                    'deleted', 'updated_at', 'deleted_at']
     
     @classmethod
     def list_by_tenant(cls, tenant_id):

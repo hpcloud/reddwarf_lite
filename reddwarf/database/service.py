@@ -123,6 +123,8 @@ class InstanceController(BaseController):
         
         remote_id = server["remote_id"]
         credential = models.Credential().find_by(id=server['credential'])
+        
+        # Try to delete the Nova instance
         try:
             LOG.debug("Deleting remote instance with id %s" % remote_id)
             # TODO(cp16net) : need to handle exceptions here if the delete fails
@@ -130,12 +132,22 @@ class InstanceController(BaseController):
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
             return wsgi.Result(None,404)
-    
+
+        # Try to delete the Reddwarf lite instance
         try:
             server = server.delete()
         except exception.ReddwarfError, e:
             LOG.debug("Fail to delete DB instance")
             return wsgi.Result(None,500)
+        
+        # Finally, try to delete the associated GuestStatus record
+        try:
+            guest_status = models.GuestStatus().find_by(instance_id=server['id'])
+            guest_status.delete()
+        except exception.ReddwarfError, e:
+            LOG.debug("Failed to delete GuestStatus record")
+            return wsgi.Result(None, 500)
+        
         
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Returning value")
@@ -192,6 +204,9 @@ class InstanceController(BaseController):
                                      flavor=1)
 
         LOG.debug("Wrote DB Instance: %s" % instance)
+        
+        # Add a GuestStatus record pointing to the new instance for Maxwell
+        guest_status = models.GuestStatus().create(instance_id=instance.data()['id'])
 
         # Now wait for the response from the create to do additional work
         #TODO(cp16net): need to set the return code correctly

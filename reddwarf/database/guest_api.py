@@ -154,7 +154,7 @@ class API():
         instance = utils.get_instance(id)
         LOG.debug("Reset_password_instance is: %s" % instance)
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
-        return rpc.call(context, "phonehome",
+        return rpc.call(context, instance['remote_hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
 

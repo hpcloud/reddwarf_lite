@@ -18,7 +18,6 @@
 import eventlet
 eventlet.monkey_patch()
 import gettext
-import logging
 import optparse
 import os
 import routes
@@ -40,7 +39,8 @@ from reddwarf import version
 from reddwarf.common import config
 from reddwarf.common import wsgi
 from reddwarf.common import service
-import reddwarf.rpc.message_handler as message_handler
+from reddwarf.db import db_api
+from reddwarf.rpc import message_handler
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(version="%%prog %s"
@@ -50,11 +50,10 @@ if __name__ == '__main__':
 
     (options, args) = config.parse_options(parser)
     try:
-        conf = config.Config.load_paste_config('reddwarf', options, args)
-        conf2, app = config.Config.load_paste_app('reddwarf-gueststatus', 
+        conf, app = config.Config.load_paste_app('reddwarf-gueststatus', 
                                                   options, args)
-        conf = dict(conf.items() + conf2.items())
-        #server = service.Service.create(binary='reddwarf-gueststatus')
+        db_api.configure_db(conf)
+        
         server = message_handler.MessageHandlerService()
         service.serve(server)
         service.wait()
