@@ -140,7 +140,7 @@ class TokenBasedAuth(object):
 
         """Get the user token from the header"""
         self.user_token = self._get_header(environment, 'X-Auth-Token')
-        self.user_tenant_username = self._get_header(environment, 'X-Auth-Tenant')
+        self.user_tenant_username = self._get_header(environment, 'X-Auth-Project-Id')
         
         """Check to see if our required headers are passed in"""
         if self.user_token is None:
@@ -149,7 +149,7 @@ class TokenBasedAuth(object):
             raise InvalidUserToken(msg, msg)
 
         if self.user_tenant_username is None:
-            msg = ("X-Auth-Tenant not supplied in request header.  ie : 'X-Auth-Tenant: [authentication tenant name]'")
+            msg = ("X-Auth-Project-Id not supplied in request header.  ie : 'X-Auth-Project-Id: [authentication tenant name]'")
             LOG.warn(msg % locals())
             raise InvalidUserToken(msg, msg)
         

@@ -52,11 +52,20 @@ service_flavors = Table('service_flavors', meta,
     Column('updated_at', DateTime()),
     Column('deleted_at', DateTime()))    
 
+service_secgroups = Table('service_secgroups', meta,
+    Column('id', String(36), primary_key=True, nullable=False),
+    Column('service_name', String(255)),
+    Column('group_name', String(255)),
+    Column('deleted', Boolean()),
+    Column('created_at', DateTime()),
+    Column('updated_at', DateTime()),
+    Column('deleted_at', DateTime()))    
+
 def upgrade(migrate_engine):
     meta.bind = migrate_engine
-    create_tables([service_images, service_flavors, ])
+    create_tables([service_images, service_flavors, service_secgroups, ])
 
 
 def downgrade(migrate_engine):
     meta.bind = migrate_engine
-    drop_tables([service_images, service_flavors, ])
+    drop_tables([service_images, service_flavors, service_secgroups, ])

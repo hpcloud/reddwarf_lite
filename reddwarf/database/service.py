@@ -76,9 +76,7 @@ class InstanceController(BaseController):
         """Return all instances."""
         LOG.debug("Index() called with %s, %s" % (tenant_id, id))  
         # TODO(hub-cap): turn this into middleware
-        context = rd_context.ReddwarfContext(
-                          auth_tok=req.headers["X-Auth-Token"],
-                          tenant=tenant_id)
+        context = req.context
         LOG.debug("Context: %s" % context.to_dict())
         servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
