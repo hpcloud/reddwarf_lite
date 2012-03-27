@@ -66,7 +66,7 @@ use = call:reddwarf.common.wsgi:versioned_urlmap
 paste.app_factory = reddwarf.versions:app_factory
 
 [pipeline:reddwarfapi]
-pipeline = tokenauth authorization extensions adminapp reddwarfapp
+pipeline = tokenauth authorization context extensions adminapp reddwarfapp
 #pipeline = debug extensions reddwarfapp
 
 [filter:extensions]
@@ -83,6 +83,9 @@ retry_sleep_seconds = 3
 
 [filter:authorization]
 paste.filter_factory = reddwarf.common.auth:AuthorizationMiddleware.factory
+
+[filter:context]
+paste.filter_factory = reddwarf.common.context:filter_factory
 
 [filter:adminapp]
 paste.filter_factory = reddwarf.admin.service:app_factory
