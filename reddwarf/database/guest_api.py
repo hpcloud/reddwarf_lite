@@ -151,12 +151,19 @@ class API():
 
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
-        instance = utils.get_instance(id)
+        try:
+            instance = utils.get_instance(id)
+        except exception.ReddwarfError, e:
+            return 404
+            
         LOG.debug("Reset_password_instance is: %s" % instance)
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
-        return rpc.call(context, instance['remote_hostname'],
+        try:
+            return rpc.call(context, instance['remote_hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
+        except Exception, e:
+            return 500
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
