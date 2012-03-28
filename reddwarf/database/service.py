@@ -255,7 +255,8 @@ class InstanceController(BaseController):
             #TODO (vipulsabhaya) move this to config or db
             keypair = 'dbas-dev'
             
-            userdata = open('../development/bootstrap/dbaas-image.sh')
+            userdata = None
+            #userdata = open('../development/bootstrap/dbaas-image.sh')
 
             floating_ip = models.FloatingIP.create(credential).data()
 

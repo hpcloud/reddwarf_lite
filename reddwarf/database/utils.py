@@ -32,7 +32,7 @@ def get_instance_by_hostname(hostname):
 def get_snapshot(id):
     snapshot = models.Snapshot().find_by(id=id)
     snapshot = snapshot.data()
-    return instance    
+    return snapshot    
 
 def update_guest_status(instance_id, state, description=None):
     if not description:
