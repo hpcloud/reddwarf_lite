@@ -47,9 +47,6 @@ def map(engine, models):
     orm.mapper(models['quota'],
                Table('quotas', meta, autoload=True))
 
-    orm.mapper(models['instance_monitor'],
-               Table('instance_monitors', meta, autoload=True))
-
 def mapping_exists(model):
     try:
         orm.class_mapper(model)

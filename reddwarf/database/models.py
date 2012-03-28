@@ -349,9 +349,6 @@ class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']
     
    
-class InstanceMonitor(DatabaseModelBase):
-    _data_fields = ['uuid', 'type', 'attempts']
-    
 def persisted_models():
     return {
         'instance': DBInstance,
@@ -362,7 +359,6 @@ def persisted_models():
         'service_flavor': ServiceFlavor,
         'snapshot': Snapshot,
         'quota': Quota,
-        'instance_monitor': InstanceMonitor,
         'service_secgroup': ServiceSecgroup
         }
 
