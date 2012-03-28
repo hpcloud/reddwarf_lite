@@ -88,3 +88,101 @@ class TestInstance(tests.BaseTest):
         self.assertEqual(instance['flavor'], self.FAKE_SERVER.flavor)
         self.assertEqual(instance['links'], self.FAKE_SERVER.links)
         self.assertEqual(instance['addresses'], self.FAKE_SERVER.addresses)
+        
+class TestDBInstance(tests.BaseTest):
+    
+    FAKE_SERVER = None
+    
+    def setUp(self):
+        super(TestDBInstance, self).setUp()              
+    
+    def test_create_instance(self):
+        remote_uuid = utils.generate_uuid()
+        kwargs = {"remote_uuid": remote_uuid,
+                  "name": "dbapi_test"}
+        instance = factory_models.DBInstance().create(**kwargs).data()
+        
+        self.assertEqual(instance['name'], "dbapi_test")
+        self.assertEqual(instance['deleted'], False)
+        self.assertNotEqual(instance['created_at'], None)
+        self.assertEqual(len(instance['id']), len(utils.generate_uuid()))
+        self.assertEqual(instance['remote_uuid'], remote_uuid)
+    
+    def test_delete_instance(self):
+        kwargs = {}
+        instance = factory_models.DBInstance().create(**kwargs)
+        data = instance.data()
+        self.assertEqual(data['deleted'], False)
+        self.assertEqual(data['deleted_at'], None)
+        
+        data = instance.delete(**kwargs).data()
+        self.assertEqual(data['deleted'], True)
+        self.assertNotEqual(data['deleted_at'], None)              
+         
+    def test_update_instance(self):
+        kwargs = {"name": "dbapi_test"}
+        instance = factory_models.DBInstance().create(**kwargs)        
+        data = instance.data()
+        self.assertEqual(data['name'], "dbapi_test")
+        
+        kwargs['name'] = "changed"
+        data = instance.update(**kwargs).data()
+        self.assertEqual(data['name'], "changed")
+    
+    def test_retrieve_instance(self):
+        name = utils.generate_uuid()
+        kwargs = {"name": name}
+        instance = factory_models.DBInstance().create(**kwargs)
+        data = instance.data()
+        self.assertEqual(data['name'], name)
+ 
+        found_instance = instance.find_by(name=name)
+        data = found_instance.data()
+        self.assertEqual(data['name'], name)
+    
+class TestSnapshotInstance(tests.BaseTest):
+    
+    def setUp(self):
+        super(TestSnapshotInstance, self).setUp() 
+
+    def test_create_snapshot(self):
+        kwargs = {}
+        instance = factory_models.Snapshot().create(**kwargs).data()
+        
+        print instance
+        
+        self.assertEqual(instance['deleted'], False)
+        self.assertNotEqual(instance['created_at'], None)
+        self.assertEqual(len(instance['id']), len(utils.generate_uuid()))
+    
+    def test_delete_snapshot(self):
+        kwargs = {}
+        snapshot = factory_models.Snapshot().create(**kwargs)
+        data = snapshot.data()
+        self.assertEqual(data['deleted'], False)
+        self.assertEqual(data['deleted_at'], None)
+        
+        data = snapshot.delete(**kwargs).data()
+        self.assertEqual(data['deleted'], True)
+        self.assertNotEqual(data['deleted_at'], None) 
+    
+    def test_update_snapshot(self):
+        kwargs = {"name": "dbapi_test"}
+        snapshot = factory_models.Snapshot().create(**kwargs)        
+        data = snapshot.data()
+        self.assertEqual(data['name'], "dbapi_test")
+        
+        kwargs['name'] = "changed"
+        data = snapshot.update(**kwargs).data()
+        self.assertEqual(data['name'], "changed")
+    
+    def test_retrieve_snapshot(self):
+        name = utils.generate_uuid()
+        kwargs = {"name": name}
+        snapshot = factory_models.Snapshot().create(**kwargs)
+        data = snapshot.data()
+        self.assertEqual(data['name'], name)
+ 
+        found_snapshot = snapshot.find_by(name=name)
+        data = found_snapshot.data()
+        self.assertEqual(data['name'], name)

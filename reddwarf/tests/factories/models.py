@@ -24,8 +24,19 @@ from reddwarf.database import models
 
 class Instance(factory.Factory):
     FACTORY_FOR = models.Instance
-    context = context.ReddwarfContext()
+    #context = context.ReddwarfContext()
     uuid = utils.generate_uuid()
+
+class DBInstance(factory.Factory):
+    FACTORY_FOR = models.DBInstance
+    #context = context.ReddwarfContext()
+    uuid = utils.generate_uuid()
+    
+class Snapshot(factory.Factory):
+    FACTORY_FOR = models.Snapshot
+    #context = context.ReddwarfContext()
+    uuid = utils.generate_uuid()    
+    
 
 
 def factory_create(model_to_create, **kwargs):

@@ -16,7 +16,10 @@
 #    under the License.
 
 import json
+import logging
 import webtest
+
+LOG = logging.getLogger(__name__)
 
 from reddwarf import tests
 from reddwarf.common import config
@@ -45,5 +48,4 @@ class TestApp(webtest.TestApp):
 def setup():
     options = {"config_file": tests.test_config_file()}
     conf = config.Config.load_paste_config("reddwarfapp", options, None)
-
     db_api.db_reset(conf)

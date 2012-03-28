@@ -221,7 +221,7 @@ class InstanceController(BaseController):
         """Resets DB password on remote instance"""
         LOG.info("Resets DB password on Instance %s", id)
         password = utils.generate_password()
-        print req.environ
+        LOG.debug("Req.environ: %s" % req.environ)
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
@@ -229,8 +229,7 @@ class InstanceController(BaseController):
         if result == result_state.ResultState.SUCCESS:
             return {'password': password}
         else:
-            LOG.debug("Smart Agent failed to reset password (RPC response: '%s').",
-                result_state.ResultState.name(result))
+            LOG.debug("Smart Agent failed to reset password (RPC success response: '%s')." % result)
             return wsgi.Result("Smart Agent failed to reset password.",500)
         
         return wsgi.Result(None, 200)

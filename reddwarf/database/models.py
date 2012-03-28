@@ -123,7 +123,7 @@ class Instance(RemoteModelBase):
     def __init__(self, server=None, credential=None, uuid=None):
         if server is None and credential is None and uuid is None:
             #TODO(cp16et): what to do now?
-            msg = "server, content, and uuid are not defined"
+            msg = "server, credential, and uuid are not defined"
             raise InvalidModelError(msg)
         elif server is None:
             try:
@@ -281,6 +281,7 @@ class DatabaseModelBase(ModelBase):
     def find_by(cls, **conditions):
         LOG.debug("CLS: %s" % conditions)
         model = cls.get_by(**conditions)
+        LOG.debug("Model returned: %s" % model)
         if model == None:
             raise ModelNotFoundError(_("%s Not Found") % cls.__name__)
         return model

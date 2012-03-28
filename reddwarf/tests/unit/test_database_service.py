@@ -38,7 +38,7 @@ class ControllerTestBase(tests.BaseTest):
 
     def setUp(self):
         super(ControllerTestBase, self).setUp()
-        conf, reddwarf_app = config.Config.load_paste_app('reddwarfapp',
+        conf, reddwarf_app = config.Config.load_paste_app('reddwarf',
                 {"config_file": tests.test_config_file()}, None)
         self.app = unit.TestApp(reddwarf_app)
 
@@ -64,8 +64,13 @@ class TestInstanceController(ControllerTestBase):
     }
 
     def setUp(self):
-        self.instances_path = "/tenant/instances"
         super(TestInstanceController, self).setUp()
+        self.headers = {'X-Auth-Token': 'abc:123',
+                        'X-Roles': 'user',
+                        'X-User-Id': '999',
+                        'X-Tenant-Id': '123'}
+        self.tenant = self.headers['X-Tenant-Id']
+        self.instances_path = "/v0.1/" + self.tenant + "/instances"
 
     # TODO(hub-cap): Start testing the failure cases
     # def test_show_broken(self):
@@ -77,23 +82,24 @@ class TestInstanceController(ControllerTestBase):
     def test_show(self):
         id = self.DUMMY_INSTANCE_ID
         self.mock.StubOutWithMock(models.DBInstance, 'find_by')
-        models.DBInstance.find_by(deleted=False,id=id,tenant_id='tenant').AndReturn(self.DUMMY_INSTANCE)
+        models.DBInstance.find_by(deleted=False,id=id,tenant_id=self.tenant).AndReturn(self.DUMMY_INSTANCE)
 #        self.mock.StubOutWithMock(models.DBInstance, '__init__')
 #        models.Instance.__init__(context=mox.IgnoreArg(), uuid=mox.IgnoreArg())
         self.mock.ReplayAll()
 
         response = self.app.get("%s/%s" % (self.instances_path,
                                            self.DUMMY_INSTANCE_ID),
-                                           headers={'X-Auth-Token': '123'})
+                                           headers=self.headers)
+
 
         self.assertEqual(response.status_int, 200)
 
     def test_index(self):
         self.mock.StubOutWithMock(models.DBInstance, 'find_all')
-        models.DBInstance.find_all(tenant_id='tenant', deleted=False).AndReturn([self.DUMMY_INSTANCE])
+        models.DBInstance.find_all(tenant_id=self.tenant, deleted=False).AndReturn([self.DUMMY_INSTANCE])
         self.mock.ReplayAll()
         response = self.app.get("%s" % (self.instances_path),
-                                           headers={'X-Auth-Token': '123'})
+                                        headers=self.headers)
         self.assertEqual(response.status_int, 200)
 
     def mock_out_client_create(self):
@@ -136,6 +142,7 @@ class TestInstanceController(ControllerTestBase):
     def test_create(self):
         self.ServiceImage = {"image_id": "1240"}
         self.ServiceFlavor = {"flavor_id": "100"}
+        self.Credential = {'id': '1'}
         body = {
             "instance": {
                 "databases": [
@@ -153,45 +160,50 @@ class TestInstanceController(ControllerTestBase):
             }
         }
         
+        mock_flip_data = {"ip": "blah"}
+        
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
         models.ServiceImage.find_by(service_name="database").AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
-        models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)                
+        models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)  
+        self.mock.StubOutWithMock(models.Credential, 'find_by')
+        models.Credential.find_by(type="compute").AndReturn(self.Credential)                
         
         mock_server = self.mock.CreateMock(models.Instance(server="server", uuid=utils.generate_uuid()))
-        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))
+        mock_dbinstance = self.mock.CreateMock(models.DBInstance())
+#        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))       
 
-        self.mock.StubOutWithMock(mock_flip, 'data')
-        mock_flip.data().AndReturn({ "ip" : "blah" })       
-
-        self.mock.StubOutWithMock(mock_server, 'data')
-        mock_server.data().AndReturn(self.DUMMY_SERVER)       
+#        self.mock.StubOutWithMock(mock_server, 'data')
+#        mock_server.data().AndReturn(self.DUMMY_SERVER)       
 
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((mock_server.data(), mock_flip.data()))
-        
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
+                            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data))
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
-        models.DBInstance.create(address='blah', port='3306', flavor=1,
+        models.DBInstance.create(
+                address='blah', port='3306', flavor=1,
                 name=body['instance']['name'],
                 status='building',
                 remote_id=self.DUMMY_SERVER['id'],
                 remote_uuid=self.DUMMY_SERVER['uuid'],
                 remote_hostname=self.DUMMY_SERVER['name'],
-                credential='None',
+                credential=self.Credential['id'],
                 user_id=None,
-                tenant_id='tenant').AndReturn(models.DBInstance())  
+                tenant_id=self.tenant).AndReturn(mock_dbinstance)  
 
-        self.mock.StubOutWithMock(models.DBInstance, 'data')
-        models.DBInstance.data().AndReturn(self.DUMMY_INSTANCE)
+        self.mock.StubOutWithMock(mock_dbinstance, 'data')
+        mock_dbinstance.data().AndReturn(self.DUMMY_INSTANCE)
+        
+        mock_dbinstance.data().AndReturn(self.DUMMY_INSTANCE)
                  
         #self.mock_out_client_create()
         self.mock.ReplayAll()
 
         response = self.app.post_json("%s" % (self.instances_path), body=body,
-                                           headers={'X-Auth-Token': '123'},
+                                           headers=self.headers,
                                            )
         self.assertEqual(response.status_int, 201)
 

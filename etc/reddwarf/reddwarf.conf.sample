@@ -66,7 +66,9 @@ use = call:reddwarf.common.wsgi:versioned_urlmap
 paste.app_factory = reddwarf.versions:app_factory
 
 [pipeline:reddwarfapi]
-pipeline = tokenauth authorization context extensions adminapp reddwarfapp
+#pipeline = tokenauth authorization context extensions adminapp reddwarfapp
+#pipeline = tokenauth authorization context extensions reddwarfapp
+pipeline = authorization context extensions reddwarfapp
 #pipeline = debug extensions reddwarfapp
 
 [filter:extensions]
