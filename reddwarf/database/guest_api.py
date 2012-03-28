@@ -19,30 +19,19 @@
 Handles all request to the Platform or Guest VM
 """
 
-#from nova import flags
 import logging
-#from nova import rpc
-#from nova.db import api as nova_dbapi
-#from nova.db import base
 
-#from reddwarf.db import api as reddwarf_dbapi
-#from reddwarf.rpc import rpc as reddwarf_rpc
-from reddwarf.database import utils as utils
+from reddwarf.database import utils
+from reddwarf.database import models
+from reddwarf.database import views
 from reddwarf.common import exception
-from reddwarf.common import result_state
 from reddwarf.rpc import impl_kombu as rpc
 
 
-#FLAGS = flags.FLAGS
-#LOG = logging.getLogger('nova.guest.api')
 LOG = logging.getLogger(__name__)
 
-#class API(base.Base):
 class API():
     """API for interacting with the guest manager."""
-
-#    def __init__(self, **kwargs):
-#        super(API, self).__init__(**kwargs)
 
     def _get_routing_key(self, context, id):
         """Create the routing key based on the container id"""
@@ -146,7 +135,7 @@ class API():
         LOG.debug("Triggering smart agent on Instance %s (%s) to check MySQL status.", id, instance['remote_hostname'])
         result = rpc.call(context, instance['remote_hostname'], {"method": "check_mysql_status"})
         # update instance state in guest_status table upon receiving smart agent response
-        utils.guest_status_update(id, int(result))
+        utils.update_guest_status(id, int(result))
         return result
 
     def reset_password(self, context, id, password):
@@ -241,7 +230,6 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
         snapshot = utils.get_snapshot(msg['args']['sid'])
-        snapshot.update({'updated_at': datetime.datetime.utcnow(),
-                         'storage_uri': storage_uri,
-                         'storage_size': storage_size,
-                         'state': state})
+        snapshot.update(storage_uri=msg['args']['storage_uri'],
+                        storage_size=msg['args']['storage_size'],
+                        state=msg['args']['state'])

@@ -34,12 +34,8 @@ def get_snapshot(id):
     snapshot = snapshot.data()
     return snapshot    
 
-def update_guest_status(instance_id, state, description=None):
-    if not description:
-        description = result_state.name(state)
-        
+def update_guest_status(instance_id, state):
     guest = models.GuestStatus().find_by(instance_id=instance_id)
     # TODO: Handle situation where no matching record is found (e.g. if
     # a write to GuestStatus fails during create() for some reason)
-    guest.update(**{'state': state,
-                  'state_description': description})
+    return guest.update(state=state)
