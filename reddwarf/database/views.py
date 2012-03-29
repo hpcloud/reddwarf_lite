@@ -136,7 +136,7 @@ class SnapshotView(object):
 
         return {"snapshot": {
             "id": self.snapshot['id'],
-            "status": self.snapshot['status'],
+            "status": self.snapshot['state'],
             "created": self.snapshot['created_at'],
             "instanceId": self.snapshot['instance_id'],
             "links": self._build_links()       
@@ -157,7 +157,7 @@ class SnapshotView(object):
 
         return {"snapshot": {
             "id": self.snapshot['id'],
-            "status": self.snapshot['status'],
+            "status": self.snapshot['state'],
             "created": self.snapshot['created_at'],
             "instanceId": self.snapshot['instance_id'],
             "links": self._build_links()
