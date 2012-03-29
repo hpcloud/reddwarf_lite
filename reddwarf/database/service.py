@@ -425,7 +425,7 @@ class SnapshotController(BaseController):
                                      tenant_id=context.tenant)
             
             credential = models.Credential.find_by(type='object-store')
-            GUEST_API.create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
+            guest_api.API().create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
         except exception.ReddwarfError, e:
             LOG.debug("Error creating snapshot: %s" % e)
             return wsgi.Result(errors.Snapshot.CREATE, 500)
