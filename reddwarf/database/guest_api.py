@@ -79,8 +79,8 @@ class API():
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
-                           "credential": {"user": credential['user_name'],
-                                          "key": credential['tenant_id']+":"+credential['password'],
+                           "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
+                                          "key": credential['password'],
                                           "auth": auth_url}}
                   })
 
@@ -91,8 +91,8 @@ class API():
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "apply_snapshot",
                   "args": {"storage_path": snapshot['storage_uri'],
-                           "credential": {"user": credential['user_name'],
-                                          "key": credential['tenant_id']+":"+credential['password'],
+                           "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
+                                          "key": credential['password'],
                                           "auth": auth_url}}
                   })
 
