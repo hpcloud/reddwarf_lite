@@ -340,13 +340,13 @@ class SnapshotController(BaseController):
 #                          tenant=tenant_id)
 #        LOG.debug("Context: %s" % context.to_dict())
         try:
-            server = models.Snapshot().find_by(id=id)
+            snapshot = models.Snapshot().find_by(id=id, delete=False)
         except exception.ReddwarfError, e:            
             LOG.debug("Show() failed with an exception")
             return wsgi.Result(errors.Snapshot.NOT_FOUND, 404)    
         
-        LOG.debug("Servers: %s" % server)       
-        return wsgi.Result(views.SnapshotView(server).show(), 200)
+        LOG.debug("Show Snapshot: %s" % snapshot)       
+        return wsgi.Result(views.SnapshotView(snapshot, req, tenant_id).show(), 200)
 
     def index(self, req, tenant_id):
         """Return a list of all snapshots for a specific instance or tenant."""
@@ -370,14 +370,14 @@ class SnapshotController(BaseController):
         
         if instance_id and len(instance_id) > 0:
             LOG.debug("Listing snapshots by instance_id %s", instance_id)
-            servers = models.Snapshot().list_by_instance(instance_id)
-            LOG.debug("Servers: %s" % servers)
-            return wsgi.Result(views.SnapshotsView(servers).list(), 200)
+            snapshots = models.Snapshot().list_by_instance(instance_id)
+            LOG.debug("snapshots: %s" % snapshots)
+            return wsgi.Result(views.SnapshotsView(snapshots).list(), 200)
         else:
             LOG.debug("Listing snapshots by tenant_id %s", tenant_id)            
-            servers = models.Snapshot().list_by_tenant(tenant_id)
-            LOG.debug("Servers: %s" % servers)
-            return wsgi.Result(views.SnapshotsView(servers).list(), 200)
+            snapshots = models.Snapshot().list_by_tenant(tenant_id)
+            LOG.debug("snapshots: %s" % snapshots)
+            return wsgi.Result(views.SnapshotsView(snapshots, req, tenant_id).list(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single snapshot."""
