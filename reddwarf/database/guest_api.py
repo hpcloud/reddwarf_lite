@@ -150,6 +150,7 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
         snapshot = utils.get_snapshot(msg['args']['sid'])
+        LOG.debug("Updating snapshot state with ID %s", snapshot['id'])
         snapshot.update(storage_uri=msg['args']['storage_uri'],
                         storage_size=msg['args']['storage_size'],
                         state=msg['args']['state'])
