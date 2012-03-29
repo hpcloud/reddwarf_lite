@@ -431,7 +431,7 @@ class SnapshotController(BaseController):
             return wsgi.Result(errors.Snapshot.CREATE, 500)
         
         LOG.debug("Wrote snapshot: %s" % snapshot)
-        return wsgi.Result(views.SnapshotView(snapshot).create(), 201)
+        return wsgi.Result(views.SnapshotView(snapshot, req, tenant_id).create(), 201)
                  
 
 class API(wsgi.Router):
