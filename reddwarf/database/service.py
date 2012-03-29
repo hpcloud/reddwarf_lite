@@ -418,13 +418,15 @@ class SnapshotController(BaseController):
         
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
+            credential = models.Credential.find_by(type='object-store')
+
             snapshot = models.Snapshot().create(name=body['snapshot']['name'],
                                      instance_id=body['snapshot']['instanceId'],
                                      state='building',
                                      user_id=context.user,
-                                     tenant_id=context.tenant)
+                                     tenant_id=context.tenant,
+                                     credential=credential['id'])
             
-            credential = models.Credential.find_by(type='object-store')
             guest_api.API().create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
         except exception.ReddwarfError, e:
             LOG.debug("Error creating snapshot: %s" % e)
