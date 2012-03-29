@@ -340,7 +340,7 @@ class SnapshotController(BaseController):
 #                          tenant=tenant_id)
 #        LOG.debug("Context: %s" % context.to_dict())
         try:
-            snapshot = models.Snapshot().find_by(id=id, delete=False)
+            snapshot = models.Snapshot().find_by(id=id, deleted=False)
         except exception.ReddwarfError, e:            
             LOG.debug("Show() failed with an exception")
             return wsgi.Result(errors.Snapshot.NOT_FOUND, 404)    

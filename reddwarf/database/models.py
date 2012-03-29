@@ -339,11 +339,11 @@ class Snapshot(DatabaseModelBase):
     
     @classmethod
     def list_by_tenant(cls, tenant_id):
-        return db.db_api.find_all(cls, **{"tenant_id": tenant_id})
+        return db.db_api.find_all(cls, **{"tenant_id": tenant_id, "deleted": False})
 
     @classmethod
     def list_by_instance(cls, instance_id):
-        return db.db_api.find_all(cls, **{"instance_id": instance_id})
+        return db.db_api.find_all(cls, **{"instance_id": instance_id, "deleted": False})
     
 class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']
