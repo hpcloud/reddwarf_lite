@@ -39,6 +39,7 @@ from reddwarf.admin import service as admin
 
 
 CONFIG = config.Config
+GUEST_API = guest_api.API
 LOG = logging.getLogger(__name__)
 
 
@@ -415,12 +416,16 @@ class SnapshotController(BaseController):
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
         
+        SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
             snapshot = models.Snapshot().create(name=body['snapshot']['name'],
                                      instance_id=body['snapshot']['instanceId'],
                                      state='building',
                                      user_id=context.user,
                                      tenant_id=context.tenant)
+            
+            credential = models.Credential.find_by(type='object-store')
+            GUEST_API.create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
         except exception.ReddwarfError, e:
             LOG.debug("Error creating snapshot: %s" % e)
             return wsgi.Result(errors.Snapshot.CREATE, 500)

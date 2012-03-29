@@ -72,27 +72,28 @@ class API():
         except Exception, e:
             return 500
 
-    def create_snapshot(self, context, instance_id, snapshot_id, credential):
+    def create_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
         instance = utils.get_instance(instance_id)
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
-                           "credential": {"user": credential.user,
-                                          "key": credential.key,
-                                          "auth": credential.auth}}
+                           "credential": {"user": credential['user_name'],
+                                          "key": credential['tenant_id']+":"+credential['password'],
+                                          "auth": auth_url}}
                   })
 
-    def apply_snapshot(self, context, instance_id, snapshot_id, credential):
+    def apply_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to apply Snapshot %s on Instance %s.", snapshot_id, instance_id)
         instance = utils.get_instance(instance_id)
         snapshot = utils.get_snapshot(snapshot_id)
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "apply_snapshot",
                   "args": {"storage_path": snapshot['storage_uri'],
-                           "credential": {"user": credential.user,
-                                          "key": credential.key,
-                                          "auth": credential.auth}}})
+                           "credential": {"user": credential['user_name'],
+                                          "key": credential['tenant_id']+":"+credential['password'],
+                                          "auth": auth_url}}
+                  })
 
 
 class PhoneHomeMessageHandler():
