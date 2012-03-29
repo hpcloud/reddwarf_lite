@@ -13,6 +13,14 @@ bind_port = 8779
 
 # AMQP Connection info
 rabbit_password=f7999d1955c5014aa32c
+rabbit_host = 0.0.0.0
+rabbit_userid = guest
+rabbit_password = guest
+rabbit_virtual_host = /
+rabbit_port = 5671
+rabbit_use_ssl = True
+# rabbit_port = 5672
+# rabbit_use_ssl = False
 
 # SQLAlchemy connection string for the reference implementation
 # registry server. Any valid SQLAlchemy connection string is fine.
