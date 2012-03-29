@@ -303,8 +303,9 @@ class InstanceController(BaseController):
         """Creates a config file that gets placed in the instance
         for the Agent to configure itself"""
         
+        RABBIT_HOST = CONFIG.get('rabbit_host', 'localhost')
         conf_file = '[messaging]\n'\
-                    'rabbit_host: ' + 'localhost' + '\n'\
+                    'rabbit_host: ' + RABBIT_HOST + '\n'\
                     '\n'\
                     '[database]\n'\
                     'initial_password: ' + utils.generate_password(length=8)
