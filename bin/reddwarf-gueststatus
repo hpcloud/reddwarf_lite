@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 # Copyright 2012 HP Software, LLC
@@ -50,6 +51,7 @@ if __name__ == '__main__':
 
     (options, args) = config.parse_options(parser)
     try:
+	print "Starting reddwarf-gueststatus"
         conf, app = config.Config.load_paste_app('reddwarf-gueststatus', 
                                                   options, args)
         db_api.configure_db(conf)
