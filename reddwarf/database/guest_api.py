@@ -32,6 +32,7 @@ LOG = logging.getLogger(__name__)
 
 class API():
     """API for interacting with the guest manager."""
+    instance = {}
 
     def _get_routing_key(self, context, id):
         """Create the routing key based on the container id"""
