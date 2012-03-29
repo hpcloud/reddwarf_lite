@@ -430,8 +430,8 @@ class SnapshotController(BaseController):
             LOG.debug("Error creating snapshot: %s" % e)
             return wsgi.Result(errors.Snapshot.CREATE, 500)
         
-        LOG.debug("Wrote snapshot: %s" % snapshot)        
-        return wsgi.Result(None, 201)
+        LOG.debug("Wrote snapshot: %s" % snapshot)
+        return wsgi.Result(views.SnapshotView(snapshot, req, tenant_id).create(), 201)
                  
 
 class API(wsgi.Router):

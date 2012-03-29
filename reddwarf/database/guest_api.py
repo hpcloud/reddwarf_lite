@@ -25,6 +25,7 @@ from reddwarf.database import utils
 from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.common import exception
+from reddwarf.common import result_state
 from reddwarf.rpc import impl_kombu as rpc
 
 
@@ -79,8 +80,8 @@ class API():
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
-                           "credential": {"user": credential['user_name'],
-                                          "key": credential['tenant_id']+":"+credential['password'],
+                           "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
+                                          "key": credential['password'],
                                           "auth": auth_url}}
                   })
 
@@ -91,8 +92,8 @@ class API():
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "apply_snapshot",
                   "args": {"storage_path": snapshot['storage_uri'],
-                           "credential": {"user": credential['user_name'],
-                                          "key": credential['tenant_id']+":"+credential['password'],
+                           "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
+                                          "key": credential['password'],
                                           "auth": auth_url}}
                   })
 
@@ -133,7 +134,7 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
         # update DB
         instance = utils.get_instance_by_hostname(msg['args']['hostname'])
-        state = int(msg['args']['state'])
+        state = result_state.ResultState().name(int(msg['args']['state']))
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
         utils.update_guest_status(instance['id'], state)
 
@@ -150,6 +151,7 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
         # update DB
         snapshot = utils.get_snapshot(msg['args']['sid'])
+        LOG.debug("Updating snapshot state with ID %s", snapshot['id'])
         snapshot.update(storage_uri=msg['args']['storage_uri'],
                         storage_size=msg['args']['storage_size'],
-                        state=msg['args']['state'])
+                        state=result_state.ResultState().name(msg['args']['state']))

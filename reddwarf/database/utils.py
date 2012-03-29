@@ -21,17 +21,14 @@ from reddwarf.database import views
 
 def get_instance(id):
     instance = models.DBInstance().find_by(id=id)
-    instance = instance.data()
     return instance
 
 def get_instance_by_hostname(hostname):
     instance = models.DBInstance().find_by(remote_hostname=hostname)
-    instance = instance.data()
     return instance        
 
 def get_snapshot(id):
     snapshot = models.Snapshot().find_by(id=id)
-    snapshot = snapshot.data()
     return snapshot    
 
 def update_guest_status(instance_id, state):
