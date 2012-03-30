@@ -35,6 +35,7 @@ from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.database import guest_api
+from reddwarf.database import worker_api
 from reddwarf.admin import service as admin
 
 
@@ -210,10 +211,13 @@ class InstanceController(BaseController):
         
         # Add a GuestStatus record pointing to the new instance for Maxwell
         try:
-            guest_status = models.GuestStatus().create(instance_id=instance.data()['id'])
+            guest_status = models.GuestStatus().create(instance_id=instance['id'], state='building')
         except exception.ReddwarfError, e:
             LOG.debug("Error deleting GuestStatus instance %s" % instance.data()['id'])
             return wsgi.Result(errors.Instance.GUEST_CREATE, 500)
+
+        worker_api.API().ensure_create_instance(None, instance)
+
 
         return wsgi.Result(views.DBInstanceView(instance.data(), req, tenant_id).create('dbas', 'hpcs'), 201)
 

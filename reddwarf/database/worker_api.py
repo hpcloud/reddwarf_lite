@@ -34,8 +34,9 @@ class API():
 #    def __init__(self, **kwargs):
 #        super(API, self).__init__(**kwargs)
 
-    def ensure_create_instance(self, context, instance_id):
-        LOG.debug("Triggering worker app server to ensure instance created: %s.", instance_id)
-        instance = utils.get_instance(instance_id)
+    def ensure_create_instance(self, context, instance):
+        LOG.debug("Triggering worker app server to ensure instance created: %s.", instance['id'])
         rpc.cast(context, 'work',
-                 {"create-instance":{"id": instance_id}})
+                 {"create-instance":{"uuid": instance['id'],
+                                     "remoteUuid": instance['remote_uuid'],
+                                     "remoteHostName": instance['remote_hostname']}})

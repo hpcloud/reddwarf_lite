@@ -353,7 +353,8 @@ def call(context, topic, msg, timeout, connection_pool):
 def cast(context, topic, msg, connection_pool):
     """Sends a message on a topic without waiting for a response."""
     LOG.debug(_('Making asynchronous cast on %s...'), topic)
-    pack_context(msg, context)
+    if context is not None:
+        pack_context(msg, context)
     with ConnectionContext(connection_pool) as conn:
         conn.topic_send(topic, msg)
 
