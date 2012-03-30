@@ -157,6 +157,16 @@ class Instance(RemoteModelBase):
                                                      userdata=userdata)
         return Instance(server=srv)
 
+    @classmethod
+    def restart(cls, credential, uuid):
+        try:
+            LOG.debug("Searching for instance using uuid: %s" % uuid)
+            cls.get_client(credential).servers.reboot(uuid)
+        except nova_exceptions.NotFound, e:
+            raise rd_exceptions.NotFound(uuid=uuid)
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError() 
+
 
 class FloatingIP(RemoteModelBase):
 
@@ -263,7 +273,7 @@ class DatabaseModelBase(ModelBase):
         return result
     
     def delete(self):
-        return self.update(deleted=True, deleted_at=utils.utcnow())
+        return self.update(deleted=True, deleted_at=utils.utcnow())   
     
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
