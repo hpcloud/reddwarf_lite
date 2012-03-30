@@ -36,6 +36,7 @@ from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.database import guest_api
 from reddwarf.admin import service as admin
+from swiftapi import swift
 
 
 CONFIG = config.Config
@@ -389,16 +390,42 @@ class SnapshotController(BaseController):
                           tenant=tenant_id)
         LOG.debug("Delete() context") 
         
+        snapshot = None
         try:
             snapshot = models.Snapshot().find_by(id=id)
         except exception.ReddwarfError, e:
             LOG.debug("Fail fetching instance")
             return wsgi.Result(errors.Snapshot.NOT_FOUND, 404)
-    
+        
+        data = snapshot.data()
+        uri = data['storage_uri']
+        
+        if uri and len(uri) > 0:
+            container, file = uri.split('/',2)
+
+            LOG.debug("Deleting from Container: %s - File: %s", container, file)
+        
+            ST_AUTH = CONFIG.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0')
+            ST_USER = CONFIG.get('reddwarf_proxy_swift_user', 'http://0.0.0.0:5000/v2.0')
+            ST_KEY = CONFIG.get('reddwarf_proxy_swift_key', 'http://0.0.0.0:5000/v2.0')
+         
+            opts = {'auth' : ST_AUTH,
+                'user' : ST_USER,
+                'key' : ST_KEY,
+                'snet' : False,
+                'prefix' : '',
+                'auth_version' : '1.0'}
+            
+            try:
+                swift.st_delete(opts, container, file)
+            except exception.ReddwarfError, e:
+                LOG.debug("Fail to delete Swift snapshot instance")
+                return wsgi.Result(errors.Snapshot.SWIFT_DELETE, 500)
+        
         try:
-            server = models.Snapshot().find_by(id=id).delete()
+            response = snapshot.delete()
         except exception.ReddwarfError, e:
-            LOG.debug("Fail to delete DB instance")
+            LOG.debug("Fail to delete DB snapshot instance")
             return wsgi.Result(errors.Snapshot.DELETE, 500)
         
         # TODO(cp16net): need to set the return code correctly
@@ -419,6 +446,7 @@ class SnapshotController(BaseController):
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
             credential = models.Credential.find_by(type='object-store')
+            LOG.debug("Got credential: %s" % credential)
 
             snapshot = models.Snapshot().create(name=body['snapshot']['name'],
                                      instance_id=body['snapshot']['instanceId'],
@@ -426,8 +454,15 @@ class SnapshotController(BaseController):
                                      user_id=context.user,
                                      tenant_id=context.tenant,
                                      credential=credential['id'])
+            LOG.debug("Created snapshot model: %s" % snapshot)
             
-            guest_api.API().create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
+            try:
+                guest_api.API().create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
+            except exception.ReddwarfError, e:
+                LOG.debug("Could not find instance: %s" % id)
+                return wsgi.Result(errors.Instance.NOT_FOUND, 404)
+            
+            LOG.debug("Maxwell created snapshot")
         except exception.ReddwarfError, e:
             LOG.debug("Error creating snapshot: %s" % e)
             return wsgi.Result(errors.Snapshot.CREATE, 500)

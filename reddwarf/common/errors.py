@@ -28,3 +28,4 @@ class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
     DELETE = "There was a problem deleting the specified snapshot."
     CREATE = "There was a problem creating the requested snapshot."
+    SWIFT_DELETE = "There was a problem deleting the specified snapshot."
