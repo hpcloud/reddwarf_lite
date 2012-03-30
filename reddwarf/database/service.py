@@ -431,14 +431,15 @@ class SnapshotController(BaseController):
             container, file = uri.split('/',2)
 
             LOG.debug("Deleting from Container: %s - File: %s", container, file)
-        
+
+            credential = models.Credential.find_by(type='object-store')
+            LOG.debug("Got credential: %s" % credential)
+
             ST_AUTH = CONFIG.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0')
-            ST_USER = CONFIG.get('reddwarf_proxy_swift_user', 'http://0.0.0.0:5000/v2.0')
-            ST_KEY = CONFIG.get('reddwarf_proxy_swift_key', 'http://0.0.0.0:5000/v2.0')
          
             opts = {'auth' : ST_AUTH,
-                'user' : ST_USER,
-                'key' : ST_KEY,
+                'user' : credential['tenant_id'] + ":" + credential['user_name'],
+                'key' : credential['password'],
                 'snet' : False,
                 'prefix' : '',
                 'auth_version' : '1.0'}
