@@ -20,7 +20,7 @@ rabbit_virtual_host = /
 rabbit_port = 5671
 rabbit_use_ssl = True
 # rabbit_port = 5672
-# rabbit_use_ssl = False
+# to use non-ssl, set rabbit_port to 5672 and remove key "rabbit_use_ssl"
 
 # SQLAlchemy connection string for the reference implementation
 # registry server. Any valid SQLAlchemy connection string is fine.
