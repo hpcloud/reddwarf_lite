@@ -1,0 +1,3 @@
+This directory contains construction scraps. The goal here is to get a Swift API
+that the smart agent can use. There is swift.py which is the API package and then 
+the other files are test scripts showing that each basic function works. More to come.

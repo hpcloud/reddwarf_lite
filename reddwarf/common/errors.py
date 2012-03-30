@@ -15,6 +15,7 @@
 
 class Instance():
     NOT_FOUND = "The requested instance does not exist."
+    NOT_FOUND_NOVA = "The Nova instance pointed to by this instance does not exist."
     NOVA_DELETE = "There was a problem deleting the specified Nova instance."
     REDDWARF_DELETE = "There was a problem deleting the specified DBaaS instance."
     GUEST_DELETE = "There was a problem deleting the guest record associated with this instance."
@@ -23,8 +24,10 @@ class Instance():
     REDDWARF_CREATE = "There was a problem creating the requested DBaaS instance."
     GUEST_CREATE = "There was a problem creating the guest record associated with this instance."
     IP_ASSIGN = "There was a problem assigning an IP address to the requested instance."
+    RESTART = "There was a problem restarting the specified instance."
     
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
     DELETE = "There was a problem deleting the specified snapshot."
     CREATE = "There was a problem creating the requested snapshot."
+    SWIFT_DELETE = "There was a problem deleting the specified snapshot."

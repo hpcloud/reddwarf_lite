@@ -15,9 +15,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-from reddwarf.common.result_state import ResultState as result_state
 from reddwarf.database import models
-from reddwarf.database import views
 
 def get_instance(id):
     instance = models.DBInstance().find_by(id=id)
