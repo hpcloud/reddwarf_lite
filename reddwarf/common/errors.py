@@ -25,6 +25,8 @@ class Instance():
     GUEST_CREATE = "There was a problem creating the guest record associated with this instance."
     IP_ASSIGN = "There was a problem assigning an IP address to the requested instance."
     RESTART = "There was a problem restarting the specified instance."
+    INSTANCE_NOT_RUNNING = "The requested instance is not in running state."
+    INSTANCE_LOCKED = "The requested instance is temporarily locked for operation in progress."
     
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."

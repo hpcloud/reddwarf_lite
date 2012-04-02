@@ -218,9 +218,8 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.Instance.GUEST_CREATE, 500)
 
         worker_api.API().ensure_create_instance(None, instance)
-
-
         return wsgi.Result(views.DBInstanceView(instance.data(), req, tenant_id).create('dbas', 'hpcs'), 201)
+
 
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
@@ -256,12 +255,35 @@ class InstanceController(BaseController):
     def reset_password(self, req, tenant_id, id):
         """Resets DB password on remote instance"""
         LOG.info("Resets DB password on Instance %s", id)
-        password = utils.generate_password()
         LOG.debug("Req.environ: %s" % req.environ)
+
+        # Return if instance is not found
+        try:
+            instance = models.GuestStatus().find_by(instance_id=id)
+        except exception.ReddwarfError, e:
+            LOG.debug("Could not find db instance in guest_status table: %s" % id)
+            return wsgi.Result(errors.Instance.NOT_FOUND, 404)
+
+        # Return when instance is not in running state
+        data = instance.data()
+        if not data['state']:
+            LOG.debug("The instance %s is not in running state." % id)
+            return wsgi.Result(errors.Instance.INSTANCE_NOT_RUNNING, 403)
+
+        if data['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
+            LOG.debug("The instance %s is locked for operation in progress." % id)
+            return wsgi.Result(errors.Instance.INSTANCE_LOCKED, 423)
+
+        # Generate password
+        password = utils.generate_password()
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+
+        # Dispatch the job to Smart Agent
         result = self.guest_api.reset_password(context, id, password)
+
+        # Return response
         if result == result_state.ResultState.SUCCESS:
             return wsgi.Result({'password': password}, 200)
         elif result == 404:
@@ -270,6 +292,7 @@ class InstanceController(BaseController):
         else:
             LOG.debug("Smart Agent failed to reset password (RPC success response: '%s')." % result)
             return wsgi.Result(errors.Instance.RESET_PASSWORD, 500)
+
 
     def _try_create_server(self, context, body, credential, image_id, flavor_id, snapshot=None):
         """Create remote Server """
