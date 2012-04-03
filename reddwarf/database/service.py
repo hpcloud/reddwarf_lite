@@ -185,7 +185,11 @@ class InstanceController(BaseController):
         LOG.debug("Using ImageID %s" % image_id)
         LOG.debug("Using FlavorID %s" % flavor_id)        
         
-        snapshot = self._extract_snapshot(body, tenant_id)
+        try:
+            snapshot = self._extract_snapshot(body, tenant_id)
+        except exception.ReddwarfError, e:
+            LOG.debug("Error creating Reddwarf instance: %s" % e)
+            return wsgi.Result(errors.Snapshot.NOT_FOUND, 500)
         
         # Get the credential to use for proxy compute resource
         credential = models.Credential.find_by(type='compute')
@@ -350,6 +354,7 @@ class InstanceController(BaseController):
                     return snapshot
                 except exception.ReddwarfError, e:
                     LOG.debug("No Snapshot Record with id %s" % snapshot_id)
+                    raise e
 
     def _create_boot_config_file(self, snapshot):
         """Creates a config file that gets placed in the instance
