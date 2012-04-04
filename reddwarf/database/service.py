@@ -361,8 +361,12 @@ class InstanceController(BaseController):
         for the Agent to configure itself"""
         
         RABBIT_HOST = CONFIG.get('rabbit_host', 'localhost')
+        RABBIT_PORT = CONFIG.get('rabbit_port', '5672')
+        RABBIT_SSL = CONFIG.get('rabbit_use_ssl', 'False')
         conf_file = '[messaging]\n'\
                     'rabbit_host: ' + RABBIT_HOST + '\n'\
+                    'rabbit_port: ' + RABBIT_PORT + '\n'\
+                    'rabbit_use_ssl: ' + RABBIT_SSL + '\n'\
                     '\n'\
                     '[database]\n'\
                     'initial_password: ' + utils.generate_password(length=8)
