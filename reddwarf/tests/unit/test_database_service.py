@@ -29,6 +29,7 @@ from reddwarf.common import wsgi
 from reddwarf.database import models
 from reddwarf.database import service
 from reddwarf.database import views
+from reddwarf.database import worker_api
 from reddwarf.tests import unit
 
 import unittest
@@ -199,9 +200,16 @@ class TestInstanceController(ControllerTestBase):
 
         self.mock.StubOutWithMock(mock_dbinstance, 'data')
         mock_dbinstance.data().AndReturn(self.DUMMY_INSTANCE)
+
+        self.mock.StubOutWithMock(models.DBInstance, '__getitem__')
+        mock_dbinstance.__getitem__('id').AndReturn('id')
         
-        mock_dbinstance.data().AndReturn(self.DUMMY_INSTANCE)
-                 
+        self.mock.StubOutWithMock(models.GuestStatus, 'create')
+        models.GuestStatus().create(instance_id='id', state='building').AndReturn(None)
+
+        self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
+        worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
+        
         #self.mock_out_client_create()
         self.mock.ReplayAll()
 
