@@ -13,6 +13,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+def wrap (message=None, detail="none"):
+    error = {'error':
+                {
+                 'message': message, 
+                 'detail': detail, 
+                 } 
+            }
+    return error
+
 class Instance():
     NOT_FOUND = "The requested instance does not exist."
     NOT_FOUND_NOVA = "The Nova instance pointed to by this instance does not exist."
