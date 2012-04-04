@@ -130,15 +130,11 @@ class PhoneHomeMessageHandler():
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
         # validate input message
-        try:
-            if not msg['args']['hostname']:
-                raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
-            if not msg['args']['state']:
-                raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
-        except Exception as e:
-            LOG.exception("Required key not found for update_instance_state")
-            raise e
-        
+        if not msg['args']['hostname']:
+            raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
+        if not msg['args']['state']:
+            raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
+
         # update DB
         instance = utils.get_instance_by_hostname(msg['args']['hostname'])
         state = result_state.ResultState().name(int(msg['args']['state']))
@@ -148,18 +144,15 @@ class PhoneHomeMessageHandler():
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
         # validate input message
-        try:
-            if not msg['args']['sid']:
-                raise exception.NotFound("Required element/key 'sid' was not specified in phone home message.")
-            if '' == msg['args']['state']:
-                raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
-            if not msg['args']['storage_uri']:
-                raise exception.NotFound("Required element/key 'storage_uri' was not specified in phone home message.")
-            if '' == msg['args']['storage_size']:
-                raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
-        except Exception as e:
-            LOG.exception("Required key not found for update_snapshot_state")
-            raise e
+        if not msg['args']['sid']:
+            raise exception.NotFound("Required element/key 'sid' was not specified in phone home message.")
+        if '' == msg['args']['state']:
+            raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
+        if not msg['args']['storage_uri']:
+            raise exception.NotFound("Required element/key 'storage_uri' was not specified in phone home message.")
+        if '' == msg['args']['storage_size']:
+            raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
+
         # update DB
         snapshot = utils.get_snapshot(msg['args']['sid'])
         LOG.debug("Updating snapshot state with ID %s", snapshot['id'])

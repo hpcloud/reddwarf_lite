@@ -35,7 +35,7 @@ class Instance():
     IP_ASSIGN = "There was a problem assigning an IP address to the requested instance."
     RESTART = "There was a problem restarting the specified instance."
     INSTANCE_NOT_RUNNING = "The requested instance is not in running state."
-    INSTANCE_LOCKED = "The requested instance is temporarily locked for operation in progress."
+    INSTANCE_LOCKED = "The requested instance is temporarily locked due to operation in progress."
     
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
