@@ -13,7 +13,7 @@
 set -e
 
 DAEMON=/home/ubuntu/reddwarf_lite/bin/reddwarf-server
-DAEMON_ARGS="--config-file=/home/ubuntu/reddwarf_lite/bin/reddwarf.conf --log-config=/home/ubuntu/reddwarf_lite/etc/logging.cnf"
+DAEMON_ARGS="--config-file=/home/ubuntu/reddwarf_lite/bin/reddwarf.conf --log-config=/home/ubuntu/reddwarf_lite/etc/logging-api.conf"
 #DAEMON_ARGS="--flagfile=/home/ubuntu/reddwarf_lite/bin/reddwarf.conf"
 PIDFILE=/var/run/reddwarf/reddwarf-server.pid
 
