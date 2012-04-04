@@ -107,13 +107,16 @@ class PhoneHomeMessageHandler():
         """Called by the phone home consumer whenever a message from smart agent is received."""
         self.msg_count += 1
         LOG.debug("Total number of phone home messages processed: %d", self.msg_count)
-        self._validate(msg)
-
-        # execute the requested method from the RPC message
-        func = getattr(self, msg['method'], None)
-        LOG.debug("Dispatching RPC method: %s", msg['method'])
-        if callable(func):
-            func(msg)
+        try:
+            self._validate(msg)
+            # execute the requested method from the RPC message
+            func = getattr(self, msg['method'], None)
+            LOG.debug("Dispatching RPC method: %s", msg['method'])
+            if callable(func):
+                func(msg)
+        except Exception as e:
+            LOG.error("Error processing phone home message: %s", e)
+            pass
 
     def _validate(self, msg):
         """Validate that the request has all the required parameters"""
