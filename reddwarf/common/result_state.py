@@ -23,6 +23,7 @@ class ResultState:
     NOSTATE = 0x02
     FAILED = 0x03
     STOP = 0x04
+    RESTARTING = 0x05
 
     _STATE_MAP = {
         SUCCESS: 'success',
@@ -30,6 +31,7 @@ class ResultState:
         NOSTATE: 'pending',
         FAILED: 'failed',
         STOP: 'stop',
+        RESTARTING: 'restarting',
     }
 
     @staticmethod

@@ -393,7 +393,8 @@ class Connection(object):
         else:
             self.memory_transport = False
 
-        if config.Config.get('rabbit_use_ssl', False):
+        rabbit_use_ssl = config.Config.get('rabbit_use_ssl', False)
+        if rabbit_use_ssl and rabbit_use_ssl.lower() == "true":
             self.params['ssl'] = self._fetch_ssl_params()
 
         self.connection = None
