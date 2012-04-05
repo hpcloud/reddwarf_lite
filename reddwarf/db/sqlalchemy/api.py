@@ -21,6 +21,7 @@ from sqlalchemy import and_
 from sqlalchemy import or_
 from sqlalchemy.orm import aliased
 
+from reddwarf import database
 from reddwarf.common import exception
 from reddwarf.common import utils
 from reddwarf.db.sqlalchemy import migration
@@ -147,3 +148,8 @@ def _limits(query_func, model, conditions, limit, marker, marker_column=None):
     if marker:
         query = query.filter(marker_column > marker)
     return query.order_by(marker_column).limit(limit)
+
+
+def find_guest_statuses_for_instances(instance_ids):
+    return _base_query(database.models.GuestStatus).\
+           filter(database.models.GuestStatus.instance_id.in_(instance_ids))

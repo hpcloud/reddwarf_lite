@@ -25,6 +25,7 @@ import webob.exc
 import eventlet
 
 from reddwarf import rpc
+from reddwarf import db
 from reddwarf.common import config
 from reddwarf.common import context as rd_context
 from reddwarf.common import errors
@@ -84,9 +85,13 @@ class InstanceController(BaseController):
         LOG.debug("Context: %s" % context.to_dict())
         servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
+        
+        id_list = [server['id'] for server in servers]
+        guest_states = self.get_guest_state_mapping(id_list)
+        
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers, req, tenant_id).list(), 200)
+        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -97,16 +102,20 @@ class InstanceController(BaseController):
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
         try:
-            # TODO(hub-cap): start testing the failure cases here
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
-            # TODO(hub-cap): come up with a better way than
-            #    this to get the message
             LOG.debug("Show() failed with an exception")
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+
+        try:
+            guest_status = models.GuestStatus().find_by(instance_id=server['id'], deleted=False)
+        except exception.ReddwarfError, e:
+            LOG.debug("Show() failed with an exception")
+            return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, req, tenant_id).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, req, tenant_id).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -221,8 +230,10 @@ class InstanceController(BaseController):
             LOG.debug("Error deleting GuestStatus instance %s" % instance.data()['id'])
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
+        # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance)
-        return wsgi.Result(views.DBInstanceView(instance.data(), req, tenant_id).create('dbas', 'hpcs'), 201)
+        
+        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', 'hpcs'), 201)
 
 
     def restart(self, req, tenant_id, id):
@@ -386,6 +397,11 @@ class InstanceController(BaseController):
                            'swift_auth_key: ' + credential['password'] + '\n'
 
         return { '/home/nova/agent.config': conf_file }
+
+    def get_guest_state_mapping(self, id_list):
+        """Returns a dictionary of guest statuses keyed by guest ids."""
+        results = db.db_api.find_guest_statuses_for_instances(id_list)
+        return dict([(r.instance_id, r) for r in results])
 
 class SnapshotController(BaseController):
     """Controller for snapshot functionality"""
