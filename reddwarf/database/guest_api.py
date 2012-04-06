@@ -67,9 +67,10 @@ class API():
 
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
         try:
-            return rpc.call(context, instance['remote_hostname'],
+            result = rpc.call(context, instance['remote_hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
+            LOG.debug("Result of password reset operation: %s " % result)
         except Exception, e:
             raise exception.ReddwarfError("Error occurred resetting password - %s", e)
 
