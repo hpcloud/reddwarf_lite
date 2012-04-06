@@ -269,9 +269,9 @@ class InstanceController(BaseController):
         instance_data = instance.data()
         credential = models.Credential().find_by(id=instance_data['credential'])
         try:
-            models.Instance.restart(credential, instance_data['remote_hostname'])
+            models.Instance.restart(credential, instance_data['remote_uuid'])
         except exception.ReddwarfError, e:
-            LOG.debug("Could not restart instance: %s" % instance_data['remote_hostname'])
+            LOG.debug("Could not restart instance: %s" % instance_data['remote_uuid'])
             return wsgi.Result(errors.wrap(errors.Instance.RESTART), 500)
 
         guest.update(state=result_state.ResultState.name(result_state.ResultState.RESTARTING))
