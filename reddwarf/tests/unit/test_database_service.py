@@ -89,6 +89,10 @@ class TestInstanceController(ControllerTestBase):
         models.DBInstance.find_by(deleted=False,id=id,tenant_id=self.tenant).AndReturn(self.DUMMY_INSTANCE)
 #        self.mock.StubOutWithMock(models.DBInstance, '__init__')
 #        models.Instance.__init__(context=mox.IgnoreArg(), uuid=mox.IgnoreArg())
+
+        self.mock.StubOutWithMock(models.GuestStatus, 'find_by')
+        models.GuestStatus.find_by(deleted=False,instance_id=id).AndReturn({'instance_id': id, 'state': 'running'})
+
         self.mock.ReplayAll()
 
         response = self.app.get("%s/%s" % (self.instances_path,
