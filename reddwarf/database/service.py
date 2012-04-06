@@ -297,7 +297,6 @@ class InstanceController(BaseController):
         try:
             instance = models.GuestStatus().find_by(instance_id=id)
         except exception.ReddwarfError, e:
-
             LOG.debug("Could not find DB instance in guest_status table: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
@@ -318,14 +317,18 @@ class InstanceController(BaseController):
                           tenant=tenant_id)
 
         # Dispatch the job to Smart Agent
-        result = self.guest_api.reset_password(context, id, password)
-
-        # Return response
-        if result == result_state.ResultState.SUCCESS:
-            return wsgi.Result({'password': password}, 200)
-        elif result == 404:
+        try:
+            result = self.guest_api.reset_password(context, id, password)
+        except exception.NotFound as nf:
             LOG.debug("Could not find instance: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+        except exception.ReddwarfError as e:
+            LOG.exception("Smart Agent failed to reset password.")
+            return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
+        
+        # Return response
+        if result['result'] == result_state.ResultState.SUCCESS:
+            return wsgi.Result({'password': password}, 200)
         else:
             LOG.debug("Smart Agent failed to reset password (RPC success response: '%s')." % result)
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
@@ -541,6 +544,38 @@ class SnapshotController(BaseController):
         LOG.info("Creating a database snapshot for tenant '%s'" % tenant_id)
         LOG.info("req : '%s'\n\n" % req)
         LOG.info("body : '%s'\n\n" % body)
+
+        # Return if instance is not running
+        instance_id = body['snapshot']['instanceId']
+        try:
+            instance = models.GuestStatus().find_by(instance_id=instance_id)
+        except exception.ReddwarfError, e:
+            LOG.debug("Could not find DB instance in guest_status table: %s" % instance_id)
+            return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+
+        # Return when instance is not in running state
+        data = instance.data()
+        if not data['state']:
+            LOG.debug("The instance %s is not in running state." % instance_id)
+            return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_NOT_RUNNING), 403)
+
+        if data['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
+            LOG.debug("The instance %s is locked for operation in progress." % instance_id)
+            return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
+
+        # Return when a snapshot is being created on the requested instance
+        try:
+            snapshots = models.Snapshot().find_all(instance_id=instance_id)
+            for snapshot in snapshots:
+                record = snapshot.data()
+                if record['deleted_at'] is None and record['state'] == 'building':
+                    LOG.debug("There is a snapshot being created on Instance %s." % instance_id)
+                    return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
+        except exception.ReddwarfError, e:
+            LOG.debug("Error searching snapshot records: %s" % e)
+            pass
+
+        # Start creating snapshot
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
@@ -552,7 +587,7 @@ class SnapshotController(BaseController):
             LOG.debug("Got credential: %s" % credential)
 
             snapshot = models.Snapshot().create(name=body['snapshot']['name'],
-                                     instance_id=body['snapshot']['instanceId'],
+                                     instance_id=instance_id,
                                      state='building',
                                      user_id=context.user,
                                      tenant_id=context.tenant,
@@ -560,7 +595,11 @@ class SnapshotController(BaseController):
             LOG.debug("Created snapshot model: %s" % snapshot)
             
             try:
-                guest_api.API().create_snapshot(context, body['snapshot']['instanceId'], snapshot['id'], credential, SWIFT_AUTH_URL)
+                guest_api.API().create_snapshot(context,
+                    instance_id,
+                    snapshot['id'],
+                    credential,
+                    SWIFT_AUTH_URL)
             except exception.ReddwarfError, e:
                 LOG.debug("Could not find instance: %s" % id)
                 return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)

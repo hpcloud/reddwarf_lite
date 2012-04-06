@@ -63,15 +63,16 @@ class API():
         try:
             instance = utils.get_instance(id)
         except exception.ReddwarfError, e:
-            return 404
+            raise exception.NotFound("Instance with id %s not found", id)
 
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
         try:
-            return rpc.call(context, instance['remote_hostname'],
+            result = rpc.call(context, instance['remote_hostname'],
                 {"method": "reset_password",
                  "args": {"password": password}})
+            LOG.debug("Result of password reset operation: %s " % result)
         except Exception, e:
-            return 500
+            raise exception.ReddwarfError("Error occurred resetting password - %s", e)
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
@@ -120,6 +121,7 @@ class PhoneHomeMessageHandler():
 
     def _validate(self, msg):
         """Validate that the request has all the required parameters"""
+        LOG.debug("Validating RPC Message: %s" % msg)
         if not msg:
             raise exception.NotFound("Phone home message is empty.")
         if not msg['method']:
