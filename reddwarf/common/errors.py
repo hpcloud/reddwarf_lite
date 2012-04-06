@@ -37,6 +37,7 @@ class Instance():
     INSTANCE_NOT_RUNNING = "The requested instance is not in running state."
     INSTANCE_LOCKED = "The requested instance is temporarily locked due to operation in progress."
     MALFORMED_BODY = "The request body is malformed or missing required information."
+    QUOTA_EXCEEDED = "Creation of this instance would exceed the available resources of this account."
     
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
