@@ -202,8 +202,9 @@ class InstanceController(BaseController):
         
         # Get the credential to use for proxy compute resource
         credential = models.Credential.find_by(type='compute')
+        password = utils.generate_password(length=8)
         
-        server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot)
+        server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot, password)
         LOG.debug("Wrote remote server: %s" % server)
         try:
             instance = models.DBInstance().create(name=body['instance']['name'],
@@ -233,7 +234,7 @@ class InstanceController(BaseController):
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance)
         
-        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', 'hpcs'), 201)
+        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
 
     def restart(self, req, tenant_id, id):
@@ -320,14 +321,14 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
-    def _try_create_server(self, context, body, credential, image_id, flavor_id, snapshot=None):
+    def _try_create_server(self, context, body, credential, image_id, flavor_id, snapshot=None, password=None):
         """Create remote Server """
         try:
             # TODO (vipulsabhaya) move this into the db we should
             # have a service_secgroup table for mapping
             sec_group = ['mysql']
 
-            conf_file = self._create_boot_config_file(snapshot)
+            conf_file = self._create_boot_config_file(snapshot, password)
             LOG.debug('%s',conf_file)
 
             #TODO (vipulsabhaya) move this to config or db
@@ -383,7 +384,7 @@ class InstanceController(BaseController):
                     LOG.debug("No Snapshot Record with id %s" % snapshot_id)
                     raise e
 
-    def _create_boot_config_file(self, snapshot):
+    def _create_boot_config_file(self, snapshot, password):
         """Creates a config file that gets placed in the instance
         for the Agent to configure itself"""
         
@@ -396,7 +397,7 @@ class InstanceController(BaseController):
                     'rabbit_use_ssl: ' + RABBIT_SSL + '\n'\
                     '\n'\
                     '[database]\n'\
-                    'initial_password: ' + utils.generate_password(length=8)
+                    'initial_password: ' + password
         
         storage_uri = None
         if snapshot:
