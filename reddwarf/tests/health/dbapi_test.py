@@ -20,7 +20,7 @@ import time
 import sys
 
 TENANT_ID = "21343820976858"
-API_URL = "http://localhost:8779/v1.0/" + TENANT_ID + "/"
+API_URL = "http://15.185.172.176/v1.0/" + TENANT_ID + "/"
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0"
 
 # Try to authenticate with HP Cloud
