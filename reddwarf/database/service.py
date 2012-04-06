@@ -20,11 +20,9 @@
 import logging
 import urlparse
 import routes
-import threading
 import webob.exc
 import eventlet
 
-from reddwarf import rpc
 from reddwarf import db
 from reddwarf.common import config
 from reddwarf.common import context as rd_context
@@ -199,6 +197,8 @@ class InstanceController(BaseController):
         except exception.ReddwarfError, e:
             LOG.debug("Error creating Reddwarf instance: %s" % e)
             return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 500)
+        except Exception, e:
+            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
         
         # Get the credential to use for proxy compute resource
         credential = models.Credential.find_by(type='compute')
@@ -369,6 +369,11 @@ class InstanceController(BaseController):
             raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)                
 
     def _extract_snapshot(self, body, tenant_id):
+
+        if 'instance' not in body:
+            LOG.debug("The body passed to create was malformed")
+            raise Exception
+
         if 'snapshotId' in body['instance']:
             snapshot_id = body['instance']['snapshotId']
             if snapshot_id and len(snapshot_id) > 0:
@@ -460,7 +465,7 @@ class SnapshotController(BaseController):
             LOG.debug("Listing snapshots by instance_id %s", instance_id)
             snapshots = models.Snapshot().list_by_instance(instance_id)
             LOG.debug("snapshots: %s" % snapshots)
-            return wsgi.Result(views.SnapshotsView(snapshots).list(), 200)
+            return wsgi.Result(views.SnapshotsView(snapshots, req, tenant_id).list(), 200)
         else:
             LOG.debug("Listing snapshots by tenant_id %s", tenant_id)            
             snapshots = models.Snapshot().list_by_tenant(tenant_id)
@@ -566,41 +571,95 @@ class API(wsgi.Router):
         super(API, self).__init__(mapper)
         self._instance_router(mapper)
         self._snapshot_router(mapper)
-        self._admin_router(mapper)
+        #self._admin_router(mapper)
+        
+    def _has_body(self, environ, result):
+        LOG.debug("has body ENVIRON: %s" % environ)
+        LOG.debug("RESULT: %s" % result)
+        if environ.get("CONTENT_LENGTH") and int(environ.get("CONTENT_LENGTH")) > 0:
+            return True
+        else:
+            return False
+        
+    def _has_no_body(self, environ, result):
+        LOG.debug("has no body ENVIRON: %s" % environ)
+        LOG.debug("RESULT: %s" % result)
+        LOG.debug(environ.get("CONTENT_LENGTH"))
+        
+        if not environ.get("CONTENT_LENGTH"):
+            return True  
+        elif int(environ.get("CONTENT_LENGTH")) > 0:
+            return False
+        else:            
+            return True
 
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
         path = "/{tenant_id}/instances"
-        mapper.resource("instance", path, controller=instance_resource)
-        mapper.connect("/{tenant_id}/instances/{id}/restart",
+        #mapper.resource("instance", path, controller=instance_resource)      
+        mapper.connect(path,
                        controller=instance_resource,
-                       action="restart", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/instances/{id}/resetpassword",
+                       action="create", conditions=dict(method=["POST"],
+                                                        function=self._has_body))
+        mapper.connect(path,
                        controller=instance_resource,
-                       action="reset_password", conditions=dict(method=["POST"]))
+                       action="index", conditions=dict(method=["GET"],
+                                                       function=self._has_no_body))                  
+        mapper.connect(path + "/{id}",
+                       controller=instance_resource,
+                       action="show", conditions=dict(method=["GET"],
+                                                      function=self._has_no_body))
+        mapper.connect(path + "/{id}",
+                       controller=instance_resource,
+                       action="delete", conditions=dict(method=["DELETE"],
+                                                        function=self._has_no_body))              
+        mapper.connect(path +"/{id}/restart",
+                       controller=instance_resource,
+                       action="restart", conditions=dict(method=["POST"],
+                                                         function=self._has_no_body))
+        mapper.connect(path + "/{id}/resetpassword",
+                       controller=instance_resource,
+                       action="reset_password", conditions=dict(method=["POST"],
+                                                                function=self._has_no_body))
         
     def _snapshot_router(self, mapper):
         snapshot_resource = SnapshotController().create_resource()
         path = "/{tenant_id}/snapshots"
-        mapper.resource("snapshot", path, controller=snapshot_resource)
+        #mapper.resource("snapshot", path, controller=snapshot_resource)
+        mapper.connect(path,
+                       controller=snapshot_resource,
+                       action="create", conditions=dict(method=["POST"],
+                                                        function=self._has_body))        
+        mapper.connect(path,
+                       controller=snapshot_resource,
+                       action="index", conditions=dict(method=["GET"],
+                                                       function=self._has_no_body))
+        mapper.connect(path + "/{id}",
+                       controller=snapshot_resource,
+                       action="show", conditions=dict(method=["GET"],
+                                                      function=self._has_no_body))
+        mapper.connect(path + "/{id}",
+                       controller=snapshot_resource,
+                       action="delete", conditions=dict(method=["DELETE"],
+                                                        function=self._has_no_body))  
 
-    def _admin_router(self, mapper):
-        admin_resource = admin.AdminController().create_resource()
-        mapper.connect("/{tenant_id}/mgmt/{id}/agent",
-                       controller=admin_resource,
-                       action="agent", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/mgmt/{id}/messageserver",
-                       controller=admin_resource,
-                       action="message_server", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/mgmt/{id}/database",
-                       controller=admin_resource,
-                       action="database", conditions=dict(method=["POST"]))
-        mapper.connect("/{tenant_id}/mgmt/instances",
-                       controller=admin_resource,
-                       action="index_instances", conditions=dict(method=["GET"]))
-        mapper.connect("/{tenant_id}/mgmt/snapshots",
-                       controller=admin_resource,
-                       action="index_snapshots", conditions=dict(method=["GET"])) 
+#    def _admin_router(self, mapper):
+#        admin_resource = admin.AdminController().create_resource()
+#        mapper.connect("/{tenant_id}/mgmt/{id}/agent",
+#                       controller=admin_resource,
+#                       action="agent", conditions=dict(method=["POST"]))
+#        mapper.connect("/{tenant_id}/mgmt/{id}/messageserver",
+#                       controller=admin_resource,
+#                       action="message_server", conditions=dict(method=["POST"]))
+#        mapper.connect("/{tenant_id}/mgmt/{id}/database",
+#                       controller=admin_resource,
+#                       action="database", conditions=dict(method=["POST"]))
+#        mapper.connect("/{tenant_id}/mgmt/instances",
+#                       controller=admin_resource,
+#                       action="index_instances", conditions=dict(method=["GET"]))
+#        mapper.connect("/{tenant_id}/mgmt/snapshots",
+#                       controller=admin_resource,
+#                       action="index_snapshots", conditions=dict(method=["GET"])) 
         
 
 def app_factory(global_conf, **local_conf):
