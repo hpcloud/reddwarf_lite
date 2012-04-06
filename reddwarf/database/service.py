@@ -204,7 +204,17 @@ class InstanceController(BaseController):
         credential = models.Credential.find_by(type='compute')
         password = utils.generate_password(length=8)
         
-        server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot, password)
+        try:
+            server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot, password)
+        except exception.ReddwarfError, e:
+            LOG.debug("E: %s" % e)
+            if "RAMLimitExceeded" in e:
+                LOG.debug("Quota exceeded on create instance: %s" % e)
+                return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 500)
+            else:
+                LOG.debug("Error creating Nova instance: %s" % e)
+                return wsgi.Result(errors.wrap(errors.Instance.NOVA_CREATE), 500)
+            
         LOG.debug("Wrote remote server: %s" % server)
         try:
             instance = models.DBInstance().create(name=body['instance']['name'],
