@@ -308,14 +308,18 @@ class InstanceController(BaseController):
                           tenant=tenant_id)
 
         # Dispatch the job to Smart Agent
-        result = self.guest_api.reset_password(context, id, password)
-
-        # Return response
-        if result == result_state.ResultState.SUCCESS:
-            return wsgi.Result({'password': password}, 200)
-        elif result == 404:
+        try:
+            result = self.guest_api.reset_password(context, id, password)
+        except exception.NotFound as nf:
             LOG.debug("Could not find instance: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+        except exception.ReddwarfError as e:
+            LOG.exception("Smart Agent failed to reset password.")
+            return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
+        
+        # Return response
+        if result['result'] == result_state.ResultState.SUCCESS:
+            return wsgi.Result({'password': password}, 200)
         else:
             LOG.debug("Smart Agent failed to reset password (RPC success response: '%s')." % result)
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
