@@ -329,7 +329,9 @@ class GuestStatus(DatabaseModelBase):
     _data_fields = ['instance_id', 'state', 'deleted', 
                     'deleted_at', 'updated_at']
     
-
+    def guest_statuses_for_instances(self, instance_ids):
+        self.find_all(instance_id.in_(instance_id))
+        
 class ServiceImage(DatabaseModelBase):
     _data_fields = ['service_name', 'image_id']
 

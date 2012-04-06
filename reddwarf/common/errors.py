@@ -36,7 +36,8 @@ class Instance():
     RESTART = "There was a problem restarting the specified instance."
     INSTANCE_NOT_RUNNING = "The requested instance is not in running state."
     INSTANCE_LOCKED = "The requested instance has a blocking operation in progress at this moment. Try again later."
-    
+    MALFORMED_BODY = "The request body is malformed or missing required information."
+
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
     DELETE = "There was a problem deleting the specified snapshot."

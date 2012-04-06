@@ -54,8 +54,9 @@ class InstanceView(object):
 
 class DBInstanceView(object):
     
-    def __init__(self, instance, req, tenant_id):
+    def __init__(self, instance, guest_status, req, tenant_id):
         self.instance = instance
+        self.guest_status = guest_status
         self.request = req
         self.tenant_id = tenant_id
         
@@ -65,7 +66,7 @@ class DBInstanceView(object):
         credential = { "username" : initial_user,
                        "password" : initial_password }
         return {"instance": {
-                    "status": self.instance['status'], 
+                    "status": self.guest_status['state'], 
                     "links": self._build_links(),    
                     "name": self.instance['name'],
                     "id": self.instance['id'],                        
@@ -79,7 +80,7 @@ class DBInstanceView(object):
         LOG.debug("INSTANCE: %s" % self.instance)
             
         # TODO: add links to each view, fix 'instances' on list/aggregation
-        return {"status": self.instance['status'],                    
+        return {"status": self.guest_status['state'],                    
                 "id": self.instance['id'],                
                 "links": self._build_links(),       
                 "name": self.instance['name'],
@@ -90,7 +91,7 @@ class DBInstanceView(object):
         LOG.debug(self.instance)
 
         return {"instance": {
-                    "status": self.instance['status'],    
+                    "status": self.guest_status['state'],    
                     "links": self._build_links(),                
                     "name": self.instance['name'],
                     "id": self.instance['id'],            
@@ -201,19 +202,22 @@ class InstancesView(object):
     
 class DBInstancesView(object):
 
-    def __init__(self, instances, req, tenant_id):
+    def __init__(self, instances, guest_statuses, req, tenant_id):
         self.instances = instances
+        self.guest_statuses = guest_statuses
         self.request = req
         self.tenant_id = tenant_id
         LOG.debug(dir(self.instances))
 
     def list(self):
         data = []
-        LOG.debug("Instances: %s" % self.instances)
+        LOG.debug("Instances View Builder: %s" % self.instances)
         # These are model instances
         for instance in self.instances:
-            LOG.debug(instance)
-            data.append(DBInstanceView(instance, self.request, self.tenant_id).list())
+            LOG.debug("Instance to include into List: %s" % instance)
+            guest_status = self.guest_statuses[instance['id']]
+            LOG.debug("GuestStatus for instance: %s" % guest_status)
+            data.append(DBInstanceView(instance, guest_status, self.request, self.tenant_id).list())
         LOG.debug("Returning from DBInstancesView.data()")
         return {"instances": data}
 
