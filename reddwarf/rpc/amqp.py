@@ -285,13 +285,14 @@ class MulticallWaiter(object):
         self._connection.close()
 
     def __call__(self, data):
-        """The consume() callback will call this.  Store the result."""        
+        """The consume() callback will call this.  Store the result."""
+        LOG.debug("Message received from wire is: %r" % data)
         try:
             data = ast.literal_eval(data)
         except Exception:
             LOG.exception('Invalid string received from message.')
-            pass        
-        
+            pass
+
         if data['failure']:
             self._result = rpc_common.RemoteError(*data['failure'])
         elif data.get('ending', False):

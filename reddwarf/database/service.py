@@ -317,10 +317,10 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
         
         # Return response
-        if result['result'] == result_state.ResultState.SUCCESS:
+        if result == result_state.ResultState.SUCCESS:
             return wsgi.Result({'password': password}, 200)
         else:
-            LOG.debug("Smart Agent failed to reset password (RPC success response: '%s')." % result)
+            LOG.debug("Smart Agent failed to reset password (RPC response: '%s')." % result)
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 

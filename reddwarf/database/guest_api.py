@@ -66,13 +66,8 @@ class API():
             raise exception.NotFound("Instance with id %s not found", id)
 
         LOG.debug("Triggering smart agent to reset password on Instance %s (%s).", id, instance['remote_hostname'])
-        try:
-            result = rpc.call(context, instance['remote_hostname'],
-                {"method": "reset_password",
-                 "args": {"password": password}})
-            LOG.debug("Result of password reset operation: %s " % result)
-        except Exception, e:
-            raise exception.ReddwarfError("Error occurred resetting password - %s", e)
+        return rpc.call(context, instance['remote_hostname'],
+                {"method": "reset_password", "args": {"password": password}})
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
