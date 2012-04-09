@@ -20,7 +20,7 @@ import time
 import sys
 
 TENANT_ID = "21343820976858"
-API_URL = "http://15.185.172.176/v1.0/" + TENANT_ID + "/"
+API_URL = "http://localhost:8779/v1.0/" + TENANT_ID + "/"
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0"
 
 # Try to authenticate with HP Cloud
@@ -309,10 +309,36 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertEqual(201, resp.status)
         self.assertTrue(content.has_key('instance'))
 
-        # Test creating a db snapshot.
-        LOG.debug("* Creating snapshot for instance %s" % self.instance_id)
+
+        # Test creating a db snapshot immediately after creation.
+        LOG.debug("* Creating immediate snapshot for instance %s" % self.instance_id)
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
         resp, content = req.request(API_URL + "snapshots", "POST", body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request was accepted and 2) that the response
+        # is in the proper format.
+        self.assertEqual(423, resp.status)
+
+        num_loops = 20
+        # Sleep to ensure the instance is ready before continuing
+        while True:
+            LOG.debug("Sleeping...")
+            time.sleep(60)
+
+            # Test creating a db snapshot.
+            LOG.debug("* Creating snapshot for instance %s" % self.instance_id)
+            body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
+            resp, content = req.request(API_URL + "snapshots", "POST", body, AUTH_HEADER)
+            
+            num_loops -= 1
+            if resp.status == 201:
+                break
+            elif num_loops == 0:
+                LOG.error("Tried 10 times; server not ready for snapshot creation")
+                self.assertEqual(True, False)
+                
         LOG.debug(resp)
         LOG.debug(content)
         try:
@@ -321,7 +347,7 @@ class DBFunctionalTests(unittest.TestCase):
             LOG.error(err)
             LOG.error("Create snapshot - Error processing JSON object: %s" % content)
             self.assertEqual(True, False)
-
+    
         self.snapshot_id = content['snapshot']['id']
         LOG.debug("Snapshot ID: %s" % self.snapshot_id)
 

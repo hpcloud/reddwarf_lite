@@ -207,7 +207,7 @@ class InstanceController(BaseController):
         try:
             server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
-            LOG.debug("E: %s" % e)
+            LOG.debug("E: %s" % e.message)
             if "RAMLimitExceeded" in e:
                 LOG.debug("Quota exceeded on create instance: %s" % e)
                 return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 500)
