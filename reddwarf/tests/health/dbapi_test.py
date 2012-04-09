@@ -12,20 +12,26 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+# NOTE: To run this health check, you will need OS_TENANT_NAME and OS_PASSWORD
+# declared either in your system environment variables or in your IDE run
+# configuration for this file!
+
 import logging
 import unittest
 import json
 import httplib2
+import os
 import time
-import sys
 
 TENANT_ID = "21343820976858"
 API_URL = "http://15.185.172.176:80/v1.0/" + TENANT_ID + "/"
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/auth/v1.0"
+X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
+X_AUTH_KEY = os.environ['OS_PASSWORD']
 
 # Try to authenticate with HP Cloud
-KEYSTONE_HEADER = {"X-Auth-User": "21343820976858:dbas@hp.com",
-                   "X-Auth-Key": "Dbas-312" }
+KEYSTONE_HEADER = {"X-Auth-User": "21343820976858:%s" % os.environ['OS_TENANT_NAME'],
+                   "X-Auth-Key": "%s" % X_AUTH_KEY}
 req = httplib2.Http(".cache")
 resp, content = req.request(AUTH_URL, "GET", "", KEYSTONE_HEADER)
 content = json.loads(content)
@@ -34,25 +40,24 @@ AUTH_TOKEN = content['access']['token']['id']
 AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN, 
                'content-type': 'application/json', 
                'Accept': 'application/json',
-               'X-Auth-Project-Id': 'dbas@hp.com'}
-
-created_instance = False
+               'X-Auth-Project-Id': '%s' % X_AUTH_PROJECT_ID}
 
 logging.basicConfig()
-
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
+LOG.debug("Response from Keystone: %s" % content)
+LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
+LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
+
 class DBFunctionalTests(unittest.TestCase):
 
-    def xtest_instance_api(self):
+    def test_instance_api(self):
         
         """Comprehensive instance API test using an instance lifecycle."""
 
         # Test creating a db instance.
         LOG.debug("* Creating db instance")
-        LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
-        LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
         body = r"""
         {"instance": {
             "name": "dbapi_test",
