@@ -21,7 +21,7 @@ Handles all request to the Platform or Guest VM
 
 import logging
 
-from reddwarf.database import utils
+from reddwarf.database import dbutils
 from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.common import exception
@@ -51,17 +51,17 @@ class API():
 
     def check_mysql_status(self, context, id):
         """Make a synchronous call to trigger smart agent for checking MySQL status"""
-        instance = utils.get_instance(id)
+        instance = dbutils.get_instance(id)
         LOG.debug("Triggering smart agent on Instance %s (%s) to check MySQL status.", id, instance['remote_hostname'])
         result = rpc.call(context, instance['remote_hostname'], {"method": "check_mysql_status"})
         # update instance state in guest_status table upon receiving smart agent response
-        utils.update_guest_status(id, int(result))
+        dbutils.update_guest_status(id, int(result))
         return result
 
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         try:
-            instance = utils.get_instance(id)
+            instance = dbutils.get_instance(id)
         except exception.ReddwarfError, e:
             raise exception.NotFound("Instance with id %s not found", id)
 
@@ -71,7 +71,7 @@ class API():
 
     def create_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
-        instance = utils.get_instance(instance_id)
+        instance = dbutils.get_instance(instance_id)
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
@@ -82,8 +82,8 @@ class API():
 
     def apply_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to apply Snapshot %s on Instance %s.", snapshot_id, instance_id)
-        instance = utils.get_instance(instance_id)
-        snapshot = utils.get_snapshot(snapshot_id)
+        instance = dbutils.get_instance(instance_id)
+        snapshot = dbutils.get_snapshot(snapshot_id)
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "apply_snapshot",
                   "args": {"storage_path": snapshot['storage_uri'],
@@ -133,10 +133,10 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
 
         # update DB
-        instance = utils.get_instance_by_hostname(msg['args']['hostname'])
+        instance = dbutils.get_instance_by_hostname(msg['args']['hostname'])
         state = result_state.ResultState().name(int(msg['args']['state']))
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
-        utils.update_guest_status(instance['id'], state)
+        dbutils.update_guest_status(instance['id'], state)
 
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
@@ -151,7 +151,7 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'storage_size' was not specified in phone home message.")
 
         # update DB
-        snapshot = utils.get_snapshot(msg['args']['sid'])
+        snapshot = dbutils.get_snapshot(msg['args']['sid'])
         LOG.debug("Updating snapshot state with ID %s", snapshot['id'])
         snapshot.update(storage_uri=msg['args']['storage_uri'],
                         storage_size=msg['args']['storage_size'],

@@ -36,6 +36,7 @@ from reddwarf.database import views
 from reddwarf.database import guest_api
 from reddwarf.database import worker_api
 from reddwarf.admin import service as admin
+from reddwarf.database.dbutils import create_boot_config
 from swiftapi import swift
 
 
@@ -367,7 +368,7 @@ class InstanceController(BaseController):
             raise exception.ReddwarfError(e)
 
     def _try_assign_ip(self, credential, server, floating_ip):
-        LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']));
+        LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
         success = False
         for i in range(90):
             try:          
@@ -400,33 +401,9 @@ class InstanceController(BaseController):
     def _create_boot_config_file(self, snapshot, password):
         """Creates a config file that gets placed in the instance
         for the Agent to configure itself"""
-        
-        RABBIT_HOST = CONFIG.get('rabbit_host', 'localhost')
-        RABBIT_PORT = CONFIG.get('rabbit_port', '5672')
-        RABBIT_SSL = CONFIG.get('rabbit_use_ssl', 'False')
-        conf_file = '[messaging]\n'\
-                    'rabbit_host: ' + RABBIT_HOST + '\n'\
-                    'rabbit_port: ' + RABBIT_PORT + '\n'\
-                    'rabbit_use_ssl: ' + RABBIT_SSL + '\n'\
-                    '\n'\
-                    '[database]\n'\
-                    'initial_password: ' + password
-        
-        storage_uri = None
-        if snapshot:
-            storage_uri = snapshot['storage_uri']
-            
-        if storage_uri and len(storage_uri) > 0:
-            #Fetch the swift credentials
-            credential = models.Credential().find_by(id=snapshot['credential'])
-            conf_file = conf_file + '\n'\
-                           '[snapshot]\n'\
-                           'snapshot_uri: ' + storage_uri + '\n'\
-                           'swift_auth_url: ' + CONFIG.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0')+ '\n'\
-                           'swift_auth_user: ' + credential['tenant_id'] + ":" + credential['user_name'] + '\n'\
-                           'swift_auth_key: ' + credential['password'] + '\n'
-
-        return { '/home/nova/agent.config': conf_file }
+        storage_uri = snapshot['storage_uri'] if snapshot else None
+        return { '/home/nova/agent.config':
+                     create_boot_config(CONFIG, models.Credential().find_by(id=snapshot['credential']), storage_uri, password) }
 
     def get_guest_state_mapping(self, id_list):
         """Returns a dictionary of guest statuses keyed by guest ids."""
