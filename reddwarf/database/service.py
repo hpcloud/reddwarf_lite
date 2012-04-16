@@ -82,6 +82,7 @@ class InstanceController(BaseController):
         # TODO(hub-cap): turn this into middleware
         context = req.context
         LOG.debug("Context: %s" % context.to_dict())
+				# Patrick added index
         servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
         
@@ -101,14 +102,14 @@ class InstanceController(BaseController):
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
         try:
-						# TODO: Patrick add index(es)
+						# Patrick added index
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
             LOG.debug("Show() failed with an exception")
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         try:
-						# TODO: Patrick add index
+						# Patrick added index
             guest_status = models.GuestStatus().find_by(instance_id=server['id'], deleted=False)
         except exception.ReddwarfError, e:
             LOG.debug("Show() failed with an exception")
@@ -128,7 +129,7 @@ class InstanceController(BaseController):
         LOG.debug("Delete() context")                   
         
         try:
-						# TODO: Patrick add index
+						# Patrick added index
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
             LOG.debug("Fail fetching instance")
@@ -141,6 +142,7 @@ class InstanceController(BaseController):
         try:
             LOG.debug("Deleting remote instance with id %s" % remote_id)
             # TODO(cp16net) : need to handle exceptions here if the delete fails
+						# TODO (patg): what SQL does this generate? Index needed? 
             models.Instance.delete(credential, remote_id)
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
@@ -155,7 +157,7 @@ class InstanceController(BaseController):
         
         # Finally, try to delete the associated GuestStatus record
         try:
-						# TODO: Patrick add index
+						# Patrick added index
             guest_status = models.GuestStatus().find_by(instance_id=server['id'])
             guest_status.delete()
         except exception.ReddwarfError, e:
@@ -188,11 +190,15 @@ class InstanceController(BaseController):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         
-				# TODO: Patrick add index, reduce length of 'name'
+				# Patrick added index and reduced length of 'name' from 255 to 32, 
+				# and even that is to long
+				# TODO: should this be an enum?
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
         
-				# TODO: Patrick - reduce length of varchar(255)s, enum, index flavor_id 
+				# Patrick - reduced length of varchar(255)s to varchar(32), 
+				# indexed service_name, though should this be enum?
+				# flavor_id should be an int. 
         flavor = models.ServiceFlavor.find_by(service_name="database")
         flavor_id = flavor['flavor_id']
 
@@ -208,7 +214,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
         
         # Get the credential to use for proxy compute resource
-				# TODO: Patrick add index -or- convert to ENUM
+				# Patrick converted type to ENUM
         credential = models.Credential.find_by(type='compute')
         password = utils.generate_password(length=8)
         
@@ -243,7 +249,7 @@ class InstanceController(BaseController):
         
         # Add a GuestStatus record pointing to the new instance for Maxwell
         try:
-						# TODO: Patrick convert 'state' to enum
+						# Patrick converted 'state' to enum
             guest_status = models.GuestStatus().create(instance_id=instance['id'], state='building')
         except exception.ReddwarfError, e:
             LOG.debug("Error deleting GuestStatus instance %s" % instance.data()['id'])
@@ -269,7 +275,7 @@ class InstanceController(BaseController):
 
         # Make sure the guest instance is in running state
         try:
-				 		# TODO: Patrick add index	
+				 		# Patrick added index	
             guest = models.GuestStatus().find_by(instance_id=id)
         except exception.ReddwarfError, e:
             LOG.debug("Could not find DB instance in guest_status table: %s" % id)
@@ -285,7 +291,6 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
 
         instance_data = instance.data()
-				# TODO: Patrick add index 
         credential = models.Credential().find_by(id=instance_data['credential'])
         try:
             models.Instance.restart(credential, instance_data['remote_uuid'])
@@ -304,7 +309,7 @@ class InstanceController(BaseController):
 
         # Return if instance is not found
         try:
-						# TODO: Patrick add index
+						# Patrick added index
             instance = models.GuestStatus().find_by(instance_id=id)
         except exception.ReddwarfError, e:
             LOG.debug("Could not find DB instance in guest_status table: %s" % id)
@@ -401,7 +406,7 @@ class InstanceController(BaseController):
             snapshot_id = body['instance']['snapshotId']
             if snapshot_id and len(snapshot_id) > 0:
                 try:
-										# TODO: Patrick add index
+										# Patrick added index
                     snapshot = models.Snapshot().find_by(id=snapshot_id, tenant_id=tenant_id, deleted=False)
                     return snapshot
                 except exception.ReddwarfError, e:
@@ -505,7 +510,7 @@ class SnapshotController(BaseController):
 
             LOG.debug("Deleting from Container: %s - File: %s", container, file)
 
-						# TODO: Patrick add index -or- convert to enum 
+						# Patrick converted to enum 
             credential = models.Credential.find_by(type='object-store')
             LOG.debug("Got credential: %s" % credential)
 
@@ -544,7 +549,7 @@ class SnapshotController(BaseController):
         # Return if instance is not running
         instance_id = body['snapshot']['instanceId']
         try:
-						# TODO: Patrick add index
+						# Patrick added index
             instance = models.GuestStatus().find_by(instance_id=instance_id)
         except exception.ReddwarfError, e:
             LOG.debug("Could not find DB instance in guest_status table: %s" % instance_id)
@@ -580,11 +585,11 @@ class SnapshotController(BaseController):
         
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
-						# TODO: Patrick add index -or- convert to ENUM
+						# Patrick converted to ENUM
             credential = models.Credential.find_by(type='object-store')
             LOG.debug("Got credential: %s" % credential)
 
-					  # TODO: Patrick look at shorter 'name' column, index instance_id, tenant_id
+					  # Patrick indexed instance_id, tenant_id
             snapshot = models.Snapshot().create(name=body['snapshot']['name'],
                                      instance_id=instance_id,
                                      state='building',
