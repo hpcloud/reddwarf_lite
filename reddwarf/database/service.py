@@ -210,10 +210,10 @@ class InstanceController(BaseController):
         except exception.ReddwarfError, e:
             LOG.debug("E: %s" % e.message)
             if "RAMLimitExceeded" in e.message:
-                LOG.debug("Quota exceeded on create instance: %s" % e)
+                LOG.debug("Quota exceeded on create instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 500)
             else:
-                LOG.debug("Error creating Nova instance: %s" % e)
+                LOG.debug("Error creating Nova instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.NOVA_CREATE), 500)
             
         LOG.debug("Wrote remote server: %s" % server)
