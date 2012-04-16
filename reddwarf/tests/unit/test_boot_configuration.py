@@ -14,7 +14,7 @@ class BootConfigurationTest(unittest.TestCase):
                "rabbit_use_ssl" : "True",
                "rabbit_user_id" : "ruser",
                "rabbit_password" : "rpassword",
-               "rabbit_password" : "vhost"}
+               "rabbit_virtual_host" : "vhost"}
         credential = { 'tenant_id' : "jeff@amzon.com",
                        'user_name' : "bzos@amzon.com",
                        'password' : "123456ABCDEF" }
@@ -31,7 +31,7 @@ class BootConfigurationTest(unittest.TestCase):
             self.assertEqual(cm["rabbit_use_ssl"], config.get("messaging", "rabbit_use_ssl"))
             self.assertEqual(cm["rabbit_user_id"], config.get("messaging", "rabbit_user_id"))
             self.assertEqual(cm["rabbit_password"], config.get("messaging", "rabbit_password"))
-            self.assertEqual(cm["rabbit_password"], config.get("messaging", "rabbit_password"))
+            self.assertEqual(cm["rabbit_virtual_host"], config.get("messaging", "rabbit_virtual_host"))
             self.assertTrue(config.has_section("database"))
             self.assertEqual("dbpassword", config.get("database", "initial_password"))
             self.assertFalse(config.has_section("snapshot"))
