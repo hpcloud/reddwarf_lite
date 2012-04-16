@@ -16,6 +16,27 @@
 # declared either in your system environment variables or in your IDE run
 # configuration for this file!
 
+
+#                  ######### Test Coverage #########
+#     (X = covered, O = not covered, - = not covered but unnecessary)
+#
+#                With body    Without body    Malformed body    Instance not ready
+#
+#(Instances)
+#Create            X           X               X                 -
+#Delete            X           X               -                 -
+#Show              X           X               -                 -
+#Show All          X           X               -                 -
+#Restart           X           X               -                 X
+#Change password   X           X               -                 X
+#
+#(Snapshots)
+#Create            X           X               X                 -
+#Delete            X           X               -                 -
+#Show              X           X               -                 - 
+#Show All          X           X               -                 -
+#Apply             ?           ?               ?                 ?
+
 import logging
 import unittest
 import json
@@ -52,7 +73,7 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
 class DBFunctionalTests(unittest.TestCase):
 
-    def test_instance_api(self):
+    def xtest_instance_api(self):
         
         """Comprehensive instance API test using an instance lifecycle."""
 
@@ -66,6 +87,18 @@ class DBFunctionalTests(unittest.TestCase):
             "dbtype": {
                 "name": "mysql",
                 "version": "5.5"
+                }
+            }
+        }"""
+
+        bad_body = r"""
+        {"instance": {
+            "name": "dbapi_test",
+            "flavorRef": "orange",
+            "port": "3306",
+            "dbtype": {
+                "name": "unsql",
+                "version": "X"
                 }
             }
         }"""
@@ -94,6 +127,26 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Assert 1) that the request was not accepted
         self.assertEqual(404, resp.status)
+
+
+        # Test creating an instance with a malformed body.
+        LOG.debug("* Creating an instance with a malformed body")
+        resp, content = req.request(API_URL + "instances", "POST", r"""{"instance": {}}""", AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request generated an error
+        self.assertEqual(500, resp.status)
+        
+        
+#        # Test creating an instance with bad information.
+#        LOG.debug("* Creating an instance with bad information")
+#        resp, content = req.request(API_URL + "instances", "POST", bad_body, AUTH_HEADER)
+#        LOG.debug(resp)
+#        LOG.debug(content)
+#
+#        # Assert 1) that the request generated an error
+#        self.assertEqual(500, resp.status)
 
 
         # Test listing all db instances.
@@ -156,16 +209,6 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertEqual(404, resp.status)
 
 
-        # Test immediately resetting the password on a db instance.
-        LOG.debug("* Resetting password on instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was accepted.
-        self.assertNotEqual(200, resp.status)
-
-
         # Test immediately resetting the password on a db instance with a body in the request.
         LOG.debug("* Resetting password on instance %s with a body in the request" % self.instance_id)
         resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", body, AUTH_HEADER)
@@ -185,6 +228,37 @@ class DBFunctionalTests(unittest.TestCase):
         # Assert 1) that the request was not accepted 
         self.assertEqual(404, resp.status) 
         
+        
+        # Test restarting a db instance for a non-existent instance
+        LOG.debug("* Restarting dummy instance")
+        resp, content = req.request(API_URL + "instances/dummy/restart", "POST", "", AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request was not accepted 
+        self.assertEqual(404, resp.status) 
+        
+
+        # Test immediately restarting a db instance with a body in the request.
+        LOG.debug("* Restarting instance %s" % self.instance_id)
+        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request was not accepted
+        self.assertEqual(404, resp.status)      
+
+
+        # Test immediately resetting the password on a db instance.
+        LOG.debug("* Resetting password on instance %s" % self.instance_id)
+        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", "", AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request was accepted but raised an exception
+        # (because the server isn't ready yet).
+        self.assertNotEqual(200, resp.status)
+
 
         # Test immediately restarting a db instance.
         LOG.debug("* Restarting instance %s" % self.instance_id)
@@ -195,29 +269,52 @@ class DBFunctionalTests(unittest.TestCase):
         # Assert 1) that the request was accepted but raised an exception
         # (because the server isn't ready to be rebooted yet).
         self.assertNotEqual(200, resp.status)
-        
+                
 
-        # Test immediately restarting a db instance with a body in the request.
-        LOG.debug("* Restarting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", body, AUTH_HEADER)
+        # wait a max of 5 minutes for instance to come up
+        max_wait_for_instance = 300 
+        # Will likely get a 423 since instance is not ready
+        if resp['status'] == '423':
+            LOG.debug("expected 423 response since instance not ready")
+            
+            # Test getting a specific db instance.
+            LOG.debug("* Getting instance %s" % self.instance_id)
+            resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
+            content = json.loads(content)
+            LOG.debug(content)
+            
+            wait_so_far = 0
+            status = content['instance']['status']
+            while (status is not 'running'):
+                # wait a max of max_wait for instance status to show running
+                time.sleep(10)
+                wait_so_far += 10
+                if wait_so_far >= max_wait_for_instance:
+                    break
+                
+                resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
+                content = json.loads(content)
+                status = content['instance']['status']
+                
+            self.assertTrue(status == 'running')
+
+        LOG.debug("* Resetting password on instance %s" % self.instance_id)
+        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", "", AUTH_HEADER)
         LOG.debug(resp)
         LOG.debug(content)
 
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-        
- 
-        # Test restarting a db instance for a non-existent instance
-        LOG.debug("* Restarting dummy instance")
-        resp, content = req.request(API_URL + "instances/dummy/restart", "POST", "", AUTH_HEADER)
+        # Assert that the request was accepted because the instance is now ready
+        self.assertEqual(200, resp.status)
+
+
+        # Test restarting a db instance now that the instance is ready
+        LOG.debug("* Restarting instance %s" % self.instance_id)
+        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", "", AUTH_HEADER)
         LOG.debug(resp)
         LOG.debug(content)
 
         # Assert 1) that the request was not accepted 
-        self.assertEqual(404, resp.status)       
-                
-
-        # TODO: add a sleep and re-test reset password and reboot instance
+        self.assertEqual(204, resp.status) 
 
 
         # Test deleting a db instance.
@@ -300,6 +397,8 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
+        bad_body = r"""{ "snapshot": {}]"""
+
         req = httplib2.Http(".cache")
         resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
         content = json.loads(content)
@@ -322,8 +421,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(resp)
         LOG.debug(content)
 
-        # Assert 1) that the request was accepted and 2) that the response
-        # is in the proper format.
+        # Assert 1) that the request was not accepted
         self.assertEqual(423, resp.status)
         
         # wait a max of 5 minutes for instance to come up
@@ -336,6 +434,7 @@ class DBFunctionalTests(unittest.TestCase):
             LOG.debug("* Getting instance %s" % self.instance_id)
             resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
             content = json.loads(content)
+            LOG.debug("Content: %s" % content)
             
             wait_so_far = 0
             status = content['instance']['status']
@@ -348,6 +447,7 @@ class DBFunctionalTests(unittest.TestCase):
                 
                 resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
                 content = json.loads(content)
+                LOG.debug("Content: %s" % content)
                 status = content['instance']['status']
                 
             self.assertTrue(status == 'running')
@@ -374,7 +474,7 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertEqual(self.instance_id, content['snapshot']['instanceId'])
         
         
-        # Test creating an instance without a body in the request.
+        # Test creating an snapshot without a body in the request.
         LOG.debug("* Creating an snapshot without a body")
         resp, content = req.request(API_URL + "snapshots", "POST", "", AUTH_HEADER)
         LOG.debug(resp)
@@ -382,6 +482,16 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Assert 1) that the request was not accepted
         self.assertEqual(404, resp.status)
+
+
+#        # Test creating an snapshot with a malformed body.
+#        LOG.debug("* Creating an snapshot with a malformed body")
+#        resp, content = req.request(API_URL + "snapshots", "POST", bad_body, AUTH_HEADER)
+#        LOG.debug(resp)
+#        LOG.debug(content)
+#
+#        # Assert 1) that the request generated an error
+#        self.assertEqual(500, resp.status)
 
 
         # Test listing all db snapshots.
@@ -540,7 +650,6 @@ class DBFunctionalTests(unittest.TestCase):
         # Assert 1) that the request was not accepted
         self.assertEqual(404, resp.status)
               
-
         time.sleep(10)
 
         # Finally, delete the instance.
@@ -574,7 +683,9 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")
-        resp, snapshots = req.request(API_URL + "snapshots", "GET", "", AUTH_HEADER)        
+        resp, snapshots = req.request(API_URL + "snapshots", "GET", "", AUTH_HEADER)     
+        LOG.debug(resp)
+        LOG.debug(snapshots)           
         snapshots = json.loads(snapshots)
 
         # Delete all orphaned instances and snapshots
