@@ -36,7 +36,7 @@ from reddwarf.database import views
 from reddwarf.database import guest_api
 from reddwarf.database import worker_api
 from reddwarf.admin import service as admin
-from reddwarf.database.dbutils import create_boot_config
+from reddwarf.database.utils import create_boot_config
 from swiftapi import swift
 
 
