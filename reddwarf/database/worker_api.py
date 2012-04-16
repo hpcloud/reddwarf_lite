@@ -22,7 +22,7 @@ Handles all request to the Platform Application Server
 
 import logging
 
-from reddwarf.database import utils as utils
+from reddwarf.database import dbutils as utils
 from reddwarf.rpc import impl_kombu as rpc
 
 
