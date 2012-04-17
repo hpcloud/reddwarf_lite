@@ -21,7 +21,7 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
         host=configuration_manager.get('rabbit_host', 'localhost'),
         port=configuration_manager.get('rabbit_port', '5672'),
         ssl=configuration_manager.get('rabbit_use_ssl', 'False'),
-        user=configuration_manager.get('rabbit_user_id', 'user'),
+        user=configuration_manager.get('rabbit_userid', 'user'),
         password=configuration_manager.get('rabbit_password', 'password'),
         vhost=configuration_manager.get('rabbit_virtual_host', '/')
     )
