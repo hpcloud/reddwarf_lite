@@ -35,7 +35,7 @@
 #Delete            X           X               -                 -
 #Show              X           X               -                 - 
 #Show All          X           X               -                 -
-#Apply             ?           ?               ?                 ?
+#Apply             X           X               X                 -
 
 import logging
 import unittest
@@ -91,17 +91,17 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
-        bad_body = r"""
-        {"instance": {
-            "name": "dbapi_test",
-            "flavorRef": "orange",
-            "port": "3306",
-            "dbtype": {
-                "name": "unsql",
-                "version": "X"
-                }
-            }
-        }"""
+#        bad_body = r"""
+#        {"instance": {
+#            "name": "dbapi_test",
+#            "flavorRef": "orange",
+#            "port": "3306",
+#            "dbtype": {
+#                "name": "unsql",
+#                "version": "X"
+#                }
+#            }
+#        }"""
 
         req = httplib2.Http(".cache")
         resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
@@ -285,7 +285,7 @@ class DBFunctionalTests(unittest.TestCase):
             
             wait_so_far = 0
             status = content['instance']['status']
-            while (status is not 'running'):
+            while (status != 'running'):
                 # wait a max of max_wait for instance status to show running
                 time.sleep(10)
                 wait_so_far += 10
@@ -293,6 +293,7 @@ class DBFunctionalTests(unittest.TestCase):
                     break
                 
                 resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
+                LOG.debug("Content: %s" % content)
                 content = json.loads(content)
                 status = content['instance']['status']
                 
@@ -371,7 +372,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Create an image for snapshot purposes.
         LOG.debug("* Creating db instance")
-        body = r"""
+        instance_body = r"""
         {"instance": {
             "name": "dbapi_test",
             "flavorRef": "102",
@@ -397,10 +398,10 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
-        bad_body = r"""{ "snapshot": {}]"""
+#        bad_body = r"""{ "snapshot": {}]"""
 
         req = httplib2.Http(".cache")
-        resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
+        resp, content = req.request(API_URL + "instances", "POST", instance_body, AUTH_HEADER)
         content = json.loads(content)
         LOG.debug(resp)
         LOG.debug(content)
@@ -438,7 +439,7 @@ class DBFunctionalTests(unittest.TestCase):
             
             wait_so_far = 0
             status = content['instance']['status']
-            while (status is not 'running'):
+            while (status != 'running'):
                 # wait a max of max_wait for instance status to show running
                 time.sleep(10)
                 wait_so_far += 10
@@ -446,8 +447,8 @@ class DBFunctionalTests(unittest.TestCase):
                     break
                 
                 resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
+                LOG.debug("Content: %s" % content)                
                 content = json.loads(content)
-                LOG.debug("Content: %s" % content)
                 status = content['instance']['status']
                 
             self.assertTrue(status == 'running')
@@ -623,6 +624,48 @@ class DBFunctionalTests(unittest.TestCase):
         # Assert 1) that the request was not accepted
         self.assertEqual(404, resp.status)
         
+        
+        # Test creating a new instance from a snapshot.
+        LOG.debug("* Creating instance from snapshot %s" % self.snapshot_id)
+        snap_body = json.loads(instance_body)
+        snap_body['instance']['snapshotId'] = self.snapshot_id
+        snap_body = json.dumps(snap_body)
+        resp, content = req.request(API_URL + "instances", "POST", snap_body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+        content = json.loads(content)
+
+        # Assert 1) that the request was accepted
+        self.assertEqual(201, resp.status)       
+
+        
+        # Test creating a new instance from a dummy snapshot.
+        LOG.debug("* Creating instance from dummy snapshot")
+        snap_body = json.loads(instance_body)
+        snap_body['instance']['snapshotId'] = "dummy"
+        snap_body = json.dumps(snap_body)
+        resp, content = req.request(API_URL + "instances", "POST", snap_body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+        content = json.loads(content)
+
+        # Assert 1) that the request was not accepted (i.e. snapshot not found)
+        self.assertEqual(500, resp.status)
+        
+        # This test is handled by the error handling in the API server
+#        # Test creating a new instance from bad snapshot data in the body.
+#        LOG.debug("* Creating instance from bad snapshot data in the body")
+#        snap_body = json.loads(instance_body)
+#        snap_body['instance']['snapshotId'] = {}
+#        snap_body = json.dumps(snap_body)
+#        resp, content = req.request(API_URL + "instances", "POST", snap_body, AUTH_HEADER)
+#        LOG.debug(resp)
+#        LOG.debug(content)
+#        content = json.loads(content)
+#
+#        # Assert 1) that the request generated an error
+#        self.assertEqual(500, resp.status)                 
+
 
         # Test deleting a db snapshot.
         LOG.debug("* Deleting snapshot %s" % self.snapshot_id)

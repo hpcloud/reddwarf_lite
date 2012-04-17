@@ -48,21 +48,9 @@ class ControllerTestBase(tests.BaseTest):
         self.app = unit.TestApp(reddwarf_app)
 
 class DummyQueryResult():
-    
-    _data_fields = []
-    
-    def __init__(self, *args):
-        for each in args:
-            self._data_fields.append(each)
             
     def __getitem__(self, key):
         return getattr(self, key)
-    
-    def to_dict(self):
-        d = {}
-        for each in self._data_fields:
-            d[each] = getattr(self, each)
-        return d
 
 class TestInstanceController(ControllerTestBase):
 
@@ -78,7 +66,7 @@ class TestInstanceController(ControllerTestBase):
     "credential": "credential",
     "address" : "ipaddress"}
     
-    DUMMY_GUEST_STATUS = DummyQueryResult ('id', 'instance_id', 'state')
+    DUMMY_GUEST_STATUS = DummyQueryResult ()
     DUMMY_GUEST_STATUS.id = '123456789'
     DUMMY_GUEST_STATUS.instance_id = '123'
     DUMMY_GUEST_STATUS.state = 'BUILDING'

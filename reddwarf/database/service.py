@@ -243,6 +243,7 @@ class InstanceController(BaseController):
 
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance)
+        
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
 

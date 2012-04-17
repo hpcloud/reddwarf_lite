@@ -215,7 +215,6 @@ class DBInstancesView(object):
         # These are model instances
         for instance in self.instances:
             LOG.debug("Instance to include into List: %s" % instance)
-            LOG.debug("GUEST_STATUSES: %s" % self.guest_statuses)
             guest_status = self.guest_statuses[instance['id']]
             LOG.debug("GuestStatus for instance: %s" % guest_status)
             data.append(DBInstanceView(instance, guest_status, self.request, self.tenant_id).list())
