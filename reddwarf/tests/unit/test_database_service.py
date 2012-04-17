@@ -30,6 +30,7 @@ from reddwarf.database import models
 from reddwarf.database import service
 from reddwarf.database import views
 from reddwarf.database import worker_api
+from reddwarf.db.sqlalchemy import api
 from reddwarf.tests import unit
 
 import unittest
@@ -46,6 +47,22 @@ class ControllerTestBase(tests.BaseTest):
                 {"config_file": tests.test_config_file()}, None)
         self.app = unit.TestApp(reddwarf_app)
 
+class DummyQueryResult():
+    
+    _data_fields = []
+    
+    def __init__(self, *args):
+        for each in args:
+            self._data_fields.append(each)
+            
+    def __getitem__(self, key):
+        return getattr(self, key)
+    
+    def to_dict(self):
+        d = {}
+        for each in self._data_fields:
+            d[each] = getattr(self, each)
+        return d
 
 class TestInstanceController(ControllerTestBase):
 
@@ -61,6 +78,11 @@ class TestInstanceController(ControllerTestBase):
     "credential": "credential",
     "address" : "ipaddress"}
     
+    DUMMY_GUEST_STATUS = DummyQueryResult ('id', 'instance_id', 'state')
+    DUMMY_GUEST_STATUS.id = '123456789'
+    DUMMY_GUEST_STATUS.instance_id = '123'
+    DUMMY_GUEST_STATUS.state = 'BUILDING'
+    
     DUMMY_SERVER = {
         "uuid": utils.generate_uuid(), 
         "id": "76543",
@@ -74,7 +96,7 @@ class TestInstanceController(ControllerTestBase):
                         'X-User-Id': '999',
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']
-        self.instances_path = "/v0.1/" + self.tenant + "/instances"
+        self.instances_path = "/v1.0/" + self.tenant + "/instances"
 
     # TODO(hub-cap): Start testing the failure cases
     # def test_show_broken(self):
@@ -105,6 +127,9 @@ class TestInstanceController(ControllerTestBase):
     def test_index(self):
         self.mock.StubOutWithMock(models.DBInstance, 'find_all')
         models.DBInstance.find_all(tenant_id=self.tenant, deleted=False).AndReturn([self.DUMMY_INSTANCE])
+        #results = db.db_api.find_guest_statuses_for_instances(id_list)
+        self.mock.StubOutWithMock(api, 'find_guest_statuses_for_instances')
+        api.find_guest_statuses_for_instances([self.DUMMY_INSTANCE_ID]).AndReturn([self.DUMMY_GUEST_STATUS])
         self.mock.ReplayAll()
         response = self.app.get("%s" % (self.instances_path),
                                         headers=self.headers)
@@ -178,7 +203,8 @@ class TestInstanceController(ControllerTestBase):
         models.Credential.find_by(type="compute").AndReturn(self.Credential)                
         
         mock_server = self.mock.CreateMock(models.Instance(server="server", uuid=utils.generate_uuid()))
-        mock_dbinstance = self.mock.CreateMock(models.DBInstance())
+        #mock_dbinstance = self.mock.CreateMock(models.DBInstance())
+        mock_dbinstance = {'id': 'id', 'name': 'name', 'created_at': 'created_at', 'address': 'address'}
 #        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))       
 
 #        self.mock.StubOutWithMock(mock_server, 'data')
@@ -188,7 +214,7 @@ class TestInstanceController(ControllerTestBase):
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
-                            mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data))
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data))
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
         models.DBInstance.create(
@@ -201,19 +227,13 @@ class TestInstanceController(ControllerTestBase):
                 credential=self.Credential['id'],
                 user_id=None,
                 tenant_id=self.tenant).AndReturn(mock_dbinstance)  
-
-        self.mock.StubOutWithMock(mock_dbinstance, 'data')
-        mock_dbinstance.data().AndReturn(self.DUMMY_INSTANCE)
-
-        self.mock.StubOutWithMock(models.DBInstance, '__getitem__')
-        mock_dbinstance.__getitem__('id').AndReturn('id')
         
         self.mock.StubOutWithMock(models.GuestStatus, 'create')
-        models.GuestStatus().create(instance_id='id', state='building').AndReturn(None)
+        models.GuestStatus().create(instance_id=mock_dbinstance['id'], state='building').AndReturn(self.DUMMY_GUEST_STATUS)
 
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
         worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
-        
+
         #self.mock_out_client_create()
         self.mock.ReplayAll()
 

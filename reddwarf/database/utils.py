@@ -17,7 +17,7 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
     """Creates a config file that gets placed in the instance
     for the Agent to configure itself"""
 
-    rabbit_config = "[messaging]\nrabbit_host: {host}\nrabbit_port: {port}\nrabbit_use_ssl: {ssl}\nrabbit_user_id: {user}\nrabbit_password: {password}\nrabbit_virtual_host: {vhost}\n".format(
+    rabbit_config = "[messaging]\nrabbit_host: {host}\nrabbit_port: {port}\nrabbit_use_ssl: {ssl}\nrabbit_userid: {user}\nrabbit_password: {password}\nrabbit_virtual_host: {vhost}\n".format(
         host=configuration_manager.get('rabbit_host', 'localhost'),
         port=configuration_manager.get('rabbit_port', '5672'),
         ssl=configuration_manager.get('rabbit_use_ssl', 'False'),

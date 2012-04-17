@@ -73,7 +73,7 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
 class DBFunctionalTests(unittest.TestCase):
 
-    def xtest_instance_api(self):
+    def test_instance_api(self):
         
         """Comprehensive instance API test using an instance lifecycle."""
 
