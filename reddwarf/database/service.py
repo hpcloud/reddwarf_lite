@@ -345,7 +345,7 @@ class InstanceController(BaseController):
             LOG.debug('%s',conf_file)
 
             #TODO (vipulsabhaya) move this to config or db
-            keypair = 'dbas-dev'
+            keypair = 'dbaas-dev'
             
             userdata = None
             #userdata = open('../development/bootstrap/dbaas-image.sh')
