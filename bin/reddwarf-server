@@ -22,8 +22,6 @@ import os
 import threading
 import sys
 
-from reddwarf.common import service
-
 gettext.install('reddwarf', unicode=1)
 
 
@@ -35,6 +33,7 @@ possible_topdir = os.path.normpath(os.path.join(os.path.abspath(sys.argv[0]),
 if os.path.exists(os.path.join(possible_topdir, 'reddwarf', '__init__.py')):
     sys.path.insert(0, possible_topdir)
 
+from reddwarf.common import service
 from reddwarf import version
 from reddwarf.common import config
 from reddwarf.common import wsgi

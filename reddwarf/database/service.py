@@ -208,7 +208,6 @@ class InstanceController(BaseController):
         try:
             server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
-            LOG.debug("E: %s" % e.message)
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 500)
@@ -401,9 +400,17 @@ class InstanceController(BaseController):
     def _create_boot_config_file(self, snapshot, password):
         """Creates a config file that gets placed in the instance
         for the Agent to configure itself"""
-        storage_uri = snapshot['storage_uri'] if snapshot else None
-        return { '/home/nova/agent.config':
-                     create_boot_config(CONFIG, models.Credential().find_by(id=snapshot['credential']), storage_uri, password) }
+        
+        if snapshot:
+            storage_uri = snapshot['storage_uri']
+            config = create_boot_config(CONFIG,
+                                        models.Credential().find_by(id=snapshot['credential']),
+                                        storage_uri,
+                                        password)
+        else:
+            storage_uri = None
+            config = create_boot_config(CONFIG, None, storage_uri, password)
+        return { '/home/nova/agent.config': config }
 
     def get_guest_state_mapping(self, id_list):
         """Returns a dictionary of guest statuses keyed by guest ids."""
