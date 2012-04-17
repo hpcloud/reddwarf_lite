@@ -339,7 +339,7 @@ class InstanceController(BaseController):
         try:
             # TODO (vipulsabhaya) move this into the db we should
             # have a service_secgroup table for mapping
-            sec_group = ['mysql']
+            sec_group = ['dbaas-instance']
 
             conf_file = self._create_boot_config_file(snapshot, password)
             LOG.debug('%s',conf_file)
