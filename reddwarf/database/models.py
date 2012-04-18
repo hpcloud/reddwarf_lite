@@ -343,6 +343,8 @@ class ServiceFlavor(DatabaseModelBase):
 class ServiceSecgroup(DatabaseModelBase):
     _data_fields = ['service_name', 'group_name']
 
+class ServiceKeypair(DatabaseModelBase):
+    _data_fields = ['service_name', 'key_name']
 
 class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
@@ -371,7 +373,9 @@ def persisted_models():
         'service_flavor': ServiceFlavor,
         'snapshot': Snapshot,
         'quota': Quota,
-        'service_secgroup': ServiceSecgroup
+        'service_secgroup': ServiceSecgroup,
+        'service_keypair': ServiceKeypair
+
         }
 
 

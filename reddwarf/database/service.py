@@ -190,8 +190,12 @@ class InstanceController(BaseController):
         flavor = models.ServiceFlavor.find_by(service_name="database")
         flavor_id = flavor['flavor_id']
 
+        service_keypair = models.ServiceKeypair.find_by(service_name='database')
+        keypair_name = service_keypair['key_name']
+        
         LOG.debug("Using ImageID %s" % image_id)
-        LOG.debug("Using FlavorID %s" % flavor_id)        
+        LOG.debug("Using FlavorID %s" % flavor_id)
+        LOG.debug("Using Keypair %s" % keypair_name)
         
         try:
             snapshot = self._extract_snapshot(body, tenant_id)
@@ -206,7 +210,7 @@ class InstanceController(BaseController):
         password = utils.generate_password(length=8)
         
         try:
-            server, floating_ip = self._try_create_server(context, body, credential, image_id, flavor_id, snapshot, password)
+            server, floating_ip = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
@@ -334,7 +338,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
-    def _try_create_server(self, context, body, credential, image_id, flavor_id, snapshot=None, password=None):
+    def _try_create_server(self, context, body, credential, keypair, image_id, flavor_id, snapshot=None, password=None):
         """Create remote Server """
         try:
             # TODO (vipulsabhaya) move this into the db we should
@@ -345,7 +349,7 @@ class InstanceController(BaseController):
             LOG.debug('%s',conf_file)
 
             #TODO (vipulsabhaya) move this to config or db
-            keypair = 'dbaas-dev'
+            #keypair = 'dbaas-dev'
             
             userdata = None
             #userdata = open('../development/bootstrap/dbaas-image.sh')

@@ -163,6 +163,7 @@ class TestInstanceController(ControllerTestBase):
     def test_create(self):
         self.ServiceImage = {"image_id": "1240"}
         self.ServiceFlavor = {"flavor_id": "100"}
+        self.ServiceKeypair = {"key_name": "dbas-dev"}
         self.Credential = {'id': '1'}
         body = {
             "instance": {
@@ -186,7 +187,9 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
         models.ServiceImage.find_by(service_name="database").AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
-        models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)  
+        models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)
+        self.mock.StubOutWithMock(models.ServiceKeypair, 'find_by')
+        models.ServiceKeypair.find_by(service_name="database").AndReturn(self.ServiceKeypair)  
         self.mock.StubOutWithMock(models.Credential, 'find_by')
         models.Credential.find_by(type="compute").AndReturn(self.Credential)                
         
@@ -201,7 +204,7 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data))
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
