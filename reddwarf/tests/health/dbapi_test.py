@@ -47,6 +47,7 @@ import time
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
 X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
 AUTH_TOKEN = os.environ['OS_PASSWORD']
+API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
@@ -67,7 +68,7 @@ AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN,
                'X-Auth-Project-Id': '%s' % X_AUTH_PROJECT_ID}
 
 TENANT_ID = content['access']['token']['tenant']['id']
-API_URL = "http://15.185.172.176:80/v1.0/" + TENANT_ID + "/"
+API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
