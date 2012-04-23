@@ -35,6 +35,7 @@ from reddwarf.database import models
 from reddwarf.database import views
 from reddwarf.database import guest_api
 from reddwarf.database import worker_api
+from reddwarf.database import quota
 from reddwarf.admin import service as admin
 from reddwarf.database.utils import create_boot_config
 from swiftapi import swift
@@ -183,6 +184,11 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        
+        try:
+            num_instances = self._check_instance_quota(context, 1)
+        except exception.QuotaError, e:
+            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 413)
         
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
@@ -416,6 +422,23 @@ class InstanceController(BaseController):
             config = create_boot_config(CONFIG, None, storage_uri, password)
         return { '/home/nova/agent.config': config }
 
+    def _check_instance_quota(self, context, count=1):
+        num_instances = quota.allowed_instances(context, count)
+        LOG.debug('number of instances allowed to create %s' % num_instances)
+        if num_instances < count:
+            tid = context.tenant
+            if num_instances <= 0:
+                msg = _("Cannot create any more instances of this type.")
+            else:
+                msg = (_("Can only create %s more instances of this type.") %
+                       num_instances)
+            LOG.warn(_("Quota exceeded for %(tid)s,"
+                  " tried to create %(count)s instances. %(msg)s"), locals())
+            
+            raise exception.QuotaError("InstanceLimitExceeded")
+
+        return num_instances
+        
     def get_guest_state_mapping(self, id_list):
         """Returns a dictionary of guest statuses keyed by guest ids."""
         results = db.db_api.find_guest_statuses_for_instances(id_list)

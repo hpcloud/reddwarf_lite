@@ -167,23 +167,18 @@ class TestInstanceController(ControllerTestBase):
         self.Credential = {'id': '1'}
         body = {
             "instance": {
-                "databases": [
-                    {
-                        "character_set": "utf8",
-                        "collate": "utf8_general_ci",
-                        "name": "sampledb"
-                    },
-                    {
-                        "name": "nextround"
-                    }
-                ],
-                "flavorRef": "http://localhost/v0.1/tenant/flavors/1",
                 "name": "json_rack_instance",
             }
         }
         
         mock_flip_data = {"ip": "blah"}
         
+        default_quotas = [{ "tenant_id": self.tenant, "hard_limit": 3, "resource":"instances"},
+                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"}]
+        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
         models.ServiceImage.find_by(service_name="database").AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
@@ -233,4 +228,26 @@ class TestInstanceController(ControllerTestBase):
                                            )
         self.assertEqual(response.status_int, 201)
 
+
+    def test_create_quota_error(self):
+        
+        body = {
+            "instance": {
+                "name": "json_rack_instance",
+            }
+        }
+
+        default_quotas = [{ "tenant_id": self.tenant, "hard_limit": 0, "resource":"instances"},
+                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"}]
+        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+        
+        self.mock.ReplayAll()
+
+        # Expect an error to come back, so this doesn't throw
+        response = self.app.post_json("%s" % (self.instances_path), body=body,
+                                           headers=self.headers, expect_errors=True
+                                           )
+        self.assertEqual(response.status_int, 413)
 

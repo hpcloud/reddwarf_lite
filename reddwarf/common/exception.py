@@ -47,3 +47,8 @@ class InvalidRPCConnectionReuse(ReddwarfError):
 class NotFound(ReddwarfError):
 
     message = _("Resource %(uuid)s cannot be found")
+
+
+class QuotaError(ReddwarfError):
+
+    message = _("Quota exceeded")
