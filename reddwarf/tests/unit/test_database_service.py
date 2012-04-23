@@ -23,6 +23,7 @@ import json
 import novaclient.v1_1
 
 from reddwarf import tests
+from reddwarf import db
 from reddwarf.common import config
 from reddwarf.common import utils
 from reddwarf.common import wsgi
@@ -30,6 +31,7 @@ from reddwarf.database import models
 from reddwarf.database import service
 from reddwarf.database import views
 from reddwarf.database import worker_api
+from reddwarf.database import guest_api
 from reddwarf.db.sqlalchemy import api
 from reddwarf.tests import unit
 
@@ -251,3 +253,119 @@ class TestInstanceController(ControllerTestBase):
                                            )
         self.assertEqual(response.status_int, 413)
 
+class TestSnapshotController(ControllerTestBase):
+
+    DUMMY_SNAPSHOT_ID = "123"
+    DUMMY_INSTANCE_ID = "123456"
+    DUMMY_SNAPSHOT = {"id": DUMMY_SNAPSHOT_ID,
+    "name": "DUMMY_NAME",
+    "instance_id": DUMMY_INSTANCE_ID,
+    "state": "success",
+    "created_at": "createtime",
+    "updated_at": "updatedtime",
+    "deleted_at": None,
+    "links": [] }
+    
+    def setUp(self):
+        super(TestSnapshotController, self).setUp()
+        self.headers = {'X-Auth-Token': 'abc:123',
+                        'X-Roles': 'user',
+                        'X-User-Id': '999',
+                        'X-Tenant-Id': '123'}
+        self.tenant = self.headers['X-Tenant-Id']
+        self.snapshots_path = "/v1.0/" + self.tenant + "/snapshots"
+
+    def test_show(self):
+        id = self.DUMMY_SNAPSHOT_ID
+
+        self.mock.StubOutWithMock(models.Snapshot, 'find_by')
+        models.Snapshot.find_by(deleted=False,id=id).AndReturn(self.DUMMY_SNAPSHOT)
+
+        self.mock.ReplayAll()
+
+        response = self.app.get("%s/%s" % (self.snapshots_path,
+                                           self.DUMMY_SNAPSHOT_ID),
+                                           headers=self.headers)
+
+        self.assertEqual(response.status_int, 200)
+
+    def test_index(self):
+        self.mock.StubOutWithMock(models.Snapshot, 'list_by_tenant')
+        models.Snapshot.list_by_tenant(self.tenant).AndReturn([self.DUMMY_SNAPSHOT])
+
+        self.mock.ReplayAll()
+        
+        response = self.app.get("%s" % (self.snapshots_path),
+                                        headers=self.headers)
+        
+        self.assertEqual(response.status_int, 200)
+        
+    
+    def test_create(self):
+
+        body = {
+            "snapshot": {
+                "name": "snapshot unit test",
+                "instanceId" : self.DUMMY_INSTANCE_ID
+            }
+        }
+        
+        # Ensure we give back a 'running' instance
+        self.mock.StubOutWithMock(models.GuestStatus, 'find_by')
+        models.GuestStatus.find_by(instance_id=self.DUMMY_INSTANCE_ID).AndReturn({'instance_id': self.DUMMY_INSTANCE_ID, 'state': 'running'})
+
+        # Setup the quotas
+        default_quotas = [{ "tenant_id": self.tenant, "hard_limit": 5, "resource":"instances"},
+                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"}]
+        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+        
+        # Ensure credential comes back
+        self.mock.StubOutWithMock(models.Credential, 'find_by')
+        models.Credential.find_by(type='object-store').AndReturn({"id": '999'})
+
+        # Stub out the call to Maxwell        
+        self.mock.StubOutWithMock(guest_api.API, 'create_snapshot')
+        guest_api.API.create_snapshot(mox.IgnoreArg(),
+                                      mox.IgnoreArg(),
+                                      mox.IgnoreArg(), 
+                                      mox.IgnoreArg(), 
+                                      mox.IgnoreArg()).AndReturn(None)
+        
+        self.mock.ReplayAll()
+
+        response = self.app.post_json("%s" % (self.snapshots_path), body=body,
+                                           headers=self.headers,
+                                           )
+        self.assertEqual(response.status_int, 201)
+        
+        
+    def test_create_quota_error(self):
+
+        body = {
+            "snapshot": {
+                "name": "snapshot unit test",
+                "instanceId" : self.DUMMY_INSTANCE_ID
+            }
+        }
+        
+        # Ensure we give back a 'running' instance
+        self.mock.StubOutWithMock(models.GuestStatus, 'find_by')
+        models.GuestStatus.find_by(instance_id=self.DUMMY_INSTANCE_ID).AndReturn({'instance_id': self.DUMMY_INSTANCE_ID, 'state': 'running'})
+
+        # Setup the quotas
+        default_quotas = [{ "tenant_id": self.tenant, "hard_limit": 5, "resource":"instances"},
+                          { "tenant_id": self.tenant, "hard_limit": 0, "resource":"snapshots"}]
+        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+        
+        self.mock.ReplayAll()
+
+        response = self.app.post_json("%s" % (self.snapshots_path), body=body,
+                                           headers=self.headers, expect_errors=True
+                                           )
+        self.assertEqual(response.status_int, 413)
+
+        

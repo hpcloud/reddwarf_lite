@@ -559,18 +559,17 @@ class SnapshotController(BaseController):
         # Return if instance is not running
         instance_id = body['snapshot']['instanceId']
         try:
-            instance = models.GuestStatus().find_by(instance_id=instance_id)
+            guest_status = models.GuestStatus().find_by(instance_id=instance_id)
         except exception.ReddwarfError, e:
             LOG.debug("Could not find DB instance in guest_status table: %s" % instance_id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         # Return when instance is not in running state
-        data = instance.data()
-        if not data['state']:
+        if not guest_status['state']:
             LOG.debug("The instance %s is not in running state." % instance_id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_NOT_RUNNING), 403)
 
-        if data['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
+        if guest_status['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
             LOG.debug("The instance %s is locked for operation in progress." % instance_id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
 
@@ -578,8 +577,7 @@ class SnapshotController(BaseController):
         try:
             snapshots = models.Snapshot().find_all(instance_id=instance_id)
             for snapshot in snapshots:
-                record = snapshot.data()
-                if record['deleted_at'] is None and record['state'] == 'building':
+                if snapshot['deleted_at'] is None and snapshot['state'] == 'building':
                     LOG.debug("There is a snapshot being created on Instance %s." % instance_id)
                     return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
         except exception.ReddwarfError, e:
@@ -587,10 +585,17 @@ class SnapshotController(BaseController):
             pass
 
         # Start creating snapshot
+        # TODO (vipulsabhaya) obtain context from request
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
+
+        # Return if quota for snapshots has been reached
+        try:
+            num_snapshots = self._check_snapshot_quota(context, 1)
+        except exception.QuotaError, e:
+            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 413)
         
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
@@ -622,7 +627,24 @@ class SnapshotController(BaseController):
         
         LOG.debug("Wrote snapshot: %s" % snapshot)
         return wsgi.Result(views.SnapshotView(snapshot, req, tenant_id).create(), 201)
-                 
+              
+    def _check_snapshot_quota(self, context, count=1):
+        num_snapshots = quota.allowed_snapshots(context, count)
+        LOG.debug('number of snapshots allowed to create %s' % num_snapshots)
+        if num_snapshots < count:
+            tid = context.tenant
+            if num_snapshots <= 0:
+                msg = _("Cannot create any more snapshots of this type.")
+            else:
+                msg = (_("Can only create %s more snapshots of this type.") %
+                       num_snapshots)
+            LOG.warn(_("Quota exceeded for %(tid)s,"
+                  " tried to create %(count)s snapshots. %(msg)s"), locals())
+            
+            raise exception.QuotaError("InstanceLimitExceeded")
+
+        return num_snapshots
+   
 
 class API(wsgi.Router):
     """API"""
