@@ -58,6 +58,12 @@ class API():
         dbutils.update_guest_status(id, int(result))
         return result
 
+    def stop_messaging_service(self, context, id):
+        """Make a synchronous call to trigger smart agent for checking MySQL status"""
+        instance = dbutils.get_instance(id)
+        LOG.debug("Triggering smart agent on Instance %s (%s) to stop messaging service.", id, instance['remote_hostname'])
+        rpc.cast(context, instance['remote_hostname'], {"method": "stop_messaging_service"})
+
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         try:

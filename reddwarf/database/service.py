@@ -124,8 +124,6 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
-        LOG.debug("Delete() context")                   
-        
         try:
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
@@ -138,7 +136,9 @@ class InstanceController(BaseController):
         # Try to delete the Nova instance
         try:
             LOG.debug("Deleting remote instance with id %s" % remote_id)
-            # TODO(cp16net) : need to handle exceptions here if the delete fails
+            # disconnect messaging service on the instance
+            self.guest_api.stop_messaging_service(context, id)
+            # request Nova to delete the instance
             models.Instance.delete(credential, remote_id)
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
@@ -678,6 +678,7 @@ class API(wsgi.Router):
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
         path = "/{tenant_id}/instances"
+
         #mapper.resource("instance", path, controller=instance_resource)      
         mapper.connect(path,
                        controller=instance_resource,
