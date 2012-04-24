@@ -137,7 +137,7 @@ class PhoneHomeMessageHandler():
         state = result_state.ResultState().name(int(msg['args']['state']))
         
         # Treat running and success the same
-        if state = 'running' or state = 'success':
+        if state == 'running' or state == 'success':
             state = 'running'
             
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
