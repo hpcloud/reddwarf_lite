@@ -213,31 +213,31 @@ class DBFunctionalTests(unittest.TestCase):
             
         self.assertTrue(status == 'running')
 
-#        # Test deleting a db instance.
-#        LOG.debug("* Deleting instance %s" % self.instance_id)
-#        resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
-#        LOG.debug(resp)
-#        LOG.debug(content)
-#
-#        # Assert 1) that the request was accepted and 2) that the instance has
-#        # been deleted.
-#        self.assertEqual(204, resp.status)
-#
-#        LOG.debug("Verifying that instance %s has been deleted" % self.instance_id)
-#        resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
-#        LOG.debug("Returned from listing...")
-#        LOG.debug(resp)
-#        LOG.debug(content)
-#        
-#        if content == []:
-#            pass
-#        else:
-#            content = json.loads(content)
-#            for each in content['instances']:
-#                self.assertFalse(each['id'] == self.instance_id)
-#
-#        LOG.debug("Sleeping...")
-#        time.sleep(10)
+        # Test deleting a db instance.
+        LOG.debug("* Deleting instance %s" % self.instance_id)
+        resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request was accepted and 2) that the instance has
+        # been deleted.
+        self.assertEqual(204, resp.status)
+
+        LOG.debug("Verifying that instance %s has been deleted" % self.instance_id)
+        resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
+        LOG.debug("Returned from listing...")
+        LOG.debug(resp)
+        LOG.debug(content)
+        
+        if content == []:
+            pass
+        else:
+            content = json.loads(content)
+            for each in content['instances']:
+                self.assertFalse(each['id'] == self.instance_id)
+
+        LOG.debug("Sleeping...")
+        time.sleep(10)
 
 
 
