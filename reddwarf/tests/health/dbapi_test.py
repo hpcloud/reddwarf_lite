@@ -45,12 +45,9 @@ import os
 import time
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
-#X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
-#AUTH_TOKEN = os.environ['OS_PASSWORD']
-#API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
-X_AUTH_PROJECT_ID = 'vipul.sabhaya@hp.com'
-AUTH_TOKEN = 'tapasiya'
-API_ENDPOINT = 'http://15.185.163.243'
+X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
+AUTH_TOKEN = os.environ['OS_PASSWORD']
+API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
@@ -113,8 +110,8 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Assert 1) that the request was accepted and 2) that the response
         # is in the expected format.
-        self.assertEqual(201, resp.status)
-        self.assertTrue(content.has_key('instance'))
+        self.assertEqual(201, resp.status, "Response status of create instance not 201")
+        self.assertTrue(content.has_key('instance'), "Response body of create instance does not have 'instance' field")
 
 
         # Test listing all db instances.
@@ -128,9 +125,9 @@ class DBFunctionalTests(unittest.TestCase):
         # Assert 1) that the request was accepted and 2) that the response is
         # in the expected format (e.g. a JSON object beginning with an
         # 'instances' key).
-        self.assertEqual(200, resp.status)
+        self.assertEqual(200, resp.status, "Response status of list instances not 200")
         LOG.debug(content)
-        self.assertTrue(content.has_key('instances'))
+        self.assertTrue(content.has_key('instances'), "Response body of list instances does not contain 'instances' field.")
 
 
         # Test getting a specific db instance.
@@ -142,8 +139,8 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Assert 1) that the request was accepted and 2) that the returned
         # instance is the same as the accepted instance.
-        self.assertEqual(200, resp.status)
-        self.assertEqual(self.instance_id, str(content['instance']['id']))
+        self.assertEqual(200, resp.status, "Response status of show instance not 200")
+        self.assertEqual(self.instance_id, str(content['instance']['id']), "Instance ID not found in Show Instance response")
 
 
         # Check to see if the instance we previously created is 
@@ -168,14 +165,13 @@ class DBFunctionalTests(unittest.TestCase):
             
         self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 5 minutes" % self.instance_id))
 
-
         # Test resetting the password on a db instance.
         LOG.debug("* Resetting password on instance %s" % self.instance_id)
         resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", "", AUTH_HEADER)
         LOG.debug(resp)
         LOG.debug(content)
 
-        self.assertEqual(200, resp.status)
+        self.assertEqual(200, resp.status, "Reponse status of Reset Password not 200")
 
         # TODO (vipulsabhaya) Attept to log into with this password
 
@@ -185,7 +181,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(resp)
         LOG.debug(content)
 
-        self.assertEqual(204, resp.status)
+        self.assertEqual(204, resp.status, "Response status Restart Instance not 204")
                 
 
         # Test getting a specific db instance.
@@ -211,7 +207,7 @@ class DBFunctionalTests(unittest.TestCase):
             content = json.loads(content)
             status = content['instance']['status']
             
-        self.assertTrue(status == 'running')
+        self.assertTrue(status == 'running', ("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id))
 
         # Test deleting a db instance.
         LOG.debug("* Deleting instance %s" % self.instance_id)
@@ -221,7 +217,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Assert 1) that the request was accepted and 2) that the instance has
         # been deleted.
-        self.assertEqual(204, resp.status)
+        self.assertEqual(204, resp.status, "Response status of instance delete did not return 204")
 
         LOG.debug("Verifying that instance %s has been deleted" % self.instance_id)
         resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
@@ -234,7 +230,7 @@ class DBFunctionalTests(unittest.TestCase):
         else:
             content = json.loads(content)
             for each in content['instances']:
-                self.assertFalse(each['id'] == self.instance_id)
+                self.assertFalse(each['id'] == self.instance_id, ("Instance %s did not actually get deleted" % self.instance_id))
 
         LOG.debug("Sleeping...")
         time.sleep(10)
