@@ -36,7 +36,7 @@ sql_connection = sqlite:///reddwarf_test.sqlite
 # idle connections. This can result in 'MySQL Gone Away' exceptions. If you
 # notice this, you can lower this value to ensure that SQLAlchemy reconnects
 # before MySQL can drop the connection.
-sql_idle_timeout = 3600
+sql_idle_timeout = 180
 
 #DB Api Implementation
 db_api_implementation = "reddwarf.db.sqlalchemy.api"

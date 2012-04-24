@@ -129,12 +129,17 @@ class PhoneHomeMessageHandler():
         # validate input message
         if not msg['args']['hostname']:
             raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
-        if not msg['args']['state']:
+        if '' == msg['args']['state']:
             raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
 
         # update DB
         instance = dbutils.get_instance_by_hostname(msg['args']['hostname'])
         state = result_state.ResultState().name(int(msg['args']['state']))
+        
+        # Treat running and success the same
+        if state = 'running' or state = 'success':
+            state = 'running'
+            
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
         dbutils.update_guest_status(instance['id'], state)
 
