@@ -619,13 +619,49 @@ class DBFunctionalTests(unittest.TestCase):
             LOG.error("Listing specific snapshot - Error processing JSON object: %s" % content)
             self.assertEqual(True, False)
 
-        # Assert 1) that the request was accepted, 2) that the response
-        # is in the proper format, and 3) that the response is the correct
-        # snapshot.
-        self.assertEqual(200, resp.status)
-        self.assertTrue(content.has_key('snapshot'))
-        self.assertEqual(self.instance_id, content['snapshot']['instanceId'])
-        self.assertEqual(self.snapshot_id, content['snapshot']['id'])
+        LOG.debug(content)
+        for each in content['instances']:
+            self.assertFalse(each['id'] == self.instance_id)
+
+    def xtest_snapshot_api_negative(self):
+        
+        instance_body = r"""
+        {"instance": {
+            "name": "dbapi_test",
+            "flavorRef": "102",
+            "port": "3306",
+            "dbtype": {
+                "name": "mysql",
+                "version": "5.1.2"
+            },
+        }"""
+        
+        # Test creating an snapshot without a body in the request.
+        LOG.debug("* Creating an snapshot without a body")
+        resp, content = req.request(API_URL + "snapshots", "POST", "", AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+
+        # Assert 1) that the request was not accepted
+        self.assertEqual(404, resp.status)
+
+
+#        # Test creating an snapshot with a malformed body.
+#        LOG.debug("* Creating an snapshot with a malformed body")
+#        resp, content = req.request(API_URL + "snapshots", "POST", bad_body, AUTH_HEADER)
+#        LOG.debug(resp)
+#        LOG.debug(content)
+#
+#        # Assert 1) that the request generated an error
+#        self.assertEqual(500, resp.status)
+
+        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
+
+        # Test listing all snapshots with a body in the request.
+        LOG.debug("* Listing all snapshots with a body")
+        resp, content = req.request(API_URL + "snapshots", "GET", body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
 
 
         # Test getting a non-existent snapshot.
