@@ -643,6 +643,7 @@ class DBFunctionalTests(unittest.TestCase):
 #        # Assert 1) that the request generated an error
 #        self.assertEqual(500, resp.status)
 
+        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
 
         # Test listing all snapshots with a body in the request.
         LOG.debug("* Listing all snapshots with a body")
