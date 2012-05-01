@@ -391,6 +391,8 @@ class DBFunctionalTests(unittest.TestCase):
 
 
     def test_snapshot_api(self):
+        instances_created = []
+
         """Comprehensive snapshot API test using a snapshot lifecycle."""
 
         # Test creating a db instance.
@@ -415,6 +417,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(content)
 
         self.instance_id = content['instance']['id']
+        instances_created.append(object)
         LOG.debug("Instance ID: %s" % self.instance_id)
 
         """Assert 1) that the request was accepted and 2) that the response

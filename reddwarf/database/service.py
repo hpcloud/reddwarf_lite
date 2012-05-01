@@ -216,7 +216,7 @@ class InstanceController(BaseController):
         password = utils.generate_password(length=8)
         
         try:
-            server, floating_ip = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
+            server, floating_ip, conf_file = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
@@ -252,7 +252,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
         # Invoke worker to ensure instance gets created
-        worker_api.API().ensure_create_instance(None, instance)
+        worker_api.API().ensure_create_instance(None, instance, conf_file)
         
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
@@ -371,7 +371,7 @@ class InstanceController(BaseController):
             
             self._try_assign_ip(credential, server, floating_ip)
             
-            return (server, floating_ip)
+            return (server, floating_ip, conf_file)
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)

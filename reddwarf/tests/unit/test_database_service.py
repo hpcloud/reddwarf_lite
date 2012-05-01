@@ -202,7 +202,7 @@ class TestInstanceController(ControllerTestBase):
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data))
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data, None))
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
         models.DBInstance.create(
@@ -220,7 +220,7 @@ class TestInstanceController(ControllerTestBase):
         models.GuestStatus().create(instance_id=mock_dbinstance['id'], state='building').AndReturn(self.DUMMY_GUEST_STATUS)
 
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
-        worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
+        worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
 
         #self.mock_out_client_create()
         self.mock.ReplayAll()
