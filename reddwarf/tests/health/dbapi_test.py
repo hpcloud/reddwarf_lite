@@ -48,7 +48,7 @@ AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
 X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
 AUTH_TOKEN = os.environ['OS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
-SSH_KEY = os.environ['DBAAS_SSH_KEY']
+#SSH_KEY = os.environ['DBAAS_SSH_KEY']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
