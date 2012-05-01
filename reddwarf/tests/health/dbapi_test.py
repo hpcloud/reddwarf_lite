@@ -48,6 +48,7 @@ AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
 X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
 AUTH_TOKEN = os.environ['OS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
+SSH_KEY = os.environ['DBAAS_SSH_KEY']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
@@ -78,9 +79,12 @@ LOG.debug("Response from Keystone: %s" % content)
 LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
 LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
+instances_created = []
+
 class DBFunctionalTests(unittest.TestCase):
 
     def test_instance_api(self):
+        instances_created = []
         
         """Comprehensive instance API test using an instance lifecycle."""
 
@@ -100,12 +104,17 @@ class DBFunctionalTests(unittest.TestCase):
 
         req = httplib2.Http(".cache")
         resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
-        LOG.debug(content)
-        content = json.loads(content)
         LOG.debug(resp)
         LOG.debug(content)
 
+        try:
+            content = json.loads(content)
+        except Exception, e:
+            LOG.error("error parsing response JSON" % e)
+            self.fail("Response to instance create was not proper JSON: " % content)
+
         self.instance_id = content['instance']['id']
+        instances_created.append(self.instance_id)
         LOG.debug("Instance ID: %s" % self.instance_id)
 
         # Assert 1) that the request was accepted and 2) that the response
