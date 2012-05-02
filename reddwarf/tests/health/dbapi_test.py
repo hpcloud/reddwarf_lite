@@ -43,12 +43,13 @@ import json
 import httplib2
 import os
 import time
+from reddwarf.common import ssh
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
 X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
 AUTH_TOKEN = os.environ['OS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
-#SSH_KEY = os.environ['DBAAS_SSH_KEY']
+SSH_KEY = os.environ['DBAAS_SSH_KEY']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
@@ -84,10 +85,11 @@ instances_created = []
 class DBFunctionalTests(unittest.TestCase):
 
     def test_instance_api(self):
-        instances_created = []
-        
         """Comprehensive instance API test using an instance lifecycle."""
 
+        # Clear instances list
+        del instances_created[:]
+        
         # Test creating a db instance.
         LOG.debug("* Creating db instance")
         body = r"""
@@ -116,6 +118,7 @@ class DBFunctionalTests(unittest.TestCase):
         self.instance_id = content['instance']['id']
         instances_created.append(self.instance_id)
         LOG.debug("Instance ID: %s" % self.instance_id)
+        LOG.debug("Instances created %s" % instances_created)
 
         # Assert 1) that the request was accepted and 2) that the response
         # is in the expected format.
@@ -391,8 +394,7 @@ class DBFunctionalTests(unittest.TestCase):
 
 
     def test_snapshot_api(self):
-        instances_created = []
-
+        del instances_created[:]
         """Comprehensive snapshot API test using a snapshot lifecycle."""
 
         # Test creating a db instance.
@@ -417,7 +419,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(content)
 
         self.instance_id = content['instance']['id']
-        instances_created.append(object)
+        instances_created.append(self.instance_id)
         LOG.debug("Instance ID: %s" % self.instance_id)
 
         """Assert 1) that the request was accepted and 2) that the response
@@ -734,6 +736,9 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug("\n*** Starting cleanup...")
         req = httplib2.Http(".cache")
 
+        # SSH and Extract data
+        self._extract_and_log_metadata_from_instances(instances_created)
+        
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")
         resp, snapshots = req.request(API_URL + "snapshots", "GET", "", AUTH_HEADER)     
@@ -762,3 +767,57 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.debug(resp)
                 LOG.debug(content)
 
+    def _extract_and_log_metadata_from_instances(self, instances):
+        
+        LOG.debug("Instances created %s" % instances_created)
+        for instance in instances:
+            # If the instance is still there, then the test likely failed
+            LOG.debug("- Getting instance info")
+            resp, instance = req.request(API_URL + "instances/" + instance, "GET", "", AUTH_HEADER)
+            if resp.status == 200:
+                instance = json.loads(instance)
+                public_ip = instance['instance']['hostname']
+                LOG.debug("- Attempting to SSH into %s" % public_ip)
+                try:
+                    if public_ip is not None:
+                        attempt = 0;
+                        success = False
+                        while attempt < 20:
+                            try:
+                                LOG.debug("- SSH connection attempt %i" % attempt)
+                                s = ssh.Connection(host = public_ip, username = 'ubuntu', private_key = SSH_KEY)
+                                hostname_result = s.execute('hostname')
+                                
+                                instance_meta = "\n --------------------- Instance Meta --------------------- \n"
+                                if len(hostname_result) > 0 :
+                                    instance_meta = instance_meta + "  Instance hostname: " + hostname_result[0] + "\n"
+                                    success = True
+                                else:
+                                    success = False
+
+                                cat_result = s.execute('cat /home/nova/agent.config')
+                                if len(cat_result) > 0 :
+                                    instance_meta = instance_meta + "  Injected file: /home/nova/agent.config" + "\n"
+                                    instance_meta = instance_meta + '      '.join(cat_result)
+                                    success = True
+                                else:
+                                    success = False
+
+                                instance_meta = instance_meta + "\n" + " --------------------------------------------------------- "
+                                LOG.debug(instance_meta)
+                                break
+                            except Exception, e:
+                                #print e
+                                pass
+                            
+                            attempt = attempt + 1
+                            time.sleep(4)
+                            
+                        if success is False:
+                            LOG.error("ERROR verifying instance metadata - instance %s " % id)
+                        else:
+                            LOG.info("SUCCESS verifying instance metadata - instance %s " % id)
+                    else:
+                        LOG.error("ERROR - No public ip found for instance")
+                except Exception, e:
+                    LOG.exception("Error determining meta data in the instance")
