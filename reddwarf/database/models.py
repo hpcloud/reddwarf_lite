@@ -20,7 +20,7 @@
 
 import logging
 import netaddr
-
+import newrelic.agent
 from reddwarf import db
 
 from reddwarf.common import config
@@ -96,7 +96,8 @@ class RemoteModelBase(ModelBase):
             region_name='az-2.region-a.geo-1',
             #service_type='compute',
             service_name="Compute")
-        client.authenticate()
+        function = newrelic.agent.FunctionTraceWrapper(client.authenticate, "cs", "Python/EndPoint")
+        function()
         return client
 
     def data_item(self, data_object):
@@ -127,7 +128,9 @@ class Instance(RemoteModelBase):
             raise InvalidModelError(msg)
         elif server is None:
             try:
-                self._data_object = self.get_client(credential).servers.get(uuid)
+                servers = self.get_client(credential).servers
+                function = newrelic.agent.FunctionTraceWrapper(servers.get, "instance", "Python/EndPoint")
+                self._data_object = function(uuid)
             except nova_exceptions.NotFound, e:
                 raise rd_exceptions.NotFound(uuid=uuid)
             except nova_exceptions.ClientException, e:
@@ -138,7 +141,9 @@ class Instance(RemoteModelBase):
     @classmethod
     def delete(cls, credential, uuid):
         try:
-            cls.get_client(credential).servers.delete(uuid)
+            servers = cls.get_client(credential).servers
+            function = newrelic.agent.FunctionTraceWrapper(servers.delete, "instance", "Python/EndPoint")
+            function(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
@@ -148,20 +153,24 @@ class Instance(RemoteModelBase):
     def create(cls, credential, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
         # self.is_valid()
         instance_name = utils.generate_uuid()
-        srv = cls.get_client(credential).servers.create(instance_name,
-                                                     image_id,
-                                                     flavor_id,
-                                                     files=files, 
-                                                     key_name=key_name, 
-                                                     security_groups=security_groups, 
-                                                     userdata=userdata)
+        servers = cls.get_client(credential).servers
+        function = newrelic.agent.FunctionTraceWrapper(servers.create, "instance", "Python/EndPoint")
+        srv = function(instance_name,
+            image_id,
+            flavor_id,
+            files=files,
+            key_name=key_name,
+            security_groups=security_groups,
+            userdata=userdata)
         return Instance(server=srv)
 
     @classmethod
     def restart(cls, credential, uuid):
         try:
             LOG.debug("Searching for instance using uuid: %s" % uuid)
-            cls.get_client(credential).servers.reboot(uuid)
+            servers = cls.get_client(credential).servers
+            function = newrelic.agent.FunctionTraceWrapper(servers.reboot, "instance", "Python/EndPoint")
+            function(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
@@ -178,7 +187,9 @@ class FloatingIP(RemoteModelBase):
             raise InvalidModelError(msg)
         elif floating_ip is None:
             try:
-                self._data_object = self.get_client(credential).servers.get(id)
+                servers = self.get_client(credential).servers
+                function = newrelic.agent.FunctionTraceWrapper(servers.get, "floatingip", "Python/EndPoint")
+                self._data_object = function(id)
             except nova_exceptions.NotFound, e:
                 raise rd_exceptions.NotFound(id=id)
             except nova_exceptions.ClientException, e:
@@ -189,7 +200,9 @@ class FloatingIP(RemoteModelBase):
     @classmethod
     def delete(cls, credential, uuid):
         try:
-            cls.get_client(credential).servers.delete(uuid)
+            servers = cls.get_client(credential).servers
+            function = newrelic.agent.FunctionTraceWrapper(servers.delete, "floatingip", "Python/EndPoint")
+            function(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
@@ -212,7 +225,8 @@ class FloatingIP(RemoteModelBase):
         
         if ip is None:
             try:
-                flip = client.floating_ips.create(None)
+                function = newrelic.agent.FunctionTraceWrapper(client.floating_ips.create, "floatingip", "Python/EndPoint")
+                flip = function(None)
             except nova_exceptions.ClientException, e:
                 print str(e)
                 raise rd_exceptions.ReddwarfError(str(e))
@@ -224,7 +238,8 @@ class FloatingIP(RemoteModelBase):
         """Assigns a floating ip to a server"""
         client = cls.get_client(credential)
         try:
-            client.servers.add_floating_ip(server_id, floating_ip['ip'])
+            function = newrelic.agent.FunctionTraceWrapper(client.servers.add_floating_ip, "floatingip", "Python/EndPoint")
+            function(server_id, floating_ip['ip'])
         except nova_exceptions.ClientException, e:
             print e
             raise rd_exceptions.ReddwarfError(str(e))

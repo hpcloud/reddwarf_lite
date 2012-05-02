@@ -16,14 +16,19 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import os
+import newrelic.agent
+
+rdl_path = '/home/ubuntu/reddwarf_lite'
+newrelic.agent.initialize(os.path.join(rdl_path ,"newrelic.ini"))
+
 import gettext
 import optparse
-import os
+
 import threading
 import site
 import sys
 
-rdl_path = '/home/ubuntu/reddwarf_lite'
 
 vepath = rdl_path + "/.venv/lib/python2.7/site-packages"
 os.environ['PYTHON_EGG_CACHE'] = vepath
@@ -79,8 +84,8 @@ create_options(oparser)
 try:
     print "Starting reddwarf-server"
     conf, app = config.Config.load_paste_app('reddwarf', options, args)
-    db_api.configure_db(conf)                                                                                                                                                          
-    application = app
+    db_api.configure_db(conf)
+    application = newrelic.agent.wsgi_application()(app)
 except RuntimeError as error:
     import traceback
     print traceback.format_exc()

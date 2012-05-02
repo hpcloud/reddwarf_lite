@@ -18,6 +18,7 @@
 #    under the License.
 
 import logging
+import newrelic.agent
 import urlparse
 import routes
 import webob.exc
@@ -76,7 +77,8 @@ class BaseController(wsgi.Controller):
 
 class InstanceController(BaseController):
     """Controller for instance functionality"""
-    
+
+    @newrelic.agent.function_trace()
     def index(self, req, tenant_id):
         """Return all instances tied to a particular tenant_id."""
         LOG.debug("Index() called with %s, %s" % (tenant_id, id))  
@@ -93,6 +95,7 @@ class InstanceController(BaseController):
         # TODO(cp16net): need to set the return code correctly
         return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id).list(), 200)
 
+    @newrelic.agent.function_trace()
     def show(self, req, tenant_id, id):
         """Return a single instance."""
         LOG.debug("Show() called with %s, %s" % (tenant_id, id))
@@ -117,6 +120,7 @@ class InstanceController(BaseController):
         LOG.debug("Show() executed correctly")
         return wsgi.Result(views.DBInstanceView(server, guest_status, req, tenant_id).show(), 200)
 
+    @newrelic.agent.function_trace()
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
         LOG.debug("Delete() called with %s, %s" % (tenant_id, id))
@@ -158,12 +162,13 @@ class InstanceController(BaseController):
         except exception.ReddwarfError, e:
             LOG.debug("Failed to delete GuestStatus record")
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_DELETE), 500)
-        
-        
+
+
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Returning value")
         return wsgi.Result(None, 204)
 
+    @newrelic.agent.function_trace()
     def create(self, req, body, tenant_id):
         
         # find the service id (cant be done yet at startup due to
@@ -256,7 +261,7 @@ class InstanceController(BaseController):
         
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
-
+    @newrelic.agent.function_trace()
     def restart(self, req, tenant_id, id):
         """Restart an instance."""
         LOG.debug("Called restart() with %s, %s" % (tenant_id, id))
@@ -297,7 +302,7 @@ class InstanceController(BaseController):
         guest.update(state=result_state.ResultState.name(result_state.ResultState.RESTARTING))
         return wsgi.Result(None, 204)
 
-
+    @newrelic.agent.function_trace()
     def reset_password(self, req, tenant_id, id):
         """Resets DB password on remote instance"""
         LOG.info("Resets DB password on Instance %s", id)
@@ -447,6 +452,7 @@ class InstanceController(BaseController):
 class SnapshotController(BaseController):
     """Controller for snapshot functionality"""
 
+    @newrelic.agent.function_trace()
     def show(self, req, tenant_id, id):
         """Return information about a specific snapshot."""
         LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
@@ -465,6 +471,7 @@ class SnapshotController(BaseController):
         LOG.debug("Show Snapshot: %s" % snapshot)       
         return wsgi.Result(views.SnapshotView(snapshot, req, tenant_id).show(), 200)
 
+    @newrelic.agent.function_trace()
     def index(self, req, tenant_id):
         """Return a list of all snapshots for a specific instance or tenant."""
         LOG.debug("Snapshots.index() called with %s, %s" % (tenant_id, id))
@@ -496,6 +503,7 @@ class SnapshotController(BaseController):
             LOG.debug("snapshots: %s" % snapshots)
             return wsgi.Result(views.SnapshotsView(snapshots, req, tenant_id).list(), 200)
 
+    @newrelic.agent.function_trace()
     def delete(self, req, tenant_id, id):
         """Delete a single snapshot."""
         LOG.debug("Snapshots.delete() called with %s, %s" % (tenant_id, id))
@@ -549,6 +557,7 @@ class SnapshotController(BaseController):
         LOG.debug("Returning value")              
         return wsgi.Result(None, 204)
 
+    @newrelic.agent.function_trace()
     def create(self, req, body, tenant_id):
         """Creates a snapshot."""
         LOG.debug("Snapshots.create() called with %s, %s" % (tenant_id, id))
