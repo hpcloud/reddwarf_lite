@@ -146,7 +146,7 @@ class DBFunctionalTests(unittest.TestCase):
             content = json.loads(content)
             status = content['instance']['status']
             
-        self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 5 minutes" % self.instance_id))
+        self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % self.instance_id))
 
     def tearDown(self):
         """Run a clean-up check to catch orphaned instances/snapshots due to
