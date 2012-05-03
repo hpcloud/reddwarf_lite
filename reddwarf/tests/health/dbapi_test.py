@@ -108,11 +108,11 @@ class DBFunctionalTests(unittest.TestCase):
 
         client = httplib2.Http(".cache")
         resp, content = self._execute_request(client, "instances", "POST", body)
-        content = self._load_json(content,'Create Instance')
-        
+
         # Assert 1) that the request was accepted and 2) that the response
         # is in the expected format.
         self.assertEqual(201, resp.status, ("Expecting 201 as response status of create instance but received %s" % resp.status))
+        content = self._load_json(content,'Create Instance')
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not have 'instance' field")
 
         self.instance_id = content['instance']['id']
@@ -123,12 +123,12 @@ class DBFunctionalTests(unittest.TestCase):
         # ------------------------------
         LOG.debug("* Listing all db instances")
         resp, content = self._execute_request(client, "instances", "GET", "")
-        content = self._load_json(content,'List all Instances')
         
         # Assert 1) that the request was accepted and 2) that the response is
         # in the expected format (e.g. a JSON object beginning with an
         # 'instances' key).
-        self.assertEqual(200, resp.status, "Response status of list instances not 200")
+        self.assertEqual(200, resp.status, ("Expecting 200 as response status of list instance but received %s" % resp.status))
+        content = self._load_json(content,'List all Instances')
         self.assertTrue(content.has_key('instances'), "Response body of list instances does not contain 'instances' field.")
 
 
@@ -136,11 +136,11 @@ class DBFunctionalTests(unittest.TestCase):
         # ------------------------------------
         LOG.debug("* Getting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id, "GET", "")
-        content = self._load_json(content,'Get Single Instance')
         
         # Assert 1) that the request was accepted and 2) that the returned
         # instance is the same as the accepted instance.
-        self.assertEqual(200, resp.status, "Response status of show instance not 200")
+        self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
+        content = self._load_json(content,'Get Single Instance')
         self.assertEqual(self.instance_id, str(content['instance']['id']), "Instance ID not found in Show Instance response")
 
 
@@ -157,6 +157,7 @@ class DBFunctionalTests(unittest.TestCase):
                 break
             
             resp, content = self._execute_request(client, "instances/" + self.instance_id, "GET", "")
+            self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
         
@@ -164,14 +165,14 @@ class DBFunctionalTests(unittest.TestCase):
         instance_ip = content['instance']['hostname']
         if status != 'running':
             self._check_hostname_and_file_injection(instance_ip)
-            self.fail("Instance %s did not go to running after waiting 5 minutes" % self.instance_id)
+            self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
 
 
         # Test resetting the password on a db instance.
         # ---------------------------------------------
         LOG.debug("* Resetting password on instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/resetpassword", "POST", "")
-        self.assertEqual(200, resp.status, "Reponse status of Reset Password not 200")
+        self.assertEqual(200, resp.status, ("Expecting 200 as response status of reset password but received %s" % resp.status))
 
         # TODO (vipulsabhaya) Attept to log into with this password
 
@@ -179,11 +180,12 @@ class DBFunctionalTests(unittest.TestCase):
         # ------------------------------
         LOG.debug("* Restarting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/restart", "POST", "")
-        self.assertEqual(204, resp.status, "Response status Restart Instance not 204")
+        self.assertEqual(204, resp.status, ("Expecting 204 as response status of restart instance but received %s" % resp.status))
 
         # Test getting a specific db instance.
         LOG.debug("* Getting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+        self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
         content = self._load_json(content,'Get Single Instance after Restart')
         
         wait_so_far = 0
@@ -196,6 +198,7 @@ class DBFunctionalTests(unittest.TestCase):
                 break
             
             resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+            self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
             
@@ -249,9 +252,9 @@ class DBFunctionalTests(unittest.TestCase):
 
         client = httplib2.Http(".cache")
         resp, content = self._execute_request(client, "instances", "POST", instance_body)
-        content = self._load_json(content,'Create Instance for Snapshotting')
         
         self.assertEqual(201, resp.status, ("Expecting 201 response status to Instance Create but received %s" % resp.status))
+        content = self._load_json(content,'Create Instance for Snapshotting')
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not contain 'instance' element")
 
         self.instance_id = content['instance']['id']
@@ -283,6 +286,7 @@ class DBFunctionalTests(unittest.TestCase):
                 break
             
             resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+            self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
 
@@ -296,11 +300,11 @@ class DBFunctionalTests(unittest.TestCase):
         # ----------------------
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
         resp, content = self._execute_request(client, "snapshots", "POST", body)
-        content = self._load_json(content,'Create Snapshot')
             
         # Assert 1) that the request was accepted and 2) that the response
         # is in the proper format.
         self.assertEqual(201, resp.status, ("Expected 201 as response to snapshot create but received %s" % resp.status))
+        content = self._load_json(content,'Create Snapshot')
         self.assertTrue(content.has_key('snapshot'), "Did dnot receive 'snapshot' field in response to snapshot create")
         self.assertEqual(self.instance_id, content['snapshot']['instanceId'])
 
@@ -311,23 +315,23 @@ class DBFunctionalTests(unittest.TestCase):
         # ------------------------------
         LOG.debug("* Listing all snapshots")
         resp, content = self._execute_request(client, "snapshots", "GET", "")
-        content = self._load_json(content,'List all Snapshots')
 
         # Assert 1) that the request was accepted and 2) that the response
         # is in the proper format.
         self.assertEqual(200, resp.status)
+        content = self._load_json(content,'List all Snapshots')
         self.assertTrue(content.has_key('snapshots'))
 
         # Test listing all db snapshots for a specific instance.
         # ------------------------------------------------------
         LOG.debug("* Listing all snapshots for %s" % self.instance_id)
         resp, content = self._execute_request(client, "snapshots?instanceId=" + self.instance_id , "GET", "")
-        content = self._load_json(content,'List all Snapshots for Instance')
         
         # Assert 1) that the request was accepted, 2) that the response
         # is in the proper format, and 3) that the list contains the created
         # snapshot.
         self.assertEqual(200, resp.status, ("Expected 200 response status to list snapshots for instance, but received %s" % resp.status))
+        content = self._load_json(content,'List all Snapshots for Instance')
         self.assertTrue(content.has_key('snapshots'), "Expected 'snapshots' field in responst to list snapshots")
         found = False
         for each in content['snapshots']:
@@ -340,12 +344,12 @@ class DBFunctionalTests(unittest.TestCase):
         # Test getting details about a specific db snapshot.
         LOG.debug("* Getting snapshot %s" % self.snapshot_id)
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
-        content = self._load_json(content,'Get single Snapshot')
 
         # Assert 1) that the request was accepted, 2) that the response
         # is in the proper format, and 3) that the response is the correct
         # snapshot.
         self.assertEqual(200, resp.status, "Expected 200 response status to list snapshots")
+        content = self._load_json(content,'Get single Snapshot')
         self.assertTrue(content.has_key('snapshot'), "Response to list snapshots did not contain 'snapshot' field")
         self.assertEqual(self.instance_id, content['snapshot']['instanceId'])
         self.assertEqual(self.snapshot_id, content['snapshot']['id'])
@@ -360,21 +364,24 @@ class DBFunctionalTests(unittest.TestCase):
                 break
 
             resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
+            self.assertEqual(200, resp.status, ("Expected 200 response status to show snapshot, but received %s" % resp.status))
             content = json.loads(content)
             status = content['snapshot']['status']
             
         self.assertTrue(status == 'success', ("Snapshot %s did not switch to 'success' after waiting 5 minutes" % self.snapshot_id))
 
         # Test creating a new instance from a snapshot.
+        # ---------------------------------------------
         LOG.debug("* Creating instance from snapshot %s" % self.snapshot_id)
         snap_body = json.loads(instance_body)
         snap_body['instance']['snapshotId'] = self.snapshot_id
         snap_body = json.dumps(snap_body)
+
         resp, content = self._execute_request(client, "instances", "POST", snap_body)
-        content = self._load_json(content,'Create Instance from Snapshot')
 
         # Assert 1) that the request was accepted
         self.assertEqual(201, resp.status, "Expected 201 status to request to create instance from a snapshot ")       
+        content = self._load_json(content,'Create Instance from Snapshot')
 
         # TODO (vipulsabhaya): Verify that some data exists in the new instance
         # Probably have to spin until instance comes up before deleting the snapshot also
@@ -502,6 +509,8 @@ class DBFunctionalTests(unittest.TestCase):
                 time.sleep(4)
         except Exception, e:
             LOG.exception("Error connecting to instance")
+        
+        # If we get this far, then there is an issue
 
 
     def _load_json(self, content, operation):
