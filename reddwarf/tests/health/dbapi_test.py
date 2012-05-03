@@ -43,6 +43,7 @@ import json
 import httplib2
 import os
 import time
+import re
 from reddwarf.common import ssh
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
@@ -80,17 +81,18 @@ LOG.debug("Response from Keystone: %s" % content)
 LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
 LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
+UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+
 instances_created = []
+MAX_WAIT_RUNNING = 180
 
 class DBFunctionalTests(unittest.TestCase):
 
     def test_instance_api(self):
         """Comprehensive instance API test using an instance lifecycle."""
 
-        # Clear instances list
-        del instances_created[:]
-        
         # Test creating a db instance.
+        # ----------------------------
         LOG.debug("* Creating db instance")
         body = r"""
         {"instance": {
@@ -104,51 +106,38 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
-        req = httplib2.Http(".cache")
-        resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        try:
-            content = json.loads(content)
-        except Exception, e:
-            LOG.error("error parsing response JSON" % e)
-            self.fail("Response to instance create was not proper JSON: " % content)
-
-        self.instance_id = content['instance']['id']
-        instances_created.append(self.instance_id)
-        LOG.debug("Instance ID: %s" % self.instance_id)
-        LOG.debug("Instances created %s" % instances_created)
-
+        client = httplib2.Http(".cache")
+        resp, content = self._execute_request(client, "instances", "POST", body)
+        content = self._load_json(content,'Create Instance')
+        
         # Assert 1) that the request was accepted and 2) that the response
         # is in the expected format.
         self.assertEqual(201, resp.status, ("Expecting 201 as response status of create instance but received %s" % resp.status))
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not have 'instance' field")
 
+        self.instance_id = content['instance']['id']
+        LOG.debug("Instance ID: %s" % self.instance_id)
+
 
         # Test listing all db instances.
+        # ------------------------------
         LOG.debug("* Listing all db instances")
-        resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
-        LOG.debug(content)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
+        resp, content = self._execute_request(client, "instances", "GET", "")
+        content = self._load_json(content,'List all Instances')
+        
         # Assert 1) that the request was accepted and 2) that the response is
         # in the expected format (e.g. a JSON object beginning with an
         # 'instances' key).
         self.assertEqual(200, resp.status, "Response status of list instances not 200")
-        LOG.debug(content)
         self.assertTrue(content.has_key('instances'), "Response body of list instances does not contain 'instances' field.")
 
 
         # Test getting a specific db instance.
+        # ------------------------------------
         LOG.debug("* Getting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
+        resp, content = self._execute_request(client, "instances/" + self.instance_id, "GET", "")
+        content = self._load_json(content,'Get Single Instance')
+        
         # Assert 1) that the request was accepted and 2) that the returned
         # instance is the same as the accepted instance.
         self.assertEqual(200, resp.status, "Response status of show instance not 200")
@@ -157,85 +146,77 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Check to see if the instance we previously created is 
         # in the 'running' state
-                
-        # wait a max of 5 minutes for instance to come up
-        max_wait_for_instance = 300 
-
+        # -----------------------------------------------------
         wait_so_far = 0
         status = content['instance']['status']
         while (status != 'running'):
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
-            if wait_so_far >= max_wait_for_instance:
+            if wait_so_far >= MAX_WAIT_RUNNING:
                 break
             
-            resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-            LOG.debug("Content: %s" % content)
-            content = json.loads(content)
+            resp, content = self._execute_request(client, "instances/" + self.instance_id, "GET", "")
+            content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-            
-        self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 5 minutes" % self.instance_id))
+        
+        # SSH into instance and check expectations
+        instance_ip = content['instance']['hostname']
+        if status != 'running':
+            self._check_hostname_and_file_injection(instance_ip)
+            self.fail("Instance %s did not go to running after waiting 5 minutes" % self.instance_id)
+
 
         # Test resetting the password on a db instance.
+        # ---------------------------------------------
         LOG.debug("* Resetting password on instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
+        resp, content = self._execute_request(client, "instances/" + self.instance_id +"/resetpassword", "POST", "")
         self.assertEqual(200, resp.status, "Reponse status of Reset Password not 200")
 
         # TODO (vipulsabhaya) Attept to log into with this password
 
         # Test restarting a db instance.
+        # ------------------------------
         LOG.debug("* Restarting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
+        resp, content = self._execute_request(client, "instances/" + self.instance_id +"/restart", "POST", "")
         self.assertEqual(204, resp.status, "Response status Restart Instance not 204")
-                
 
         # Test getting a specific db instance.
         LOG.debug("* Getting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug(content)
-
-        # wait a max of 5 minutes for instance to come up
-        max_wait_for_instance = 300 
-
+        resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+        content = self._load_json(content,'Get Single Instance after Restart')
+        
         wait_so_far = 0
         status = content['instance']['status']
         while (status != 'running'):
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
-            if wait_so_far >= max_wait_for_instance:
+            if wait_so_far >= MAX_WAIT_RUNNING:
                 break
             
-            resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-            LOG.debug("Content: %s" % content)
-            content = json.loads(content)
+            resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+            content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
             
-        self.assertTrue(status == 'running', ("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id))
+        # SSH into instance and check expectations
+        instance_ip = content['instance']['hostname']
+        if status != 'running':
+            self._check_hostname_and_file_injection(instance_ip)
+            self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
+
 
         # Test deleting a db instance.
+        # ----------------------------
         LOG.debug("* Deleting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
+        resp, content = self._execute_request(client, "instances/" + self.instance_id , "DELETE", "")
 
         # Assert 1) that the request was accepted and 2) that the instance has
         # been deleted.
         self.assertEqual(204, resp.status, "Response status of instance delete did not return 204")
 
         LOG.debug("Verifying that instance %s has been deleted" % self.instance_id)
-        resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
-        LOG.debug("Returned from listing...")
-        LOG.debug(resp)
-        LOG.debug(content)
+        resp, content = self._execute_request(client, "instances", "GET", "")
         
         if content == []:
             pass
@@ -248,156 +229,11 @@ class DBFunctionalTests(unittest.TestCase):
         time.sleep(10)
 
 
-
-    def xtest_instance_api_negative(self):
-        """Comprehensive instance API test using an instance lifecycle."""
-
-        # Test creating a db instance.
-        LOG.debug("* Creating db instance")
-        body = r"""
-        {"instance": {
-            "name": "dbapi_test",
-            "flavorRef": "medium",
-            "port": "3306",
-            "dbtype": {
-                "name": "mysql",
-                "version": "5.5"
-                }
-            }
-        }"""
-
-        req = httplib2.Http(".cache")
-        resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
-        LOG.debug(content)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        self.instance_id = content['instance']['id']
-        LOG.debug("Instance ID: %s" % self.instance_id)
-
-        # Assert 1) that the request was accepted and 2) that the response
-        # is in the expected format.
-        self.assertEqual(201, resp.status)
-        self.assertTrue(content.has_key('instance'))
-
-
-        # Test creating an instance without a body in the request.
-        LOG.debug("* Creating an instance without a body")
-        resp, content = req.request(API_URL + "instances", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-
-
-        # Test creating an instance with a malformed body.
-        LOG.debug("* Creating an instance with a malformed body")
-        resp, content = req.request(API_URL + "instances", "POST", r"""{"instance": {}}""", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request generated an error
-        self.assertEqual(500, resp.status)
-        
-        # Test listing all db instances with a body in the request.
-        LOG.debug("* Listing all db instances with a body")
-        resp, content = req.request(API_URL + "instances", "GET", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-        
-        # Test getting a specific db instance with a body in the request.
-        LOG.debug("* Getting instance %s with a body in the request" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-
-
-        # Test getting a non-existent db instance.
-        LOG.debug("* Getting dummy instance")
-        resp, content = req.request(API_URL + "instances/dummy", "GET", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-
-
-        # Test immediately resetting the password on a db instance with a body in the request.
-        LOG.debug("* Resetting password on instance %s with a body in the request" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/resetpassword", "POST", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted.
-        self.assertEqual(404, resp.status)
-        
-
-        # Test resetting the password on a db instance for a non-existent instance
-        LOG.debug("* Resetting password on dummy instance")
-        resp, content = req.request(API_URL + "instances/dummy/resetpassword", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted 
-        self.assertEqual(404, resp.status) 
-        
-        
-        # Test restarting a db instance for a non-existent instance
-        LOG.debug("* Restarting dummy instance")
-        resp, content = req.request(API_URL + "instances/dummy/restart", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted 
-        self.assertEqual(404, resp.status) 
-        
-
-        # Test immediately restarting a db instance with a body in the request.
-        LOG.debug("* Restarting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id + "/restart", "POST", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)      
-
-
-        # Test deleting an instance with a body in the request.
-        LOG.debug("Testing delete of instance %s with a body in the request" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-        
-
-        # Test that trying to delete an already deleted instance returns
-        # the proper error code.
-        LOG.debug("Testing re-delete of instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was accepted and 2) that the right error
-        # code is returned.
-        self.assertEqual(404, resp.status)
-
-
     def test_snapshot_api(self):
-        del instances_created[:]
         """Comprehensive snapshot API test using a snapshot lifecycle."""
 
-        # Test creating a db instance.
+        # Create a DB instance for snapshot tests
+        # ---------------------------------------
         LOG.debug("* Creating db instance")
         instance_body = r"""
         {"instance": {
@@ -411,111 +247,83 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
-        req = httplib2.Http(".cache")
-        resp, content = req.request(API_URL + "instances", "POST", instance_body, AUTH_HEADER)
-        LOG.debug(content)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        self.instance_id = content['instance']['id']
-        instances_created.append(self.instance_id)
-        LOG.debug("Instance ID: %s" % self.instance_id)
-
-        """Assert 1) that the request was accepted and 2) that the response
-           is in the expected format."""
+        client = httplib2.Http(".cache")
+        resp, content = self._execute_request(client, "instances", "POST", instance_body)
+        content = self._load_json(content,'Create Instance for Snapshotting')
+        
         self.assertEqual(201, resp.status, ("Expecting 201 response status to Instance Create but received %s" % resp.status))
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not contain 'instance' element")
 
+        self.instance_id = content['instance']['id']
+        LOG.debug("Instance ID: %s" % self.instance_id)
 
         # Test creating a db snapshot immediately after creation.
+        # -------------------------------------------------------
         LOG.debug("* Creating immediate snapshot for instance %s" % self.instance_id)
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
-        resp, content = req.request(API_URL + "snapshots", "POST", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
+        resp, content = self._execute_request(client, "snapshots", "POST", body)
 
         # Assert 1) that the request was not accepted
         self.assertEqual(423, resp.status, ("Expected 423 to immediate snapshot creation, but received %s" % resp.status))
         
-        # Test getting a specific db instance.
+        # Ensure the instance is up
+        # -------------------------
         LOG.debug("* Getting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug("Content: %s" % content)
+        resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
         self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
-
-        # wait a max of 5 minutes for instance to come up
-        max_wait_for_instance = 300 
+        content = self._load_json(content,'Get Single Instance')
+        
         wait_so_far = 0
         status = content['instance']['status']
         while (status != 'running'):
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
-            if wait_so_far >= max_wait_for_instance:
+            if wait_so_far >= MAX_WAIT_RUNNING:
                 break
             
-            resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-            LOG.debug("Content: %s" % content)                
-            content = json.loads(content)
+            resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+            content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
+
+        # SSH into instance and check expectations
+        instance_ip = content['instance']['hostname']
+        if status != 'running':
+            self._check_hostname_and_file_injection(instance_ip)
+            self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
             
-        self.assertTrue(status == 'running', ("Instance %s did not switch to 'running' after waiting 5 minutes" % self.instance_id))
-        
         # NOW... take a snapshot
+        # ----------------------
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
-        resp, content = req.request(API_URL + "snapshots", "POST", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        try:
-            content = json.loads(content)
-        except Exception, err:
-            LOG.error(err)
-            LOG.error("Create snapshot - Error processing JSON object: %s" % content)
-            self.assertEqual(True, False)
-    
-        self.snapshot_id = content['snapshot']['id']
-        LOG.debug("Snapshot ID: %s" % self.snapshot_id)
-
+        resp, content = self._execute_request(client, "snapshots", "POST", body)
+        content = self._load_json(content,'Create Snapshot')
+            
         # Assert 1) that the request was accepted and 2) that the response
         # is in the proper format.
         self.assertEqual(201, resp.status, ("Expected 201 as response to snapshot create but received %s" % resp.status))
         self.assertTrue(content.has_key('snapshot'), "Did dnot receive 'snapshot' field in response to snapshot create")
         self.assertEqual(self.instance_id, content['snapshot']['instanceId'])
-        
+
+        self.snapshot_id = content['snapshot']['id']
+        LOG.debug("Snapshot ID: %s" % self.snapshot_id)
         
         # Test listing all db snapshots.
+        # ------------------------------
         LOG.debug("* Listing all snapshots")
-        resp, content = req.request(API_URL + "snapshots", "GET", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-        try:
-            content = json.loads(content)
-        except Exception, err:
-            LOG.error(err)
-            LOG.error("List all snapshots - Error processing JSON object: %s" % content)
-            self.assertEqual(True, False)
+        resp, content = self._execute_request(client, "snapshots", "GET", "")
+        content = self._load_json(content,'List all Snapshots')
 
         # Assert 1) that the request was accepted and 2) that the response
         # is in the proper format.
         self.assertEqual(200, resp.status)
         self.assertTrue(content.has_key('snapshots'))
 
-
         # Test listing all db snapshots for a specific instance.
+        # ------------------------------------------------------
         LOG.debug("* Listing all snapshots for %s" % self.instance_id)
-        resp, content = req.request(API_URL + "snapshots?instanceId=" + self.instance_id, "GET", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-        try:
-            content = json.loads(content)
-        except Exception, err:
-            LOG.error(err)
-            LOG.error("List all snapshots for an instance - Error processing JSON object: %s" % content)
-            self.assertEqual(True, False)
-
+        resp, content = self._execute_request(client, "snapshots?instanceId=" + self.instance_id , "GET", "")
+        content = self._load_json(content,'List all Snapshots for Instance')
+        
         # Assert 1) that the request was accepted, 2) that the response
         # is in the proper format, and 3) that the list contains the created
         # snapshot.
@@ -530,16 +338,9 @@ class DBFunctionalTests(unittest.TestCase):
 
 
         # Test getting details about a specific db snapshot.
-        LOG.debug("* Listing snapshot %s" % self.snapshot_id)
-        resp, content = req.request(API_URL + "snapshots/" + self.snapshot_id, "GET", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-        try:
-            content = json.loads(content)
-        except Exception, err:
-            LOG.error(err)
-            LOG.error("Listing specific snapshot - Error processing JSON object: %s" % content)
-            self.assertEqual(True, False)
+        LOG.debug("* Getting snapshot %s" % self.snapshot_id)
+        resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
+        content = self._load_json(content,'Get single Snapshot')
 
         # Assert 1) that the request was accepted, 2) that the response
         # is in the proper format, and 3) that the response is the correct
@@ -549,71 +350,57 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertEqual(self.instance_id, content['snapshot']['instanceId'])
         self.assertEqual(self.snapshot_id, content['snapshot']['id'])
 
-        # wait a max of 5 minutes for Snapshot to complete
-        max_wait_for_snapshot = 300 
         wait_so_far = 0
         status = content['snapshot']['status']
         while (status != 'success'):
             # wait a max of max_wait for snapshot status to show success
             time.sleep(10)
             wait_so_far += 10
-            if wait_so_far >= max_wait_for_snapshot:
+            if wait_so_far >= MAX_WAIT_RUNNING:
                 break
-            
-            resp, content = req.request(API_URL + "snapshots/" + self.snapshot_id, "GET", "", AUTH_HEADER)
-            LOG.debug("Content: %s" % content)                
+
+            resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
             content = json.loads(content)
             status = content['snapshot']['status']
             
         self.assertTrue(status == 'success', ("Snapshot %s did not switch to 'success' after waiting 5 minutes" % self.snapshot_id))
-
-
 
         # Test creating a new instance from a snapshot.
         LOG.debug("* Creating instance from snapshot %s" % self.snapshot_id)
         snap_body = json.loads(instance_body)
         snap_body['instance']['snapshotId'] = self.snapshot_id
         snap_body = json.dumps(snap_body)
-        resp, content = req.request(API_URL + "instances", "POST", snap_body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-        content = json.loads(content)
+        resp, content = self._execute_request(client, "instances", "POST", snap_body)
+        content = self._load_json(content,'Create Instance from Snapshot')
 
         # Assert 1) that the request was accepted
-        self.assertEqual(201, resp.status, "Expected 201 status to ")       
+        self.assertEqual(201, resp.status, "Expected 201 status to request to create instance from a snapshot ")       
 
         # TODO (vipulsabhaya): Verify that some data exists in the new instance
         # Probably have to spin until instance comes up before deleting the snapshot also
                 
         # Test deleting a db snapshot.
         LOG.debug("* Deleting snapshot %s" % self.snapshot_id)
-        resp, content = req.request(API_URL + "snapshots/" + self.snapshot_id, "DELETE", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
+        resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "DELETE", "")
 
         # Assert 1) that the request was accepted and 2) that the snapshot
         # has been deleted.
         self.assertEqual(204, resp.status)
 
-        resp, content = req.request(API_URL + "snapshots/" + self.snapshot_id, "GET", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
+        resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
         self.assertEqual(404, resp.status)
-        
         
         time.sleep(10)
 
         # Finally, delete the instance.
         LOG.debug("* Deleting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "DELETE", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
+        resp, content = self._execute_request(client, "instances/" + self.instance_id , "DELETE", "")
 
         # Assert 1) that the request was accepted and 2) that the instance has
         # been deleted.
         self.assertEqual(204, resp.status)
 
-        resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
+        resp, content = self._execute_request(client, "instances", "GET", "")
         try:
             content = json.loads(content)
         except Exception, err:
@@ -625,132 +412,23 @@ class DBFunctionalTests(unittest.TestCase):
         for each in content['instances']:
             self.assertFalse(each['id'] == self.instance_id)
 
-    def xtest_snapshot_api_negative(self):
-        
-        instance_body = r"""
-        {"instance": {
-            "name": "dbapi_test",
-            "flavorRef": "102",
-            "port": "3306",
-            "dbtype": {
-                "name": "mysql",
-                "version": "5.1.2"
-            },
-        }"""
-        
-        # Test creating an snapshot without a body in the request.
-        LOG.debug("* Creating an snapshot without a body")
-        resp, content = req.request(API_URL + "snapshots", "POST", "", AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-
-
-#        # Test creating an snapshot with a malformed body.
-#        LOG.debug("* Creating an snapshot with a malformed body")
-#        resp, content = req.request(API_URL + "snapshots", "POST", bad_body, AUTH_HEADER)
-#        LOG.debug(resp)
-#        LOG.debug(content)
-#
-#        # Assert 1) that the request generated an error
-#        self.assertEqual(500, resp.status)
-
-        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
-
-        # Test listing all snapshots with a body in the request.
-        LOG.debug("* Listing all snapshots with a body")
-        resp, content = req.request(API_URL + "snapshots", "GET", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-
-        # Test listing all snapshots for a specific instance with a body in the request.
-        LOG.debug("* Listing all snapshots for a specific instance with a body")
-        resp, content = req.request(API_URL + "snapshots?instanceId=" + self.instance_id, "GET", body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-        
-  
-        # Test getting a non-existent snapshot.
-        LOG.debug("* Getting dummy snapshot")
-        resp, content = req.request(API_URL + "snapshots/dummy", "GET", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-
-        # Test creating a new instance from a dummy snapshot.
-        LOG.debug("* Creating instance from dummy snapshot")
-        snap_body = json.loads(instance_body)
-        snap_body['instance']['snapshotId'] = "dummy"
-        snap_body = json.dumps(snap_body)
-        resp, content = req.request(API_URL + "instances", "POST", snap_body, AUTH_HEADER)
-        LOG.debug(resp)
-        LOG.debug(content)
-        content = json.loads(content)
-
-        # Assert 1) that the request was not accepted (i.e. snapshot not found)
-        self.assertEqual(500, resp.status)
-        
-        # This test is handled by the error handling in the API server
-#        # Test creating a new instance from bad snapshot data in the body.
-#        LOG.debug("* Creating instance from bad snapshot data in the body")
-#        snap_body = json.loads(instance_body)
-#        snap_body['instance']['snapshotId'] = {}
-#        snap_body = json.dumps(snap_body)
-#        resp, content = req.request(API_URL + "instances", "POST", snap_body, AUTH_HEADER)
-#        LOG.debug(resp)
-#        LOG.debug(content)
-#        content = json.loads(content)
-#
-#        # Assert 1) that the request generated an error
-#        self.assertEqual(500, resp.status)                 
-
-        # Test deleting a non-existent snapshot.
-        LOG.debug("* Deleting dummy snapshot")
-        resp, content = req.request(API_URL + "snapshots/dummy", "DELETE", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        # Assert 1) that the request was not accepted
-        self.assertEqual(404, resp.status)
-              
-
-        
-        
 
     def tearDown(self):
         """Run a clean-up check to catch orphaned instances/snapshots due to
            premature test failures."""
 
         LOG.debug("\n*** Starting cleanup...")
-        req = httplib2.Http(".cache")
+        client = httplib2.Http(".cache")
 
-        # SSH and Extract data
-        self._extract_and_log_metadata_from_instances(instances_created)
-        
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")
-        resp, snapshots = req.request(API_URL + "snapshots", "GET", "", AUTH_HEADER)     
-        LOG.debug(resp)
-        LOG.debug(snapshots)           
+        resp, snapshots = self._execute_request(client, "snapshots", "GET", "")
         snapshots = json.loads(snapshots)
 
         # Delete all orphaned instances and snapshots
         LOG.debug("- Deleting orphaned instances:")
-        resp, content = req.request(API_URL + "instances", "GET", "", AUTH_HEADER)
+        resp, content = self._execute_request(client, "instances", "GET", "")
         content = json.loads(content)
-#        LOG.debug("CONTENT: %s" % content)
 
         for each in content['instances']:
 #            LOG.debug("EACH: %s" % each)
@@ -767,57 +445,70 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.debug(resp)
                 LOG.debug(content)
 
-    def _extract_and_log_metadata_from_instances(self, instances):
+
+    def _execute_request(self, client, path, method, body=None):
+        resp, content = client.request(API_URL + path, method, body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+        return (resp,content)
+
+    
+    def _check_hostname_and_file_injection(self, instance_ip):
+        # Check the hostname
+        result = self._ssh_and_execute(instance_ip, SSH_KEY, 'hostname')
+        size = len(result)
+        LOG.debug("len(result) = %i" % size)
+        if(size == 0):
+            self.fail(("Unable to SSH into and execute 'hostname' on ip" % instance_ip))
+
+        LOG.debug("'hostname' of instance: %s" % result[0])
+        self.assertTrue(re.search(UUID_PATTERN, result[0]), ("Hostname not uuid format, instead: %s" % result[0]))
         
-        LOG.debug("Instances created %s" % instances_created)
-        for instance in instances:
-            # If the instance is still there, then the test likely failed
-            LOG.debug("- Getting instance info")
-            resp, instance = req.request(API_URL + "instances/" + instance, "GET", "", AUTH_HEADER)
-            if resp.status == 200:
-                instance = json.loads(instance)
-                public_ip = instance['instance']['hostname']
-                LOG.debug("- Attempting to SSH into %s" % public_ip)
+        # Check file injection
+        result = self._ssh_and_execute(instance_ip, SSH_KEY, 'cat /home/nova/agent.config')
+        size = len(result)
+        LOG.debug("len(result) = %i" % size)
+
+        if(size == 0):
+            self.fail(("Unable to SSH into and execute 'cat /home/nova/agent.config' on ip" % instance_ip))
+        
+        LOG.debug("agent.config contents: \n%s" % '\n'.join(result))
+        self.assertTrue(size > 6, ("Did not find the expected number of lines in agent.config: \n%s" % '\n'.join(result)))
+
+                    
+    def _ssh_and_execute(self, instance_ip, ssh_key, command):
+        LOG.debug("- Attempting to SSH into %s" % instance_ip)
+        
+        if instance_ip is None:
+            return None
+        
+        try:
+            attempt = 0;
+            while attempt < 10:
                 try:
-                    if public_ip is not None:
-                        attempt = 0;
-                        success = False
-                        while attempt < 20:
-                            try:
-                                LOG.debug("- SSH connection attempt %i" % attempt)
-                                s = ssh.Connection(host = public_ip, username = 'ubuntu', private_key = SSH_KEY)
-                                hostname_result = s.execute('hostname')
-                                
-                                instance_meta = "\n --------------------- Instance Meta --------------------- \n"
-                                if len(hostname_result) > 0 :
-                                    instance_meta = instance_meta + "  Instance hostname: " + hostname_result[0] + "\n"
-                                    success = True
-                                else:
-                                    success = False
+                    LOG.debug("- SSH connection attempt %i" % attempt)
+                    s = ssh.Connection(host = instance_ip, username = 'ubuntu', private_key = ssh_key)
+                    
+                    LOG.debug("- Executing command '%s'" % command)
+                    result = s.execute(command)
 
-                                cat_result = s.execute('cat /home/nova/agent.config')
-                                if len(cat_result) > 0 :
-                                    instance_meta = instance_meta + "  Injected file: /home/nova/agent.config" + "\n"
-                                    instance_meta = instance_meta + '      '.join(cat_result)
-                                    success = True
-                                else:
-                                    success = False
-
-                                instance_meta = instance_meta + "\n" + " --------------------------------------------------------- "
-                                LOG.debug(instance_meta)
-                                break
-                            except Exception, e:
-                                #print e
-                                pass
-                            
-                            attempt = attempt + 1
-                            time.sleep(4)
-                            
-                        if success is False:
-                            LOG.error("ERROR verifying instance metadata - instance %s " % id)
-                        else:
-                            LOG.info("SUCCESS verifying instance metadata - instance %s " % id)
-                    else:
-                        LOG.error("ERROR - No public ip found for instance")
+                    LOG.debug("- Result: %s" % result)
+                    return result
                 except Exception, e:
-                    LOG.exception("Error determining meta data in the instance")
+                    #print e
+                    pass
+                
+                attempt = attempt + 1
+                time.sleep(4)
+        except Exception, e:
+            LOG.exception("Error connecting to instance")
+
+
+    def _load_json(self, content, operation):
+        try:
+            content = json.loads(content)
+        except Exception, e:
+            LOG.exception("Error parsing response JSON")
+            self.fail("Response to %s was not proper JSON: $s" % (operation,content))
+
+        return content
