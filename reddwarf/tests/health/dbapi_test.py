@@ -41,6 +41,7 @@ import logging
 import unittest
 import json
 import httplib2
+import telnetlib
 import os
 import time
 import re
@@ -164,7 +165,12 @@ class DBFunctionalTests(unittest.TestCase):
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':
-            self._check_hostname_and_file_injection(instance_ip)
+            try:
+                self._check_hostname_and_file_injection(instance_ip)
+            except Exception, e:
+                LOG.exception("Failed to ssh into instance")
+                self.fail("SSH failure: %s " % e)
+                
             self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
 
 
@@ -205,7 +211,11 @@ class DBFunctionalTests(unittest.TestCase):
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':
-            self._check_hostname_and_file_injection(instance_ip)
+            try:
+                self._check_hostname_and_file_injection(instance_ip)
+            except Exception, e:
+                LOG.exception("Failed to ssh into instance")
+                self.fail("SSH failure: %s " % e)
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
 
 
@@ -293,7 +303,11 @@ class DBFunctionalTests(unittest.TestCase):
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':
-            self._check_hostname_and_file_injection(instance_ip)
+            try:
+                self._check_hostname_and_file_injection(instance_ip)
+            except Exception, e:
+                LOG.exception("Failed to ssh into instance")
+                self.fail("SSH failure: %s " % e)
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
             
         # NOW... take a snapshot
@@ -482,12 +496,34 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug("agent.config contents: \n%s" % '\n'.join(result))
         self.assertTrue(size > 6, ("Did not find the expected number of lines in agent.config: \n%s" % '\n'.join(result)))
 
-                    
+    def _attempt_telnet(self, instance_ip, telnet_port):
+        success = False
+        telnet = telnetlib.Telnet()
+        try:
+            LOG.debug("Attempting to telnet into %s" % instance_ip)
+            telnet.open(instance_ip, telnet_port, 20)
+            success = True
+        except Exception, e:
+            LOG.exception("Telnet Attempt Failed!")
+        finally:
+            telnet.close()
+            
+        return success
+
     def _ssh_and_execute(self, instance_ip, ssh_key, command):
         LOG.debug("- Attempting to SSH into %s" % instance_ip)
         
         if instance_ip is None:
             return None
+        
+        ssh_port_listening = False
+        try:
+            ssh_port_listening = self._attempt_telnet(instance_ip, 22)
+        except Exception, e:
+            self.fail("Telnet attempt to port 22 threw an exception")
+        
+        if ssh_port_listening is not True:
+            raise Exception("Telnet attempt to port 22 Failed.  The box is not be ssh-able.")
         
         try:
             attempt = 0;
@@ -511,7 +547,7 @@ class DBFunctionalTests(unittest.TestCase):
             LOG.exception("Error connecting to instance")
         
         # If we get this far, then there is an issue
-
+        raise Exception("Exhausted SSH attempts, and could not SSH onto box to determine cause of failure.  The box may not be ssh-able.")
 
     def _load_json(self, content, operation):
         try:
