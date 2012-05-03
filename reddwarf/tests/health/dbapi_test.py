@@ -84,7 +84,7 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
 instances_created = []
-MAX_WAIT_RUNNING = 180
+MAX_WAIT_RUNNING = 300
 
 class DBFunctionalTests(unittest.TestCase):
 
