@@ -98,11 +98,10 @@ UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 instances_created = []
 MAX_WAIT_RUNNING = 300
 
-APPLICATION = newrelic.api.application.application()
 
 class DBFunctionalTests(unittest.TestCase):
 
-
+    @newrelic.agent.background_task()
     def test_instance_api(self):
         """Comprehensive instance API test using an instance lifecycle."""
 
@@ -175,17 +174,17 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-        APPLICATION.record_custom_metric("Custom/wait-get-instance", wait_so_far)
+        newrelic.agent.record_custom_metric("Custom/wait-get-instance", wait_so_far)
 
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':
             try:
                 self._check_hostname_and_file_injection(instance_ip)
-                APPLICATION.record_custom_metric("Custom/file-injection-p", 1)
+                newrelic.agent.record_custom_metric("Custom/file-injection-p", 1)
             except Exception, e:
                 LOG.exception("Failed to ssh into instance")
-                APPLICATION.record_custom_metric("Custom/file-injection-f", 1)
+                newrelic.agent.record_custom_metric("Custom/file-injection-f", 1)
                 self.fail("SSH failure: %s " % e)
                 
             self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
@@ -225,7 +224,7 @@ class DBFunctionalTests(unittest.TestCase):
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
 
-        APPLICATION.record_custom_metric("Custom/wait-restart-instance", wait_so_far)
+        newrelic.agent.record_custom_metric("Custom/wait-restart-instance", wait_so_far)
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':
@@ -259,7 +258,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug("Sleeping...")
         time.sleep(10)
 
-
+    @newrelic.agent.background_task()
     def test_snapshot_api(self):
         """Comprehensive snapshot API test using a snapshot lifecycle."""
 

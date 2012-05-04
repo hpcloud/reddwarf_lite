@@ -1,0 +1,8 @@
+.tox*
+.venv*
+.git*
+.idea*
+*.pyc
+.cache*
+logs/
+*.conf
