@@ -100,6 +100,7 @@ MAX_WAIT_RUNNING = 300
 
 class DBFunctionalTests(unittest.TestCase):
 
+    @newrelic.agent.background_task()
     def test_instance_api(self):
         """Comprehensive instance API test using an instance lifecycle."""
 
@@ -179,10 +180,10 @@ class DBFunctionalTests(unittest.TestCase):
         if status != 'running':
             try:
                 self._check_hostname_and_file_injection(instance_ip)
-                newrelic.agent.record_custom_metric("Custom/file-injection", 1)
+                newrelic.agent.record_custom_metric("Custom/file-injection-p", 1)
             except Exception, e:
                 LOG.exception("Failed to ssh into instance")
-                newrelic.agent.record_custom_metric("Custom/file-injection-fail", 1)
+                newrelic.agent.record_custom_metric("Custom/file-injection-f", 1)
                 self.fail("SSH failure: %s " % e)
                 
             self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
