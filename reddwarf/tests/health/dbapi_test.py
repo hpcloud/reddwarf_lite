@@ -38,12 +38,25 @@
 #Apply             X           X               X                 -
 
 import logging
+import os
+import time
+
+logging.basicConfig()
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
+
+try:
+    import newrelic.agent
+    if os.path.isfile("newrelic-test.ini"):
+        newrelic.agent.initialize("newrelic-test.ini")
+        newrelic.agent.register_application("dbas-test",1.0)
+        LOG.debug("Test registered for instrumentation")
+except IOError:
+    pass
 import unittest
 import json
 import httplib2
 import telnetlib
-import os
-import time
 import re
 from reddwarf.common import ssh
 
@@ -74,9 +87,7 @@ AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN,
 TENANT_ID = content['access']['token']['tenant']['id']
 API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"
 
-logging.basicConfig()
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
+
 
 LOG.debug("Response from Keystone: %s" % content)
 LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
@@ -161,14 +172,18 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-        
+        newrelic.agent.record_custom_metric("Custom/wait-get-instance", wait_so_far)
+
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':
             try:
                 self._check_hostname_and_file_injection(instance_ip)
+                newrelic.agent.record_custom_metric("Custom/file-injection", 1)
             except Exception, e:
                 LOG.exception("Failed to ssh into instance")
+                newrelic.agent.record_custom_metric("Custom/file-injection-fail", 1)
+                newrelic.agent.record_exception(e)
                 self.fail("SSH failure: %s " % e)
                 
             self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
@@ -207,7 +222,8 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-            
+
+        newrelic.agent.record_custom_metric("Custom/wait-restart-instance", wait_so_far)
         # SSH into instance and check expectations
         instance_ip = content['instance']['hostname']
         if status != 'running':

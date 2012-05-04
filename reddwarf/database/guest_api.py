@@ -20,7 +20,7 @@ Handles all request to the Platform or Guest VM
 """
 
 import logging
-
+import newrelic.agent
 from reddwarf.database import dbutils
 from reddwarf.database import models
 from reddwarf.database import views
@@ -130,6 +130,7 @@ class PhoneHomeMessageHandler():
         if not msg['args']:
             raise exception.NotFound("Required element/key 'args' was not specified in phone home message.")
 
+    @newrelic.agent.background_task()
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
         # validate input message
@@ -149,6 +150,7 @@ class PhoneHomeMessageHandler():
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
         dbutils.update_guest_status(instance['id'], state)
 
+    @newrelic.agent.background_task()
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
         # validate input message
