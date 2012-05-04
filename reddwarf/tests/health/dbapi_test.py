@@ -183,7 +183,6 @@ class DBFunctionalTests(unittest.TestCase):
             except Exception, e:
                 LOG.exception("Failed to ssh into instance")
                 newrelic.agent.record_custom_metric("Custom/file-injection-fail", 1)
-                newrelic.agent.record_exception(e)
                 self.fail("SSH failure: %s " % e)
                 
             self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
