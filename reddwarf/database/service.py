@@ -379,14 +379,15 @@ class InstanceController(BaseController):
     def _try_assign_ip(self, credential, server, floating_ip):
         LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
         success = False
-        for i in range(90):
+        # Total time should be 120 seconds
+        for i in range(24):
             try:          
                 models.FloatingIP.assign(credential, floating_ip, server['id'])
                 success = True
                 break
             except Exception:
                 success = False
-                eventlet.sleep(1)
+                eventlet.sleep(5)
                 
         if not success:
             raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)                
