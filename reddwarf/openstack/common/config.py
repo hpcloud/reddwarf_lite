@@ -122,14 +122,15 @@ def setup_logging(options, conf):
     :param conf: Mapping of untyped key/values from config file
     """
 
-    if options.get('log_config', None):
+    if conf.get('log_config', None):
         # Use a logging configuration file for all settings...
-        if os.path.exists(options['log_config']):
-            logging.config.fileConfig(options['log_config'])
+        if os.path.exists(conf['log_config']):
+            logging.config.fileConfig(conf['log_config'])
+            print "Logging configuration loaded from {0}".format(conf['log_config'])
             return
         else:
             raise RuntimeError("Unable to locate specified logging "
-                               "config file: %s" % options['log_config'])
+                               "config file: %s" % conf['log_config'])
 
     # If either the CLI option or the conf value
     # is True, we set to True
