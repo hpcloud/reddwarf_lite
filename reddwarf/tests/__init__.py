@@ -46,7 +46,7 @@ def reddwarf_etc_path(filename="."):
 
 
 def test_config_file():
-    return reddwarf_etc_path("reddwarf.conf.sample")
+    return reddwarf_etc_path("reddwarf.conf.test")
 
 
 class BaseTest(unittest.TestCase):
