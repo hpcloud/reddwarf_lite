@@ -21,6 +21,7 @@ Handles all request to the Platform Application Server
 """
 
 import logging
+import base64
 
 from reddwarf.database import dbutils as utils
 from reddwarf.rpc import impl_kombu as rpc
@@ -40,4 +41,4 @@ class API():
                  {"create-instance":{"uuid": instance['id'],
                                      "remoteUuid": instance['remote_uuid'],
                                      "remoteHostName": instance['remote_hostname'],
-                                     "agentConfig": agent_config}})
+                                     "agentConfig": base64.b64encode(agent_config)}})
