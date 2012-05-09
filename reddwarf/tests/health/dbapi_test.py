@@ -458,11 +458,11 @@ class DBFunctionalTests(unittest.TestCase):
                     # If any snapshots belong to an instance to be deleted, delete the snapshots too
                     if snapshot['instanceId'] == each['id']:
                         LOG.debug("Deleting snapshot: %s" % snapshot['id'])
-                        resp, content = req.request(API_URL + "snapshots/" + snapshot['id'], "DELETE", "", AUTH_HEADER)
+                        resp, content = self._execute_request(client, "snapshots/" + snapshot['id'], "DELETE", "")
                         LOG.debug(resp)
                         LOG.debug(content)                        
                 LOG.debug("Deleting instance: %s" % each['id'])
-                resp, content = req.request(API_URL + "instances/" + each['id'], "DELETE", "", AUTH_HEADER)
+                resp, content = self._execute_request(client, "instances/" + each['id'], "DELETE", "")
                 LOG.debug(resp)
                 LOG.debug(content)
 
