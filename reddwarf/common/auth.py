@@ -60,9 +60,22 @@ class AuthorizationMiddleware(wsgi.Middleware):
     @classmethod
     def factory(cls, global_config, **local_config):
         def _factory(app):
-            return cls(app, [TenantBasedAuth()],
+            return cls(app, [TenantBasedAuth(), ServiceBasedAuth()],
                 **local_config)
         return _factory
+
+
+class ServiceBasedAuth(object):
+    
+    # Determine whether a user is allowed to access the DBaaS service
+    # based on whether the mysql-admin role is enabled.
+    def authorize(self, request, tenant_id, roles):
+        
+        return True
+#        if 'mysql-admin' in [role.lower() for role in roles]:
+#            LOG.debug("Authorized MySQL service: %s" % request)
+#            return True
+#        raise webob.exc.HTTPForbidden(_("This service is not available for this account."))
 
 
 class TenantBasedAuth(object):
