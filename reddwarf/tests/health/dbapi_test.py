@@ -107,7 +107,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
-        client = httplib2.Http(".cache")
+        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", body)
 
         # Assert 1) that the request was accepted and 2) that the response
@@ -260,7 +260,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }"""
 
-        client = httplib2.Http(".cache")
+        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", instance_body)
         
         self.assertEqual(201, resp.status, ("Expecting 201 response status to Instance Create but received %s" % resp.status))
@@ -439,7 +439,7 @@ class DBFunctionalTests(unittest.TestCase):
            premature test failures."""
 
         LOG.debug("\n*** Starting cleanup...")
-        client = httplib2.Http(".cache")
+        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
 
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")
@@ -458,11 +458,11 @@ class DBFunctionalTests(unittest.TestCase):
                     # If any snapshots belong to an instance to be deleted, delete the snapshots too
                     if snapshot['instanceId'] == each['id']:
                         LOG.debug("Deleting snapshot: %s" % snapshot['id'])
-                        resp, content = req.request(API_URL + "snapshots/" + snapshot['id'], "DELETE", "", AUTH_HEADER)
+                        resp, content = self._execute_request(client, "snapshots/" + snapshot['id'], "DELETE", "")
                         LOG.debug(resp)
                         LOG.debug(content)                        
                 LOG.debug("Deleting instance: %s" % each['id'])
-                resp, content = req.request(API_URL + "instances/" + each['id'], "DELETE", "", AUTH_HEADER)
+                resp, content = self._execute_request(client, "instances/" + each['id'], "DELETE", "")
                 LOG.debug(resp)
                 LOG.debug(content)
 

@@ -1,8 +1,5 @@
 [DEFAULT]
 
-# See http://j.mp/H8wpvU for information about logging.config
-log_config = /home/ubuntu/reddwarf_lite/etc/logging-api.conf
-
 # Show more verbose log output (sets INFO log level output)
 verbose = True
 
