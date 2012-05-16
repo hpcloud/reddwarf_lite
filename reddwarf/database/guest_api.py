@@ -86,18 +86,6 @@ class API():
                                           "auth": auth_url}}
                   })
 
-    def apply_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
-        LOG.debug("Triggering smart agent to apply Snapshot %s on Instance %s.", snapshot_id, instance_id)
-        instance = dbutils.get_instance(instance_id)
-        snapshot = dbutils.get_snapshot(snapshot_id)
-        rpc.cast(context, instance['remote_hostname'],
-                 {"method": "apply_snapshot",
-                  "args": {"storage_path": snapshot['storage_uri'],
-                           "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
-                                          "key": credential['password'],
-                                          "auth": auth_url}}
-                  })
-
 
 class PhoneHomeMessageHandler():
     """Proxy class to handle phone home messages sent from smart agent."""
