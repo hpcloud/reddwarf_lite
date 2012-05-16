@@ -78,13 +78,50 @@ use = call:reddwarf.common.wsgi:versioned_urlmap
 paste.app_factory = reddwarf.versions:app_factory
 
 [pipeline:reddwarfapi]
-#pipeline = tokenauth authorization context extensions adminapp reddwarfapp
-#pipeline = tokenauth authorization context extensions reddwarfapp
-pipeline = authorization context extensions reddwarfapp
-#pipeline = debug extensions reddwarfapp
+#pipeline = authtoken authz authorization context extensions reddwarfapp
+pipeline = tokenauth authorization context extensions reddwarfapp
 
 [filter:extensions]
 paste.filter_factory = reddwarf.common.extensions:factory
+
+[filter:authtoken]
+set log_level = DEBUG
+log_path = ./cs.log
+paste.filter_factory = hp.middleware.cs_auth_token:filter_factory
+# These are Openstack Service-specific information                                                                  
+service_protocol = http
+service_host = 127.0.0.1
+service_port = 808
+# Comma-separated list of service ids                                                                               
+service_ids = 110,120,160
+# Comma-separated list of service endpoint template ids                                                             
+#endpoint_template_ids = 100,110
+# CS node IP                                                                                                        
+auth_host = 15.185.9.11
+# This admin_token is NOT used by CS; it is required by Keystone reference implementation only                      
+admin_token = 999888777666
+# Thrift                                                                                                            
+cert_validate = False
+auth_port = 9543
+auth_protocol = thrift_ssl
+auth_uri = thrift_ssl://15.185.9.11:9543
+# Certificate file for middleware (includes private key)                                                            
+certfile = /etc/idm/security/hpmiddleware.pem
+# Middleware trusted CA certificates                                                                                
+ca_certs = /etc/idm/security/ca.pem
+ the following properties are optional                                                                             
+enable_thrift_conn_pool = False
+thrift_socket_timeout = 30
+thrift_max_pool_size = 3
+thrift_block = True
+thrift_retries = 4
+thrift_pool_timeout = 30
+
+[filter:authz]
+paste.filter_factory = hp.middleware.cs_authz:filter_factory
+
+[filter:authorization]
+paste.filter_factory = reddwarf.common.auth:AuthorizationMiddleware.factory
 
 [filter:tokenauth]
 paste.filter_factory = reddwarf.common.auth_token:filter_factory
