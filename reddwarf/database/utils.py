@@ -13,28 +13,40 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import ConfigParser
+import StringIO
+
 def create_boot_config(configuration_manager, credential, storage_uri, password):
     """Creates a config file that gets placed in the instance
     for the Agent to configure itself"""
 
-    rabbit_config = "[messaging]\nrabbit_host: {host}\nrabbit_port: {port}\nrabbit_use_ssl: {ssl}\nrabbit_userid: {user}\nrabbit_password: {password}\nrabbit_virtual_host: {vhost}\n".format(
-        host=configuration_manager.get('rabbit_host', 'localhost'),
-        port=configuration_manager.get('rabbit_port', '5672'),
-        ssl=configuration_manager.get('rabbit_use_ssl', 'False'),
-        user=configuration_manager.get('rabbit_userid', 'user'),
-        password=configuration_manager.get('rabbit_password', 'password'),
-        vhost=configuration_manager.get('rabbit_virtual_host', '/')
-    )
+    config = ConfigParser.SafeConfigParser()
+    
+    rabbit_dict = {'messaging': {'rabbit_host': 'localhost', 
+                                 'rabbit_port': '5672', 
+                                 'rabbit_use_ssl': 'False',
+                                 'rabbit_userid': 'user',
+                                 'rabbit_password': 'password',
+                                 'rabbit_virtual_host': '/'}}
+    
+    section = 'messaging'
+    config.add_section(section) 
+    for each in rabbit_dict[section].keys():
+        config.set(section, each, configuration_manager.get(each, rabbit_dict[section][each]))
 
-    configuration = "{rabbit}\n[database]\ninitial_password: {dbpassword}\n".format(rabbit=rabbit_config, dbpassword=password)
-
+    section = 'database'
+    config.add_section(section)
+    config.set(section, 'initial_password', password)
+    
     if storage_uri and len(storage_uri) > 0:
-        configuration = "{config}\n[snapshot]\nsnapshot_uri: {uri}\nswift_auth_url: {auth_url}\nswift_auth_user: {tenantid}:{username}\nswift_auth_key: {auth_key}\n".format(
-            config=configuration,
-            uri=storage_uri,
-            auth_url=configuration_manager.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0'),
-            tenantid=credential['tenant_id'],
-            username=credential['user_name'],
-            auth_key=credential['password']
-        )
-    return configuration
+        section = 'snapshot'
+        config.add_section(section)
+        config.set(section, 'snapshot_uri', storage_uri)
+        config.set(section, 'swift_auth_url', configuration_manager.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0'))
+        config.set(section, 'swift_auth_user', "%s:%s" % (credential['tenant_id'], credential['user_name']))
+        config.set(section, 'swift_auth_key', credential['password'])
+    
+    mem_file = StringIO.StringIO()
+    config.write(mem_file)
+
+    return mem_file.getvalue()
