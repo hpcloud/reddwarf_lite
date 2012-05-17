@@ -188,7 +188,8 @@ class InstanceController(BaseController):
         try:
             num_instances = self._check_instance_quota(context, 1)
         except exception.QuotaError, e:
-            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 413)
+            maximum_instances_allowed = quota.get_tenant_quotas(context, context.tenant)['instances']
+            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
@@ -220,7 +221,7 @@ class InstanceController(BaseController):
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
-                return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 500)
+                return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
                 LOG.debug("Error creating Nova instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.NOVA_CREATE), 500)
@@ -590,13 +591,15 @@ class SnapshotController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        
         LOG.debug("Context: %s" % context.to_dict())
 
         # Return if quota for snapshots has been reached
         try:
             num_snapshots = self._check_snapshot_quota(context, 1)
         except exception.QuotaError, e:
-            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 413)
+            maximum_snapshots_allowed = quota.get_tenant_quotas(context, context.tenant)['snapshots']
+            return wsgi.Result(errors.wrap(errors.Snapshot.QUOTA_EXCEEDED, "You are only allowed to create %s snapshots for you account." % maximum_snapshots_allowed), 413)
         
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
