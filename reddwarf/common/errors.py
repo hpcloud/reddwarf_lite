@@ -13,7 +13,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-def wrap (message=None, detail="none"):
+def wrap (message=None, detail=None):
     error = {'error':
                 {
                  'message': message, 
@@ -37,10 +37,13 @@ class Instance():
     INSTANCE_NOT_RUNNING = "The requested instance is not in running state."
     INSTANCE_LOCKED = "The requested instance has a blocking operation in progress at this moment. Try again later."
     MALFORMED_BODY = "The request body is malformed or missing required information."
-    QUOTA_EXCEEDED = "Creation of this instance would exceed the available resources of this account."
+    #QUOTA_EXCEEDED = "Creation of this instance would exceed the available resources of this account."
+    QUOTA_EXCEEDED = "Quota has been reached for instance creation on this account."
+    RAM_QUOTA_EXCEEDED = "Compute RAM Quota has been reached for this account."
 
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
     DELETE = "There was a problem deleting the specified snapshot."
     CREATE = "There was a problem creating the requested snapshot."
     SWIFT_DELETE = "There was a problem deleting the specified snapshot."
+    QUOTA_EXCEEDED= "Quota has been reached for snapshot creation on this account."
