@@ -45,6 +45,8 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
         config.set(section, 'swift_auth_url', configuration_manager.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0'))
         config.set(section, 'swift_auth_user', "%s:%s" % (credential['tenant_id'], credential['user_name']))
         config.set(section, 'swift_auth_key', credential['password'])
+        # TODO (joshdorothy): remove hard coded snapshot key
+        config.set(section, 'snapshot_key', "changeme")        
     
     mem_file = StringIO.StringIO()
     config.write(mem_file)
