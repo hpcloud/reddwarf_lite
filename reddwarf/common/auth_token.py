@@ -65,7 +65,7 @@ class TokenBasedAuth(object):
         self.auth_port = int(conf.get('auth_port', 35357))
         self.auth_protocol = conf.get('auth_protocol', 'https')
         self.auth_version = conf.get('auth_version', 'v2.0')
-        self.retry_limit = int(conf.get('retry_limit', 1))
+        self.retry_limit = int(conf.get('retry_limit', 3))
         self.retry_count = 0
         self.retry_sleep_seconds = int(conf.get('retry_sleep_seconds', 1))
         
@@ -193,8 +193,8 @@ class TokenBasedAuth(object):
         if response.status == 401:
             raise UnauthorizedError("User was not authenticated", None)
         else:
-            LOG.error('Bad response code while validating token: %s' %
-                         response.status)
+            LOG.error('Bad response code while validating token: %s - %s' % 
+                         (response.status, data))
 
         """Retry authentication here"""
         if not (self.retry_count == self.retry_limit):

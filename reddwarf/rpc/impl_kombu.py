@@ -744,17 +744,13 @@ def cleanup():
 
 def listen(exchange, msg_handler):
     """Passively listen on direct exchange for phone home messages."""
-    LOG.debug("1*********************************")
     LOG.debug("Listening to exchange: %s" % exchange)
     LOG.debug("Using message handler %s" % msg_handler)
     conn = rpc_amqp.ConnectionContext(Connection.pool)
-    #LOG.debug("2")
     wait_msg = PassiveWaiter(conn, msg_handler)
-    #LOG.debug("3")
     conn.declare_passive_consumer(exchange, wait_msg)
     LOG.debug("Waiting for messages...")
     list(wait_msg)
-    #LOG.debug("5")
     return wait_msg
 
 

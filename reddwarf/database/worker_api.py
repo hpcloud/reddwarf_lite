@@ -21,6 +21,7 @@ Handles all request to the Platform Application Server
 """
 
 import logging
+import base64
 
 from reddwarf.database import dbutils as utils
 from reddwarf.rpc import impl_kombu as rpc
@@ -34,9 +35,10 @@ class API():
 #    def __init__(self, **kwargs):
 #        super(API, self).__init__(**kwargs)
 
-    def ensure_create_instance(self, context, instance):
+    def ensure_create_instance(self, context, instance, agent_config):
         LOG.debug("Triggering worker app server to ensure instance created: %s.", instance['id'])
         rpc.cast(context, 'work',
                  {"create-instance":{"uuid": instance['id'],
                                      "remoteUuid": instance['remote_uuid'],
-                                     "remoteHostName": instance['remote_hostname']}})
+                                     "remoteHostName": instance['remote_hostname'],
+                                     "agentConfig": base64.b64encode(agent_config)}})

@@ -180,6 +180,7 @@ class TestInstanceController(ControllerTestBase):
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+#        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
 
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
         models.ServiceImage.find_by(service_name="database").AndReturn(self.ServiceImage)
@@ -202,7 +203,7 @@ class TestInstanceController(ControllerTestBase):
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data))
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data, {'/home/nova/agent.config':'blah'}))
         
         self.mock.StubOutWithMock(models.DBInstance, 'create')
         models.DBInstance.create(
@@ -220,7 +221,7 @@ class TestInstanceController(ControllerTestBase):
         models.GuestStatus().create(instance_id=mock_dbinstance['id'], state='building').AndReturn(self.DUMMY_GUEST_STATUS)
 
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
-        worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
+        worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
 
         #self.mock_out_client_create()
         self.mock.ReplayAll()
@@ -244,6 +245,7 @@ class TestInstanceController(ControllerTestBase):
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
         
         self.mock.ReplayAll()
 
@@ -251,6 +253,7 @@ class TestInstanceController(ControllerTestBase):
         response = self.app.post_json("%s" % (self.instances_path), body=body,
                                            headers=self.headers, expect_errors=True
                                            )
+        
         self.assertEqual(response.status_int, 413)
 
 class TestSnapshotController(ControllerTestBase):
@@ -320,6 +323,7 @@ class TestSnapshotController(ControllerTestBase):
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+#        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
         
         # Ensure credential comes back
         self.mock.StubOutWithMock(models.Credential, 'find_by')
@@ -360,12 +364,14 @@ class TestSnapshotController(ControllerTestBase):
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
         
         self.mock.ReplayAll()
 
         response = self.app.post_json("%s" % (self.snapshots_path), body=body,
                                            headers=self.headers, expect_errors=True
                                            )
+        
         self.assertEqual(response.status_int, 413)
 
         

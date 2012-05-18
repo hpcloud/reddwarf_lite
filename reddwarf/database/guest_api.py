@@ -58,6 +58,12 @@ class API():
         dbutils.update_guest_status(id, int(result))
         return result
 
+    def stop_messaging_service(self, context, id):
+        """Make a synchronous call to trigger smart agent for checking MySQL status"""
+        instance = dbutils.get_instance(id)
+        LOG.debug("Triggering smart agent on Instance %s (%s) to stop messaging service.", id, instance['remote_hostname'])
+        rpc.cast(context, instance['remote_hostname'], {"method": "stop_messaging_service"})
+
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         try:
@@ -72,9 +78,11 @@ class API():
     def create_snapshot(self, context, instance_id, snapshot_id, credential, auth_url):
         LOG.debug("Triggering smart agent to create Snapshot %s on Instance %s.", snapshot_id, instance_id)
         instance = dbutils.get_instance(instance_id)
+        # TODO (joshdorothy): remove hard coded snapshot key
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
+                           "snapshot_key": "changeme",
                            "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
                                           "key": credential['password'],
                                           "auth": auth_url}}
@@ -129,12 +137,17 @@ class PhoneHomeMessageHandler():
         # validate input message
         if not msg['args']['hostname']:
             raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
-        if not msg['args']['state']:
+        if '' == msg['args']['state']:
             raise exception.NotFound("Required element/key 'state' was not specified in phone home message.")
 
         # update DB
         instance = dbutils.get_instance_by_hostname(msg['args']['hostname'])
         state = result_state.ResultState().name(int(msg['args']['state']))
+        
+        # Treat running and success the same
+        if state == 'running' or state == 'success':
+            state = 'running'
+            
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
         dbutils.update_guest_status(instance['id'], state)
 

@@ -124,8 +124,6 @@ class InstanceController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
-        LOG.debug("Delete() context")                   
-        
         try:
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
@@ -138,7 +136,9 @@ class InstanceController(BaseController):
         # Try to delete the Nova instance
         try:
             LOG.debug("Deleting remote instance with id %s" % remote_id)
-            # TODO(cp16net) : need to handle exceptions here if the delete fails
+            # disconnect messaging service on the instance
+            self.guest_api.stop_messaging_service(context, id)
+            # request Nova to delete the instance
             models.Instance.delete(credential, remote_id)
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
@@ -188,7 +188,8 @@ class InstanceController(BaseController):
         try:
             num_instances = self._check_instance_quota(context, 1)
         except exception.QuotaError, e:
-            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 413)
+            maximum_instances_allowed = quota.get_tenant_quotas(context, context.tenant)['instances']
+            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
         database = models.ServiceImage.find_by(service_name="database")
         image_id = database['image_id']
@@ -216,11 +217,11 @@ class InstanceController(BaseController):
         password = utils.generate_password(length=8)
         
         try:
-            server, floating_ip = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
+            server, floating_ip, conf_file = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
-                return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 500)
+                return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
                 LOG.debug("Error creating Nova instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.NOVA_CREATE), 500)
@@ -252,7 +253,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
         # Invoke worker to ensure instance gets created
-        worker_api.API().ensure_create_instance(None, instance)
+        worker_api.API().ensure_create_instance(None, instance, conf_file['/home/nova/agent.config'])
         
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
@@ -371,7 +372,7 @@ class InstanceController(BaseController):
             
             self._try_assign_ip(credential, server, floating_ip)
             
-            return (server, floating_ip)
+            return (server, floating_ip, conf_file)
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)
@@ -379,14 +380,15 @@ class InstanceController(BaseController):
     def _try_assign_ip(self, credential, server, floating_ip):
         LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
         success = False
-        for i in range(90):
+        # Total time should be 120 seconds
+        for i in range(24):
             try:          
                 models.FloatingIP.assign(credential, floating_ip, server['id'])
                 success = True
                 break
             except Exception:
                 success = False
-                eventlet.sleep(1)
+                eventlet.sleep(5)
                 
         if not success:
             raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)                
@@ -589,13 +591,15 @@ class SnapshotController(BaseController):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        
         LOG.debug("Context: %s" % context.to_dict())
 
         # Return if quota for snapshots has been reached
         try:
             num_snapshots = self._check_snapshot_quota(context, 1)
         except exception.QuotaError, e:
-            return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED), 413)
+            maximum_snapshots_allowed = quota.get_tenant_quotas(context, context.tenant)['snapshots']
+            return wsgi.Result(errors.wrap(errors.Snapshot.QUOTA_EXCEEDED, "You are only allowed to create %s snapshots for you account." % maximum_snapshots_allowed), 413)
         
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
         try:
@@ -678,6 +682,7 @@ class API(wsgi.Router):
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
         path = "/{tenant_id}/instances"
+
         #mapper.resource("instance", path, controller=instance_resource)      
         mapper.connect(path,
                        controller=instance_resource,

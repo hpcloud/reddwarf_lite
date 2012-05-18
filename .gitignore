@@ -15,3 +15,8 @@ bin/reddwarf.conf
 .coverage
 covhtml/
 .DS_Store
+.tox
+cover
+.cache
+*.swp
+nosetests.xml
