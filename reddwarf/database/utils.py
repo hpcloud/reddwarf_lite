@@ -22,22 +22,22 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
 
     config = ConfigParser.SafeConfigParser()
     
-    rabbit_dict = {'messaging': {'rabbit_host': 'localhost', 
-                                 'rabbit_port': '5672', 
-                                 'rabbit_use_ssl': 'False',
-                                 'rabbit_userid': 'user',
-                                 'rabbit_password': 'password',
-                                 'rabbit_virtual_host': '/'}}
+    rabbit_dict = {'rabbit_host': 'localhost', 
+                   'rabbit_port': '5672', 
+                   'rabbit_use_ssl': 'False',
+                   'rabbit_userid': 'user',
+                   'rabbit_password': 'password',
+                   'rabbit_virtual_host': '/'}
     
     section = 'messaging'
     config.add_section(section) 
-    for each in rabbit_dict[section].keys():
-        config.set(section, each, configuration_manager.get(each, rabbit_dict[section][each]))
+    for each in rabbit_dict.keys():
+        config.set(section, each, configuration_manager.get(each, rabbit_dict[each]))
 
     section = 'database'
     config.add_section(section)
     config.set(section, 'initial_password', password)
-    
+
     if storage_uri and len(storage_uri) > 0:
         section = 'snapshot'
         config.add_section(section)
@@ -45,6 +45,8 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
         config.set(section, 'swift_auth_url', configuration_manager.get('reddwarf_proxy_swift_auth_url', 'http://0.0.0.0:5000/v2.0'))
         config.set(section, 'swift_auth_user', "%s:%s" % (credential['tenant_id'], credential['user_name']))
         config.set(section, 'swift_auth_key', credential['password'])
+        # TODO (joshdorothy): remove hard coded snapshot key
+        config.set(section, 'snapshot_key', "changeme")
     
     mem_file = StringIO.StringIO()
     config.write(mem_file)
