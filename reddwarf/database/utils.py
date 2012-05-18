@@ -22,17 +22,17 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
 
     config = ConfigParser.SafeConfigParser()
     
-    rabbit_dict = {'messaging': {'rabbit_host': 'localhost', 
-                                 'rabbit_port': '5672', 
-                                 'rabbit_use_ssl': 'False',
-                                 'rabbit_userid': 'user',
-                                 'rabbit_password': 'password',
-                                 'rabbit_virtual_host': '/'}}
+    rabbit_dict = {'rabbit_host': 'localhost', 
+                   'rabbit_port': '5672', 
+                   'rabbit_use_ssl': 'False',
+                   'rabbit_userid': 'user',
+                   'rabbit_password': 'password',
+                   'rabbit_virtual_host': '/'}
     
     section = 'messaging'
     config.add_section(section) 
-    for each in rabbit_dict[section].keys():
-        config.set(section, each, configuration_manager.get(each, rabbit_dict[section][each]))
+    for each in rabbit_dict.keys():
+        config.set(section, each, configuration_manager.get(each, rabbit_dict[each]))
 
     section = 'database'
     config.add_section(section)
