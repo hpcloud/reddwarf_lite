@@ -37,11 +37,7 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
     section = 'database'
     config.add_section(section)
     config.set(section, 'initial_password', password)
-<<<<<<< HEAD
-    
-=======
-        
->>>>>>> refs/heads/master
+
     if storage_uri and len(storage_uri) > 0:
         section = 'snapshot'
         config.add_section(section)
@@ -50,17 +46,9 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
         config.set(section, 'swift_auth_user', "%s:%s" % (credential['tenant_id'], credential['user_name']))
         config.set(section, 'swift_auth_key', credential['password'])
         # TODO (joshdorothy): remove hard coded snapshot key
-<<<<<<< HEAD
-        config.set(section, 'snapshot_key', "changeme")        
-    
-    mem_file = StringIO.StringIO()
-    config.write(mem_file)
-
-=======
         config.set(section, 'snapshot_key', "changeme")
     
     mem_file = StringIO.StringIO()
     config.write(mem_file)
     
->>>>>>> refs/heads/master
     return mem_file.getvalue()
