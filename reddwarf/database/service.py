@@ -130,16 +130,16 @@ class InstanceController(BaseController):
             LOG.debug("Fail fetching instance")
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
         
-        remote_id = server["remote_id"]
+        remote_uuid = server["remote_uuid"]
         credential = models.Credential().find_by(id=server['credential'])
         
         # Try to delete the Nova instance
         try:
-            LOG.debug("Deleting remote instance with id %s" % remote_id)
+            LOG.debug("Deleting remote instance with id %s" % remote_uuid)
             # disconnect messaging service on the instance
             self.guest_api.stop_messaging_service(context, id)
             # request Nova to delete the instance
-            models.Instance.delete(credential, remote_id)
+            models.Instance.delete(credential, remote_uuid)
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
             return wsgi.Result(errors.wrap(errors.Instance.NOVA_DELETE), 404)
