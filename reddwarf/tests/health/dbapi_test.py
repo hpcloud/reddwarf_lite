@@ -94,7 +94,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test creating a db instance.
         # ----------------------------
-        LOG.debug("* Creating db instance")
+        LOG.info("* Creating db instance")
         body = r"""
         {"instance": {
             "name": "dbapi_test",
@@ -122,7 +122,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test listing all db instances.
         # ------------------------------
-        LOG.debug("* Listing all db instances")
+        LOG.info("* Listing all db instances")
         resp, content = self._execute_request(client, "instances", "GET", "")
         
         # Assert 1) that the request was accepted and 2) that the response is
@@ -135,7 +135,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test getting a specific db instance.
         # ------------------------------------
-        LOG.debug("* Getting instance %s" % self.instance_id)
+        LOG.info("* Getting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id, "GET", "")
         
         # Assert 1) that the request was accepted and 2) that the returned
@@ -176,20 +176,23 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test resetting the password on a db instance.
         # ---------------------------------------------
-        LOG.debug("* Resetting password on instance %s" % self.instance_id)
+        LOG.info("* Resetting password on instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/resetpassword", "POST", "")
         self.assertEqual(200, resp.status, ("Expecting 200 as response status of reset password but received %s" % resp.status))
 
         # TODO (vipulsabhaya) Attept to log into with this password
+        
+        # XXX: Suspect restarting too soon after a "reset password" command is putting the instance in a bad mood on restart
+        time.sleep(30)
 
         # Test restarting a db instance.
         # ------------------------------
-        LOG.debug("* Restarting instance %s" % self.instance_id)
+        LOG.info("* Restarting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/restart", "POST", "")
         self.assertEqual(204, resp.status, ("Expecting 204 as response status of restart instance but received %s" % resp.status))
 
         # Test getting a specific db instance.
-        LOG.debug("* Getting instance %s" % self.instance_id)
+        LOG.info("* Getting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
         self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
         content = self._load_json(content,'Get Single Instance after Restart')
@@ -221,7 +224,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test deleting a db instance.
         # ----------------------------
-        LOG.debug("* Deleting instance %s" % self.instance_id)
+        LOG.info("* Deleting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id , "DELETE", "")
 
         # Assert 1) that the request was accepted and 2) that the instance has
@@ -247,7 +250,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Create a DB instance for snapshot tests
         # ---------------------------------------
-        LOG.debug("* Creating db instance")
+        LOG.info("* Creating db instance")
         instance_body = r"""
         {"instance": {
             "name": "dbapi_test",
@@ -272,7 +275,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test creating a db snapshot immediately after creation.
         # -------------------------------------------------------
-        LOG.debug("* Creating immediate snapshot for instance %s" % self.instance_id)
+        LOG.info("* Creating immediate snapshot for instance %s" % self.instance_id)
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
         resp, content = self._execute_request(client, "snapshots", "POST", body)
 
@@ -281,7 +284,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         # Ensure the instance is up
         # -------------------------
-        LOG.debug("* Getting instance %s" % self.instance_id)
+        LOG.info("* Getting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
         self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
         content = self._load_json(content,'Get Single Instance')
@@ -327,7 +330,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         # Test listing all db snapshots.
         # ------------------------------
-        LOG.debug("* Listing all snapshots")
+        LOG.info("* Listing all snapshots")
         resp, content = self._execute_request(client, "snapshots", "GET", "")
 
         # Assert 1) that the request was accepted and 2) that the response
@@ -338,7 +341,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test listing all db snapshots for a specific instance.
         # ------------------------------------------------------
-        LOG.debug("* Listing all snapshots for %s" % self.instance_id)
+        LOG.info("* Listing all snapshots for %s" % self.instance_id)
         resp, content = self._execute_request(client, "snapshots?instanceId=" + self.instance_id , "GET", "")
         
         # Assert 1) that the request was accepted, 2) that the response
@@ -356,7 +359,7 @@ class DBFunctionalTests(unittest.TestCase):
 
 
         # Test getting details about a specific db snapshot.
-        LOG.debug("* Getting snapshot %s" % self.snapshot_id)
+        LOG.info("* Getting snapshot %s" % self.snapshot_id)
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
 
         # Assert 1) that the request was accepted, 2) that the response
@@ -386,7 +389,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         # Test creating a new instance from a snapshot.
         # ---------------------------------------------
-        LOG.debug("* Creating instance from snapshot %s" % self.snapshot_id)
+        LOG.info("* Creating instance from snapshot %s" % self.snapshot_id)
         snap_body = json.loads(instance_body)
         snap_body['instance']['snapshotId'] = self.snapshot_id
         snap_body = json.dumps(snap_body)
@@ -401,7 +404,7 @@ class DBFunctionalTests(unittest.TestCase):
         # Probably have to spin until instance comes up before deleting the snapshot also
                 
         # Test deleting a db snapshot.
-        LOG.debug("* Deleting snapshot %s" % self.snapshot_id)
+        LOG.info("* Deleting snapshot %s" % self.snapshot_id)
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "DELETE", "")
 
         # Assert 1) that the request was accepted and 2) that the snapshot
@@ -414,7 +417,7 @@ class DBFunctionalTests(unittest.TestCase):
         time.sleep(10)
 
         # Finally, delete the instance.
-        LOG.debug("* Deleting instance %s" % self.instance_id)
+        LOG.info("* Deleting instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id , "DELETE", "")
 
         # Assert 1) that the request was accepted and 2) that the instance has
