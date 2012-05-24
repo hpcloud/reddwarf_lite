@@ -615,11 +615,13 @@ class SnapshotController(BaseController):
             LOG.debug("Created snapshot model: %s" % snapshot)
             
             try:
+                snapshot_key = CONFIG.get('snapshot_key', 'changeme')
                 guest_api.API().create_snapshot(context,
                     instance_id,
                     snapshot['id'],
                     credential,
-                    SWIFT_AUTH_URL)
+                    SWIFT_AUTH_URL,
+                    snapshot_key)
             except exception.ReddwarfError, e:
                 LOG.debug("Could not find instance: %s" % id)
                 return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
