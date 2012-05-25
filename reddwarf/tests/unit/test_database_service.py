@@ -335,6 +335,7 @@ class TestSnapshotController(ControllerTestBase):
                                       mox.IgnoreArg(),
                                       mox.IgnoreArg(), 
                                       mox.IgnoreArg(), 
+                                      mox.IgnoreArg(),
                                       mox.IgnoreArg()).AndReturn(None)
         
         self.mock.ReplayAll()
@@ -374,4 +375,4 @@ class TestSnapshotController(ControllerTestBase):
         
         self.assertEqual(response.status_int, 413)
 
-        
+ 

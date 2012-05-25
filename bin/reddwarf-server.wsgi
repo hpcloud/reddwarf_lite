@@ -80,7 +80,16 @@ try:
     print "Starting reddwarf-server"
     conf, app = config.Config.load_paste_app('reddwarf', options, args)
     db_api.configure_db(conf)                                                                                                                                                          
-    application = app
+
+    newrelic_enabled = config.Config.get('newrelic_enabled', False)
+    if newrelic_enabled == True or newrelic_enabled == 'True':
+        import newrelic.agent
+        newrelic.agent.initialize(os.path.join(rdl_path,"newrelic.ini"))
+        print "NewRelic agent initialized"
+        application = newrelic.agent.wsgi_application()(app)
+    else:
+        print "starting app without newrelic"
+        application = app
 except RuntimeError as error:
     import traceback
     print traceback.format_exc()
