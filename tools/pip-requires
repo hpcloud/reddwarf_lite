@@ -16,3 +16,4 @@ lxml
 python-novaclient
 iso8601
 paramiko
+newrelic

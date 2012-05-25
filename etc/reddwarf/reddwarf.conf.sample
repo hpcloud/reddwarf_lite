@@ -9,6 +9,9 @@ verbose = True
 # Show debugging output in logs (sets DEBUG log level output)
 debug = True
 
+# New Relic toggle
+newrelic_enabled = False
+
 # Address to bind the API server
 bind_host = 0.0.0.0
 
