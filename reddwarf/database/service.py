@@ -217,7 +217,7 @@ class InstanceController(BaseController):
         password = utils.generate_password(length=8)
         
         try:
-            server, floating_ip, conf_file = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
+            server, floating_ip, file_dict = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
@@ -253,7 +253,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
         # Invoke worker to ensure instance gets created
-        worker_api.API().ensure_create_instance(None, instance, conf_file['/home/nova/agent.config'])
+        worker_api.API().ensure_create_instance(None, instance, file_dict['/home/nova/agent.config'])
         
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
@@ -352,27 +352,27 @@ class InstanceController(BaseController):
             # have a service_secgroup table for mapping
             sec_group = ['dbaas-instance']
 
-            conf_file = self._create_boot_config_file(snapshot, password)
-            LOG.debug('%s',conf_file)
+            file_dict = self._create_boot_config_file(snapshot, password)
+            LOG.debug('%s',file_dict)
 
             #TODO (vipulsabhaya) move this to config or db
             #keypair = 'dbaas-dev'
             
-            userdata = None
+            userdata = file_dict_as_userdata(file_dict)
             #userdata = open('../development/bootstrap/dbaas-image.sh')
 
             floating_ip = models.FloatingIP.create(credential).data()
 
             server = models.Instance.create(credential, body, image_id, flavor_id, 
                                             security_groups=sec_group, key_name=keypair,
-                                            userdata=userdata, files=conf_file).data()
+                                            userdata=userdata, files=file_dict).data()
             
             if not server:
                 raise exception.ReddwarfError(errors.Instance.NOVA_CREATE)
             
             self._try_assign_ip(credential, server, floating_ip)
             
-            return (server, floating_ip, conf_file)
+            return (server, floating_ip, file_dict)
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)
