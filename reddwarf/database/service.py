@@ -38,6 +38,7 @@ from reddwarf.database import worker_api
 from reddwarf.database import quota
 from reddwarf.admin import service as admin
 from reddwarf.database.utils import create_boot_config
+from reddwarf.database.utils import file_dict_as_userdata
 from swiftapi import swift
 
 
@@ -365,7 +366,7 @@ class InstanceController(BaseController):
 
             server = models.Instance.create(credential, body, image_id, flavor_id, 
                                             security_groups=sec_group, key_name=keypair,
-                                            userdata=userdata, files=file_dict).data()
+                                            userdata=userdata, files=None).data()
             
             if not server:
                 raise exception.ReddwarfError(errors.Instance.NOVA_CREATE)
