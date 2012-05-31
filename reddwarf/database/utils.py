@@ -51,3 +51,20 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
     config.write(mem_file)
     
     return mem_file.getvalue()
+
+def file_dict_as_userdata(file_dict, default_chown="nova:mysql", default_chmod="644"):
+    """Workaround for unreliable KVM-based file injection; stuff the files in
+       a user-data script that will manually cat them back out.  The horror. """
+
+    result = "#!/bin/sh\n"
+    for (filename, file_info) in file_dict.items():
+        if type(file_info) == type(""):
+            file_info = {"contents": file_info}
+        result += """cat >%s <<EOS
+%s
+EOS\n
+""" % (filename, file_info.get('contents'))
+        result += "chown %s %s\n" % (file_info.get('chown', default_chown), filename)
+        result += "chmod %s %s\n" % (file_info.get('chmod', default_chmod), filename)
+
+    return result
