@@ -50,6 +50,9 @@ def map(engine, models):
     orm.mapper(models['service_keypair'],
                Table('service_keypairs', meta, autoload=True))
 
+    orm.mapper(models['service_zone'],
+               Table('service_zones', meta, autoload=True))
+
 def mapping_exists(model):
     try:
         orm.class_mapper(model)
