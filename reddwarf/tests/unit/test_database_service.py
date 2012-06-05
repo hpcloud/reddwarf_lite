@@ -183,7 +183,7 @@ class TestInstanceController(ControllerTestBase):
 #        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
 
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
-        models.ServiceImage.find_by(service_name="database").AndReturn(self.ServiceImage)
+        models.ServiceImage.find_by(service_name="database", tenant_id='123').AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
         models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)
         self.mock.StubOutWithMock(models.ServiceKeypair, 'find_by')
