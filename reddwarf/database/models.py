@@ -333,7 +333,7 @@ class GuestStatus(DatabaseModelBase):
         self.find_all(instance_id.in_(instance_id))
         
 class ServiceImage(DatabaseModelBase):
-    _data_fields = ['service_name', 'image_id']
+    _data_fields = ['service_name', 'image_id', 'tenant_id', 'availability_zone']
 
 
 class ServiceFlavor(DatabaseModelBase):

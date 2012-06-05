@@ -39,6 +39,10 @@ class Snapshot(factory.Factory):
     #context = context.ReddwarfContext()
     uuid = utils.generate_uuid()    
     
+class ServiceImage(factory.Factory):
+    FACTORY_FOR = models.ServiceImage
+    #context = context.ReddwarfContext()
+    uuid = utils.generate_uuid()    
 
 
 def factory_create(model_to_create, **kwargs):
