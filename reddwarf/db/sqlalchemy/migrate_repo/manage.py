@@ -17,5 +17,7 @@
 #    under the License.
 
 from migrate.versioning.shell import main
+import gettext
+gettext.install('reddwarf', unicode=1)
 
 main(debug='False', repository='.')
