@@ -346,6 +346,9 @@ class ServiceSecgroup(DatabaseModelBase):
 class ServiceKeypair(DatabaseModelBase):
     _data_fields = ['service_name', 'key_name']
 
+class ServiceZone(DatabaseModelBase):
+    _data_fields = ['service_name', 'tenant_id', 'availability_zone']
+    
 class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
                     'tenant_id', 'storage_uri', 'credential', 'storage_size',
@@ -374,7 +377,8 @@ def persisted_models():
         'snapshot': Snapshot,
         'quota': Quota,
         'service_secgroup': ServiceSecgroup,
-        'service_keypair': ServiceKeypair
+        'service_keypair': ServiceKeypair,
+        'service_zone': ServiceZone
 
         }
 
