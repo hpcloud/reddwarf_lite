@@ -192,7 +192,12 @@ class InstanceController(BaseController):
             maximum_instances_allowed = quota.get_tenant_quotas(context, context.tenant)['instances']
             return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
-        database = models.ServiceImage.find_by(service_name="database")
+        # Attempt to find Image for a specific tenant
+        try:
+            database = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id)
+        except models.ModelNotFoundError, e:
+            database = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant')
+
         image_id = database['image_id']
         
         flavor = models.ServiceFlavor.find_by(service_name="database")
