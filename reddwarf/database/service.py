@@ -220,7 +220,7 @@ class InstanceController(BaseController):
         
         # Get the credential to use for proxy compute resource
         credential = models.Credential.find_by(type='compute')
-        password = utils.generate_password(length=8)
+        password = utils.generate_password()
         
         try:
             server, floating_ip, file_dict = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
