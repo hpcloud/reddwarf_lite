@@ -390,14 +390,14 @@ class InstanceController(BaseController):
             if not server:
                 raise exception.ReddwarfError(errors.Instance.NOVA_CREATE)
             
-            self._try_assign_ip(credential, server, floating_ip)
+            self._try_assign_ip(credential, region, server, floating_ip)
             
             return (server, floating_ip, file_dict)
         except (Exception) as e:
             LOG.error(e)
             raise exception.ReddwarfError(e)
 
-    def _try_assign_ip(self, credential, server, floating_ip):
+    def _try_assign_ip(self, credential, region, server, floating_ip):
         LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
         success = False
         # Total time should be 120 seconds
