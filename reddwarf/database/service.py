@@ -132,6 +132,10 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
         
         remote_uuid = server["remote_uuid"]
+        region_az = server['availability_zone']
+        if region_az is None:
+            region_az = CONFIG.get('reddwarf_proxy_default_region', 'az-2.region-a.geo-1')
+            
         credential = models.Credential().find_by(id=server['credential'])
         
         # Try to delete the Nova instance
@@ -140,7 +144,7 @@ class InstanceController(BaseController):
             # disconnect messaging service on the instance
             self.guest_api.stop_messaging_service(context, id)
             # request Nova to delete the instance
-            models.Instance.delete(credential, remote_uuid)
+            models.Instance.delete(credential, region_az, remote_uuid)
         except exception.ReddwarfError:
             LOG.debug("Fail Deleting Remote instance")
             return wsgi.Result(errors.wrap(errors.Instance.NOVA_DELETE), 404)
@@ -194,11 +198,11 @@ class InstanceController(BaseController):
         
         # Attempt to find Image for a specific tenant
         try:
-            database = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id)
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id)
         except models.ModelNotFoundError, e:
-            database = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant')
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant')
 
-        image_id = database['image_id']
+        image_id = service_image['image_id']
         
         flavor = models.ServiceFlavor.find_by(service_name="database")
         flavor_id = flavor['flavor_id']
@@ -206,9 +210,17 @@ class InstanceController(BaseController):
         service_keypair = models.ServiceKeypair.find_by(service_name='database')
         keypair_name = service_keypair['key_name']
         
+        try:
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id)
+        except models.ModelNotFoundError, e:
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant')
+
+        region_az = service_zone['availability_zone']
+        
         LOG.debug("Using ImageID %s" % image_id)
         LOG.debug("Using FlavorID %s" % flavor_id)
         LOG.debug("Using Keypair %s" % keypair_name)
+        LOG.debug("Using Region %s" % region_az)
         
         try:
             snapshot = self._extract_snapshot(body, tenant_id)
@@ -223,7 +235,7 @@ class InstanceController(BaseController):
         password = utils.generate_password(length=8)
         
         try:
-            server, floating_ip, file_dict = self._try_create_server(context, body, credential, keypair_name, image_id, flavor_id, snapshot, password)
+            server, floating_ip, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.debug("Quota exceeded on create instance: %s" % e.message)
@@ -244,7 +256,9 @@ class InstanceController(BaseController):
                                      credential=credential['id'],
                                      address=floating_ip['ip'],
                                      port='3306',
-                                     flavor=1)
+                                     flavor=1,
+                                     availability_zone=region_az)
+            
         except exception.ReddwarfError, e:
             LOG.debug("Error creating Reddwarf instance: %s" % e)
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
@@ -351,7 +365,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
-    def _try_create_server(self, context, body, credential, keypair, image_id, flavor_id, snapshot=None, password=None):
+    def _try_create_server(self, context, body, credential, region, keypair, image_id, flavor_id, snapshot=None, password=None):
         """Create remote Server """
         try:
             # TODO (vipulsabhaya) move this into the db we should
@@ -367,9 +381,9 @@ class InstanceController(BaseController):
             userdata = file_dict_as_userdata(file_dict)
             #userdata = open('../development/bootstrap/dbaas-image.sh')
 
-            floating_ip = models.FloatingIP.create(credential).data()
+            floating_ip = models.FloatingIP.create(credential, region).data()
 
-            server = models.Instance.create(credential, body, image_id, flavor_id, 
+            server = models.Instance.create(credential, region, body, image_id, flavor_id, 
                                             security_groups=sec_group, key_name=keypair,
                                             userdata=userdata, files=None).data()
             
@@ -389,7 +403,7 @@ class InstanceController(BaseController):
         # Total time should be 120 seconds
         for i in range(24):
             try:          
-                models.FloatingIP.assign(credential, floating_ip, server['id'])
+                models.FloatingIP.assign(credential, region, floating_ip, server['id'])
                 success = True
                 break
             except Exception:

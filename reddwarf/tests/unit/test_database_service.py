@@ -166,6 +166,7 @@ class TestInstanceController(ControllerTestBase):
         self.ServiceImage = {"image_id": "1240"}
         self.ServiceFlavor = {"flavor_id": "100"}
         self.ServiceKeypair = {"key_name": "dbas-dev"}
+        self.ServiceZone = {"availability_zone": "az2"}
         self.Credential = {'id': '1'}
         body = {
             "instance": {
@@ -188,6 +189,8 @@ class TestInstanceController(ControllerTestBase):
         models.ServiceFlavor.find_by(service_name="database").AndReturn(self.ServiceFlavor)
         self.mock.StubOutWithMock(models.ServiceKeypair, 'find_by')
         models.ServiceKeypair.find_by(service_name="database").AndReturn(self.ServiceKeypair)  
+        self.mock.StubOutWithMock(models.ServiceZone, 'find_by')
+        models.ServiceZone.find_by(service_name="database", tenant_id='123').AndReturn(self.ServiceZone)  
         self.mock.StubOutWithMock(models.Credential, 'find_by')
         models.Credential.find_by(type="compute").AndReturn(self.Credential)                
         
@@ -196,30 +199,12 @@ class TestInstanceController(ControllerTestBase):
         mock_dbinstance = {'id': 'id', 'name': 'name', 'created_at': 'created_at', 'address': 'address'}
 #        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))       
 
-#        self.mock.StubOutWithMock(mock_server, 'data')
-#        mock_server.data().AndReturn(self.DUMMY_SERVER)       
-
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data, {'/home/nova/agent.config':'blah'}))
         
-        self.mock.StubOutWithMock(models.DBInstance, 'create')
-        models.DBInstance.create(
-                address='blah', port='3306', flavor=1,
-                name=body['instance']['name'],
-                status='building',
-                remote_id=self.DUMMY_SERVER['id'],
-                remote_uuid=self.DUMMY_SERVER['uuid'],
-                remote_hostname=self.DUMMY_SERVER['name'],
-                credential=self.Credential['id'],
-                user_id=None,
-                tenant_id=self.tenant).AndReturn(mock_dbinstance)  
-        
-        self.mock.StubOutWithMock(models.GuestStatus, 'create')
-        models.GuestStatus().create(instance_id=mock_dbinstance['id'], state='building').AndReturn(self.DUMMY_GUEST_STATUS)
-
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
         worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
 
