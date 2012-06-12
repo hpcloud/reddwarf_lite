@@ -71,7 +71,7 @@ class TestInstance(tests.BaseTest):
         servers.get(mox.IgnoreArg()).AndReturn(self.FAKE_SERVER)
         client.servers = servers
         self.mock.StubOutWithMock(models.RemoteModelBase, 'get_client')
-        models.RemoteModelBase.get_client(mox.IgnoreArg()).AndReturn(client)
+        models.RemoteModelBase.get_client(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(client)
         self.mock.ReplayAll()
 
     def test_create_instance_data(self):
@@ -102,7 +102,8 @@ class TestDBInstance(tests.BaseTest):
     def test_create_instance(self):
         remote_uuid = utils.generate_uuid()
         kwargs = {"remote_uuid": remote_uuid,
-                  "name": "dbapi_test"}
+                  "name": "dbapi_test",
+                  "availability_zone": "az1"}
         instance = factory_models.DBInstance().create(**kwargs).data()
         
         self.assertEqual(instance['name'], "dbapi_test")
@@ -112,18 +113,20 @@ class TestDBInstance(tests.BaseTest):
         self.assertEqual(instance['remote_uuid'], remote_uuid)
     
     def test_delete_instance(self):
-        kwargs = {}
+        kwargs = {"name": "dbapi_test",
+                  "availability_zone": "az1"}
         instance = factory_models.DBInstance().create(**kwargs)
         data = instance.data()
         self.assertEqual(data['deleted'], False)
         self.assertEqual(data['deleted_at'], None)
         
-        data = instance.delete(**kwargs).data()
+        data = instance.delete().data()
         self.assertEqual(data['deleted'], True)
         self.assertNotEqual(data['deleted_at'], None)              
          
     def test_update_instance(self):
-        kwargs = {"name": "dbapi_test"}
+        kwargs = {"name": "dbapi_test",
+                  "availability_zone": "az1"}
         instance = factory_models.DBInstance().create(**kwargs)        
         data = instance.data()
         self.assertEqual(data['name'], "dbapi_test")
@@ -134,7 +137,8 @@ class TestDBInstance(tests.BaseTest):
     
     def test_retrieve_instance(self):
         name = utils.generate_uuid()
-        kwargs = {"name": name}
+        kwargs = {"name": name,
+                  "availability_zone": "az1"}
         instance = factory_models.DBInstance().create(**kwargs)
         data = instance.data()
         self.assertEqual(data['name'], name)
