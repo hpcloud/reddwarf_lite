@@ -22,6 +22,7 @@ from sqlalchemy.schema import MetaData
 from sqlalchemy.schema import UniqueConstraint
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.expression import null
+from sqlalchemy.types import Integer
 
 from reddwarf.db.sqlalchemy.migrate_repo.schema import Table
 
@@ -33,12 +34,15 @@ def upgrade(migrate_engine):
     conn = migrate_engine.connect()
     trans = conn.begin()
     try:
-        update = instances.update().where(instances.c.availability_zone==null()).values(availability_zone='az-2.region-a.geo-1')
+        update = instances.update().where(instances.c.availability_zone==None).values(availability_zone='az-2.region-a.geo-1')
         conn.execute(update)
         trans.commit()
     except:
         trans.rollback()
         raise
+
+    remote_id = instances.c.remote_id
+    remote_id.alter(type=Integer())
 
     availability_zone = instances.c.availability_zone
     availability_zone.alter(nullable=False)
