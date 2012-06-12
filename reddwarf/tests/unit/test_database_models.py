@@ -71,7 +71,7 @@ class TestInstance(tests.BaseTest):
         servers.get(mox.IgnoreArg()).AndReturn(self.FAKE_SERVER)
         client.servers = servers
         self.mock.StubOutWithMock(models.RemoteModelBase, 'get_client')
-        models.RemoteModelBase.get_client(mox.IgnoreArg()).AndReturn(client)
+        models.RemoteModelBase.get_client(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(client)
         self.mock.ReplayAll()
 
     def test_create_instance_data(self):
