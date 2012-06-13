@@ -46,6 +46,7 @@ import os
 import time
 import re
 from reddwarf.common import ssh
+from reddwarf.common import utils
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
 X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
@@ -84,7 +85,7 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
 UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
-instances_created = []
+INSTANCE_NAME = 'dbapi_health_' + utils.generate_uuid()
 MAX_WAIT_RUNNING = 300
 
 class DBFunctionalTests(unittest.TestCase):
@@ -97,7 +98,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.info("* Creating db instance")
         body = r"""
         {"instance": {
-            "name": "dbapi_test",
+            "name": "%s",
             "flavorRef": "medium",
             "port": "3306",
             "dbtype": {
@@ -105,7 +106,7 @@ class DBFunctionalTests(unittest.TestCase):
                 "version": "5.5"
                 }
             }
-        }"""
+        }""" % INSTANCE_NAME
 
         client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", body)
@@ -253,7 +254,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.info("* Creating db instance")
         instance_body = r"""
         {"instance": {
-            "name": "dbapi_test",
+            "name": "%s",
             "flavorRef": "medium",
             "port": "3306",
             "dbtype": {
@@ -261,7 +262,7 @@ class DBFunctionalTests(unittest.TestCase):
                 "version": "5.5"
                 }
             }
-        }"""
+        }""" % INSTANCE_NAME
 
         client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", instance_body)
@@ -276,7 +277,7 @@ class DBFunctionalTests(unittest.TestCase):
         # Test creating a db snapshot immediately after creation.
         # -------------------------------------------------------
         LOG.info("* Creating immediate snapshot for instance %s" % self.instance_id)
-        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
+        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + (r""", "name": "%s" } }""" % INSTANCE_NAME)
         resp, content = self._execute_request(client, "snapshots", "POST", body)
 
         # Assert 1) that the request was not accepted
@@ -315,7 +316,7 @@ class DBFunctionalTests(unittest.TestCase):
             
         # NOW... take a snapshot
         # ----------------------
-        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + r""", "name": "dbapi_test" } }"""
+        body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + ( r""", "name": "%s" } }""" % INSTANCE_NAME)
         resp, content = self._execute_request(client, "snapshots", "POST", body)
             
         # Assert 1) that the request was accepted and 2) that the response
@@ -456,7 +457,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         for each in content['instances']:
 #            LOG.debug("EACH: %s" % each)
-            if each['name'] == "dbapi_test":
+            if each['name'] == INSTANCE_NAME:
                 for snapshot in snapshots['snapshots']:
                     # If any snapshots belong to an instance to be deleted, delete the snapshots too
                     if snapshot['instanceId'] == each['id']:

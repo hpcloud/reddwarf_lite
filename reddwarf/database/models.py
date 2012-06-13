@@ -77,7 +77,7 @@ class RemoteModelBase(ModelBase):
     _data_object = None
 
     @classmethod
-    def get_client(cls, credential):
+    def get_client(cls, credential, region=None):
         # Quite annoying but due to a paste config loading bug.
         # TODO(hub-cap): talk to the openstack-common people about this
         #PROXY_ADMIN_USER = CONFIG.get('reddwarf_proxy_admin_user', 'admin')
@@ -89,11 +89,14 @@ class RemoteModelBase(ModelBase):
         PROXY_AUTH_URL = CONFIG.get('reddwarf_auth_url',
                                     'http://0.0.0.0:5000/v2.0')
 
+        if region is None:
+            region = 'az-2.region-a.geo-1'
+            
         client = Client(credential['user_name'], credential['password'],
             credential['tenant_id'], PROXY_AUTH_URL,
             #proxy_tenant_id=context.tenant,
             #proxy_token=context.auth_tok,
-            region_name='az-2.region-a.geo-1',
+            region_name=region,
             #service_type='compute',
             service_name="Compute")
         client.authenticate()
@@ -120,14 +123,14 @@ class Instance(RemoteModelBase):
     _data_fields = ['name', 'status', 'id', 'created', 'updated',
                     'flavor', 'links', 'addresses', 'uuid']
 
-    def __init__(self, server=None, credential=None, uuid=None):
+    def __init__(self, server=None, credential=None, region=None, uuid=None):
         if server is None and credential is None and uuid is None:
             #TODO(cp16et): what to do now?
             msg = "server, credential, and uuid are not defined"
             raise InvalidModelError(msg)
         elif server is None:
             try:
-                self._data_object = self.get_client(credential).servers.get(uuid)
+                self._data_object = self.get_client(credential, region).servers.get(uuid)
             except nova_exceptions.NotFound, e:
                 raise rd_exceptions.NotFound(uuid=uuid)
             except nova_exceptions.ClientException, e:
@@ -136,32 +139,32 @@ class Instance(RemoteModelBase):
             self._data_object = server
 
     @classmethod
-    def delete(cls, credential, uuid):
+    def delete(cls, credential, region, uuid):
         try:
-            cls.get_client(credential).servers.delete(uuid)
+            cls.get_client(credential, region).servers.delete(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
             raise rd_exceptions.ReddwarfError()
 
     @classmethod
-    def create(cls, credential, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
+    def create(cls, credential, region, body, image_id, flavor_id, security_groups, key_name, userdata, files ):
         # self.is_valid()
         instance_name = utils.generate_uuid()
-        srv = cls.get_client(credential).servers.create(instance_name,
-                                                     image_id,
-                                                     flavor_id,
-                                                     files=files, 
-                                                     key_name=key_name, 
-                                                     security_groups=security_groups, 
-                                                     userdata=userdata)
+        srv = cls.get_client(credential, region).servers.create(instance_name,
+                                                                image_id,
+                                                                flavor_id,
+                                                                files=files, 
+                                                                key_name=key_name, 
+                                                                security_groups=security_groups, 
+                                                                userdata=userdata)
         return Instance(server=srv)
 
     @classmethod
-    def restart(cls, credential, uuid):
+    def restart(cls, credential, region, uuid):
         try:
             LOG.debug("Searching for instance using uuid: %s" % uuid)
-            cls.get_client(credential).servers.reboot(uuid)
+            cls.get_client(credential, region).servers.reboot(uuid)
         except nova_exceptions.NotFound, e:
             raise rd_exceptions.NotFound(uuid=uuid)
         except nova_exceptions.ClientException, e:
@@ -172,13 +175,13 @@ class FloatingIP(RemoteModelBase):
 
     _data_fields = ['instance_id', 'ip', 'fixed_ip', 'id']
 
-    def __init__(self, floating_ip=None, credential=None, id=None):
+    def __init__(self, floating_ip=None, credential=None, region=None, id=None):
         if id is None and floating_ip is None:
             msg = "id is not defined"
             raise InvalidModelError(msg)
         elif floating_ip is None:
             try:
-                self._data_object = self.get_client(credential).servers.get(id)
+                self._data_object = self.get_client(credential, region).servers.get(id)
             except nova_exceptions.NotFound, e:
                 raise rd_exceptions.NotFound(id=id)
             except nova_exceptions.ClientException, e:
@@ -188,18 +191,14 @@ class FloatingIP(RemoteModelBase):
             
     @classmethod
     def delete(cls, credential, uuid):
-        try:
-            cls.get_client(credential).servers.delete(uuid)
-        except nova_exceptions.NotFound, e:
-            raise rd_exceptions.NotFound(uuid=uuid)
-        except nova_exceptions.ClientException, e:
-            raise rd_exceptions.ReddwarfError()
-
+        # TODO implement detach
+        pass
+    
     @classmethod
-    def create(cls, credential):
+    def create(cls, credential, region):
         """Fetches an unassigned IP or creates a new one"""
         ip = None
-        client = cls.get_client(credential)
+        client = cls.get_client(credential, region)
         try:
             fl = client.floating_ips.list()
             for flip in fl:
@@ -220,9 +219,9 @@ class FloatingIP(RemoteModelBase):
         return FloatingIP(floating_ip=flip)
 
     @classmethod
-    def assign(cls, credential, floating_ip, server_id):
+    def assign(cls, credential, region, floating_ip, server_id):
         """Assigns a floating ip to a server"""
-        client = cls.get_client(credential)
+        client = cls.get_client(credential, region)
         try:
             client.servers.add_floating_ip(server_id, floating_ip['ip'])
         except nova_exceptions.ClientException, e:
@@ -232,8 +231,8 @@ class FloatingIP(RemoteModelBase):
 
 class Instances(Instance):
 
-    def __init__(self, credential):
-        self._data_object = self.get_client(credential).servers.list()
+    def __init__(self, credential, region):
+        self._data_object = self.get_client(credential, region).servers.list()
 
     def __iter__(self):
         for item in self._data_object:
@@ -346,6 +345,9 @@ class ServiceSecgroup(DatabaseModelBase):
 class ServiceKeypair(DatabaseModelBase):
     _data_fields = ['service_name', 'key_name']
 
+class ServiceZone(DatabaseModelBase):
+    _data_fields = ['service_name', 'tenant_id', 'availability_zone']
+    
 class Snapshot(DatabaseModelBase):
     _data_fields = ['instance_id', 'name', 'state', 'user_id', 
                     'tenant_id', 'storage_uri', 'credential', 'storage_size',
@@ -374,7 +376,8 @@ def persisted_models():
         'snapshot': Snapshot,
         'quota': Quota,
         'service_secgroup': ServiceSecgroup,
-        'service_keypair': ServiceKeypair
+        'service_keypair': ServiceKeypair,
+        'service_zone': ServiceZone
 
         }
 
