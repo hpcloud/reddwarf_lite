@@ -308,9 +308,14 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
 
         instance_data = instance.data()
+        region_az = instance_data['availability_zone']
+        if region_az is None:
+            region_az = CONFIG.get('reddwarf_proxy_default_region', 'az-2.region-a.geo-1')
+
+        
         credential = models.Credential().find_by(id=instance_data['credential'])
         try:
-            models.Instance.restart(credential, instance_data['remote_uuid'])
+            models.Instance.restart(credential, region_az, instance_data['remote_uuid'])
         except exception.ReddwarfError, e:
             LOG.debug("Could not restart instance: %s" % instance_data['remote_uuid'])
             return wsgi.Result(errors.wrap(errors.Instance.RESTART), 500)
