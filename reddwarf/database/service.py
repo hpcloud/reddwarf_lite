@@ -137,8 +137,6 @@ class InstanceController(BaseController):
         # Try to delete the Nova instance
         try:
             LOG.debug("Deleting remote instance with id %s" % remote_uuid)
-            # disconnect messaging service on the instance
-            self.guest_api.stop_messaging_service(context, id)
             # request Nova to delete the instance
             models.Instance.delete(credential, remote_uuid)
         except exception.ReddwarfError:
