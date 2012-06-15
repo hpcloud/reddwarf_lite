@@ -18,10 +18,7 @@
 import logging
 import os
 
-logging.basicConfig()
-
 LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
 
 def _base_url(req):
     return req.application_url
@@ -61,8 +58,6 @@ class DBInstanceView(object):
         self.tenant_id = tenant_id
         
     def _build_create(self, initial_user, initial_password):
-        LOG.debug(self.instance)
-
         credential = { "username" : initial_user,
                        "password" : initial_password }
         return {"instance": {
@@ -77,8 +72,6 @@ class DBInstanceView(object):
         } 
  
     def _build_list(self):
-        LOG.debug("INSTANCE: %s" % self.instance)
-            
         # TODO: add links to each view, fix 'instances' on list/aggregation
         return {"status": self.guest_status['state'],                    
                 "id": self.instance['id'],                
@@ -88,8 +81,6 @@ class DBInstanceView(object):
         }
         
     def _build_show(self):
-        LOG.debug(self.instance)
-
         return {"instance": {
                     "status": self.guest_status['state'],    
                     "links": self._build_links(),                
@@ -133,7 +124,6 @@ class SnapshotView(object):
         self.tenant_id = tenant_id
         
     def _build_create(self):
-        LOG.debug(self.snapshot)
 
         return {"snapshot": {
             "id": self.snapshot['id'],
@@ -145,7 +135,6 @@ class SnapshotView(object):
         } 
  
     def _build_list(self):
-        LOG.debug(self.snapshot)
             
         return {"id": self.snapshot['id'],
                 "created": self.snapshot['created_at'],
@@ -154,7 +143,6 @@ class SnapshotView(object):
         }
         
     def _build_show(self):
-        LOG.debug(self.snapshot)
 
         return {"snapshot": {
             "id": self.snapshot['id'],

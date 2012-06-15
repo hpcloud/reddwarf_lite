@@ -91,15 +91,19 @@ class RemoteModelBase(ModelBase):
 
         if region is None:
             region = 'az-2.region-a.geo-1'
+        
+        try:
+            client = Client(credential['user_name'], credential['password'],
+                credential['tenant_id'], PROXY_AUTH_URL,
+                #proxy_tenant_id=context.tenant,
+                #proxy_token=context.auth_tok,
+                region_name=region,
+                #service_type='compute',
+                service_name="Compute")
+            client.authenticate()
+        except Exception:
+            LOG.exception("Error authenticating with Novaclient")
             
-        client = Client(credential['user_name'], credential['password'],
-            credential['tenant_id'], PROXY_AUTH_URL,
-            #proxy_tenant_id=context.tenant,
-            #proxy_token=context.auth_tok,
-            region_name=region,
-            #service_type='compute',
-            service_name="Compute")
-        client.authenticate()
         return client
 
     def data_item(self, data_object):
@@ -225,7 +229,6 @@ class FloatingIP(RemoteModelBase):
         try:
             client.servers.add_floating_ip(server_id, floating_ip['ip'])
         except nova_exceptions.ClientException, e:
-            print e
             raise rd_exceptions.ReddwarfError(str(e))
 
 
@@ -288,9 +291,7 @@ class DatabaseModelBase(ModelBase):
 
     @classmethod
     def find_by(cls, **conditions):
-        LOG.debug("CLS: %s" % conditions)
         model = cls.get_by(**conditions)
-        LOG.debug("Model returned: %s" % model)
         if model == None:
             raise ModelNotFoundError(_("%s Not Found") % cls.__name__)
         return model
