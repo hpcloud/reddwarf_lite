@@ -127,6 +127,7 @@ class PhoneHomeMessageHandler():
 
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
+        LOG.info("Received PhoneHome to Update Instance State: %s" % msg)
         # validate input message
         if not msg['args']['hostname']:
             raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
@@ -146,6 +147,8 @@ class PhoneHomeMessageHandler():
 
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
+        LOG.debug("Received PhoneHome to Update Snapshot State: %s" % msg)
+
         # validate input message
         if not msg['args']['sid']:
             raise exception.NotFound("Required element/key 'sid' was not specified in phone home message.")

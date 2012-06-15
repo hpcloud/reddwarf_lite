@@ -33,7 +33,7 @@ LOG = logging.getLogger('reddwarf.db.sqlalchemy.session')
 
 
 def configure_db(options, models_mapper=None):
-    configure_sqlalchemy_log(options)
+#    configure_sqlalchemy_log(options)
     global _ENGINE
     if not _ENGINE:
         _ENGINE = _create_engine(options)
@@ -42,7 +42,7 @@ def configure_db(options, models_mapper=None):
     else:
         mappers.map(_ENGINE, database.models.persisted_models())
 
-
+# (vipulsabhaya) No longer calling this method, logging should be configured in .conf
 def configure_sqlalchemy_log(options):
     debug = config.get_option(options, 'debug', type='bool', default=False)
     verbose = config.get_option(options, 'verbose', type='bool', default=False)
