@@ -105,13 +105,13 @@ class InstanceController(BaseController):
         try:
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
-            LOG.debug("Show() failed with an exception")
+            LOG.exception("Exception occurred when finding instance by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         try:
             guest_status = models.GuestStatus().find_by(instance_id=server['id'], deleted=False)
         except exception.ReddwarfError, e:
-            LOG.debug("Show() failed with an exception")
+            LOG.exception("Exception occurred when finding instance guest_status by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         # TODO(cp16net): need to set the return code correctly
@@ -128,7 +128,7 @@ class InstanceController(BaseController):
         try:
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
-            LOG.debug("Fail fetching instance")
+            LOG.exception("Attempting to Delete Instance - Exception occurred finding instance by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
         
         remote_uuid = server["remote_uuid"]
@@ -146,14 +146,14 @@ class InstanceController(BaseController):
             # request Nova to delete the instance
             models.Instance.delete(credential, region_az, remote_uuid)
         except exception.ReddwarfError:
-            LOG.debug("Fail Deleting Remote instance")
+            LOG.exception("Failed Deleting Remote instance")
             return wsgi.Result(errors.wrap(errors.Instance.NOVA_DELETE), 404)
 
         # Try to delete the Reddwarf lite instance
         try:
             server = server.delete()
         except exception.ReddwarfError, e:
-            LOG.debug("Fail to delete DB instance")
+            LOG.exception("Failed to Delete DB Instance record")
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_DELETE), 500)
         
         # Finally, try to delete the associated GuestStatus record
@@ -161,7 +161,7 @@ class InstanceController(BaseController):
             guest_status = models.GuestStatus().find_by(instance_id=server['id'])
             guest_status.delete()
         except exception.ReddwarfError, e:
-            LOG.debug("Failed to delete GuestStatus record")
+            LOG.exception("Failed to Delete GuestStatus record")
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_DELETE), 500)
         
         
@@ -193,6 +193,7 @@ class InstanceController(BaseController):
         try:
             num_instances = self._check_instance_quota(context, 1)
         except exception.QuotaError, e:
+            LOG.exception("Quota Error encountered for tenant %s" % tenant_id)
             maximum_instances_allowed = quota.get_tenant_quotas(context, context.tenant)['instances']
             return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
@@ -200,6 +201,7 @@ class InstanceController(BaseController):
         try:
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id)
         except models.ModelNotFoundError, e:
+            LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant')
 
         image_id = service_image['image_id']
@@ -213,6 +215,7 @@ class InstanceController(BaseController):
         try:
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id)
         except models.ModelNotFoundError, e:
+            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant')
 
         region_az = service_zone['availability_zone']
@@ -225,9 +228,10 @@ class InstanceController(BaseController):
         try:
             snapshot = self._extract_snapshot(body, tenant_id)
         except exception.ReddwarfError, e:
-            LOG.debug("Error creating Reddwarf instance: %s" % e)
+            LOG.exception("Error creating new instance")
             return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 500)
         except Exception, e:
+            LOG.exception("Error creating new instance")
             return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
         
         # Get the credential to use for proxy compute resource
@@ -238,10 +242,10 @@ class InstanceController(BaseController):
             server, floating_ip, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
-                LOG.debug("Quota exceeded on create instance: %s" % e.message)
+                LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
-                LOG.debug("Error creating Nova instance: %s" % e.message)
+                LOG.exception("Error creating Remote Nova instance")
                 return wsgi.Result(errors.wrap(errors.Instance.NOVA_CREATE), 500)
             
         LOG.debug("Wrote remote server: %s" % server)
@@ -260,7 +264,7 @@ class InstanceController(BaseController):
                                      availability_zone=region_az)
             
         except exception.ReddwarfError, e:
-            LOG.debug("Error creating Reddwarf instance: %s" % e)
+            LOG.exception("Error creating DB Instance record")
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
             
         LOG.debug("Wrote DB Instance: %s" % instance)
@@ -269,7 +273,7 @@ class InstanceController(BaseController):
         try:
             guest_status = models.GuestStatus().create(instance_id=instance['id'], state='building')
         except exception.ReddwarfError, e:
-            LOG.debug("Error deleting GuestStatus instance %s" % instance.data()['id'])
+            LOG.exception("Error deleting GuestStatus instance %s" % instance.data()['id'])
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
         # Invoke worker to ensure instance gets created
@@ -288,23 +292,23 @@ class InstanceController(BaseController):
         try:
             instance = models.DBInstance().find_by(id=id)
         except exception.ReddwarfError, e:
-            LOG.debug("Could not find db instance: %s" % id)
+            LOG.error("Could not find db instance %s to restart" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         # Make sure the guest instance is in running state
         try:
             guest = models.GuestStatus().find_by(instance_id=id)
         except exception.ReddwarfError, e:
-            LOG.debug("Could not find DB instance in guest_status table: %s" % id)
+            LOG.error("Could not find DB guest_status for instance id: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         guest_data = guest.data()
         if not guest_data['state']:
-            LOG.debug("The instance %s is not in running state." % id)
+            LOG.error("Unable to restart, the instance %s is not in running state." % id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_NOT_RUNNING), 403)
 
         if guest_data['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
-            LOG.debug("The instance %s is locked due to operation in progress." % id)
+            LOG.error("The instance %s is locked due to operation in progress." % id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
 
         instance_data = instance.data()
@@ -317,7 +321,7 @@ class InstanceController(BaseController):
         try:
             models.Instance.restart(credential, region_az, instance_data['remote_uuid'])
         except exception.ReddwarfError, e:
-            LOG.debug("Could not restart instance: %s" % instance_data['remote_uuid'])
+            LOG.exception("Could not restart remote instance: %s" % instance_data['remote_id'])
             return wsgi.Result(errors.wrap(errors.Instance.RESTART), 500)
 
         guest.update(state=result_state.ResultState.name(result_state.ResultState.RESTARTING))
@@ -333,17 +337,17 @@ class InstanceController(BaseController):
         try:
             instance = models.GuestStatus().find_by(instance_id=id)
         except exception.ReddwarfError, e:
-            LOG.debug("Could not find DB instance in guest_status table: %s" % id)
+            LOG.error("Could not find DB instance in guest_status table: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         # Return when instance is not in running state
         data = instance.data()
         if not data['state']:
-            LOG.debug("The instance %s is not in running state." % id)
+            LOG.error("Unable to reset password, the instance %s is not in running state." % id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_NOT_RUNNING), 403)
 
         if data['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
-            LOG.debug("The instance %s is locked for operation in progress." % id)
+            LOG.error("Unable to reset password, the instance %s is locked for operation in progress." % id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
 
         # Generate password
@@ -356,7 +360,7 @@ class InstanceController(BaseController):
         try:
             result = self.guest_api.reset_password(context, id, password)
         except exception.NotFound as nf:
-            LOG.debug("Could not find instance: %s" % id)
+            LOG.exception("unable to reset password for instance: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
         except exception.ReddwarfError as e:
             LOG.exception("Smart Agent failed to reset password.")
@@ -366,7 +370,7 @@ class InstanceController(BaseController):
         if result == result_state.ResultState.SUCCESS:
             return wsgi.Result({'password': password}, 200)
         else:
-            LOG.debug("Smart Agent failed to reset password (RPC response: '%s')." % result)
+            LOG.error("Smart Agent failed to reset password (RPC response: '%s')." % result)
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
@@ -399,7 +403,7 @@ class InstanceController(BaseController):
             
             return (server, floating_ip, file_dict)
         except (Exception) as e:
-            LOG.error(e)
+            LOG.exception("Error attempting to create a remote Server")
             raise exception.ReddwarfError(e)
 
     def _try_assign_ip(self, credential, region, server, floating_ip):
@@ -416,12 +420,13 @@ class InstanceController(BaseController):
                 eventlet.sleep(5)
                 
         if not success:
+            LOG.error("Failed to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
             raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)                
 
     def _extract_snapshot(self, body, tenant_id):
 
         if 'instance' not in body:
-            LOG.debug("The body passed to create was malformed")
+            LOG.error("The body passed to create was malformed")
             raise Exception
 
         if 'snapshotId' in body['instance']:
@@ -431,7 +436,7 @@ class InstanceController(BaseController):
                     snapshot = models.Snapshot().find_by(id=snapshot_id, tenant_id=tenant_id, deleted=False)
                     return snapshot
                 except exception.ReddwarfError, e:
-                    LOG.debug("No Snapshot Record with id %s" % snapshot_id)
+                    LOG.error("Error finding snapshot to create new instance with - Snapshot Record with id %s not found" % snapshot_id)
                     raise e
 
     def _create_boot_config_file(self, snapshot, password):
@@ -486,7 +491,7 @@ class SnapshotController(BaseController):
         try:
             snapshot = models.Snapshot().find_by(id=id, deleted=False)
         except exception.ReddwarfError, e:            
-            LOG.debug("Show() failed with an exception")
+            LOG.exception("Snapshot Show() failed with an exception")
             return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 404)    
         
         LOG.debug("Show Snapshot: %s" % snapshot)       
@@ -525,7 +530,7 @@ class SnapshotController(BaseController):
 
     def delete(self, req, tenant_id, id):
         """Delete a single snapshot."""
-        LOG.debug("Snapshots.delete() called with %s, %s" % (tenant_id, id))
+        LOG.info("Snapshots delete() called with %s, %s" % (tenant_id, id))
         LOG.debug("Deleting snapshot")
         
         context = rd_context.ReddwarfContext(
@@ -537,7 +542,7 @@ class SnapshotController(BaseController):
         try:
             snapshot = models.Snapshot().find_by(id=id)
         except exception.ReddwarfError, e:
-            LOG.debug("Fail fetching instance")
+            LOG.exception("Failed to find snapshot with id %s to delete" % id)
             return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 404)
         
         data = snapshot.data()
@@ -563,13 +568,13 @@ class SnapshotController(BaseController):
             try:
                 swift.st_delete(opts, container, file)
             except exception.ReddwarfError, e:
-                LOG.debug("Fail to delete Swift snapshot instance")
+                LOG.exception("Fail to delete snapshot from Swift")
                 return wsgi.Result(errors.wrap(errors.Snapshot.SWIFT_DELETE), 500)
         
         try:
             response = snapshot.delete()
         except exception.ReddwarfError, e:
-            LOG.debug("Fail to delete DB snapshot instance")
+            LOG.exception("Failed to delete DB snapshot record")
             return wsgi.Result(errors.wrap(errors.Snapshot.DELETE), 500)
         
         # TODO(cp16net): need to set the return code correctly
@@ -588,16 +593,16 @@ class SnapshotController(BaseController):
         try:
             guest_status = models.GuestStatus().find_by(instance_id=instance_id)
         except exception.ReddwarfError, e:
-            LOG.debug("Could not find DB instance in guest_status table: %s" % instance_id)
+            LOG.error("Could not find DB instance in guest_status table: %s" % instance_id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
         # Return when instance is not in running state
         if not guest_status['state']:
-            LOG.debug("The instance %s is not in running state." % instance_id)
+            LOG.error("Unable to create Snapshot, the instance %s is not in running state." % instance_id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_NOT_RUNNING), 403)
 
         if guest_status['state'] != result_state.ResultState.name(result_state.ResultState.RUNNING):
-            LOG.debug("The instance %s is locked for operation in progress." % instance_id)
+            LOG.error("Unable to create snapshot, the instance %s is locked for operation in progress." % instance_id)
             return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
 
         # Return when a snapshot is being created on the requested instance
@@ -605,10 +610,10 @@ class SnapshotController(BaseController):
             snapshots = models.Snapshot().find_all(instance_id=instance_id)
             for snapshot in snapshots:
                 if snapshot['deleted_at'] is None and snapshot['state'] == 'building':
-                    LOG.debug("There is a snapshot being created on Instance %s." % instance_id)
+                    LOG.error("Unable to create snapshot, There is already a snapshot being created on Instance %s." % instance_id)
                     return wsgi.Result(errors.wrap(errors.Instance.INSTANCE_LOCKED), 423)
         except exception.ReddwarfError, e:
-            LOG.debug("Error searching snapshot records: %s" % e)
+            LOG.exception("Error searching snapshot records: %s" % e)
             pass
 
         # Start creating snapshot
@@ -623,6 +628,7 @@ class SnapshotController(BaseController):
         try:
             num_snapshots = self._check_snapshot_quota(context, 1)
         except exception.QuotaError, e:
+            LOG.error("Unable to create snapshot, Snapshot Quota has been exceeded")
             maximum_snapshots_allowed = quota.get_tenant_quotas(context, context.tenant)['snapshots']
             return wsgi.Result(errors.wrap(errors.Snapshot.QUOTA_EXCEEDED, "You are only allowed to create %s snapshots for you account." % maximum_snapshots_allowed), 413)
         
@@ -648,12 +654,12 @@ class SnapshotController(BaseController):
                     SWIFT_AUTH_URL,
                     snapshot_key)
             except exception.ReddwarfError, e:
-                LOG.debug("Could not find instance: %s" % id)
+                LOG.exception("Could not create snapshot: %s" % id)
                 return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
             
             LOG.debug("Maxwell created snapshot")
         except exception.ReddwarfError, e:
-            LOG.debug("Error creating snapshot: %s" % e)
+            LOG.exception("Error creating snapshot: %s" % e)
             return wsgi.Result(errors.wrap(errors.Snapshot.CREATE), 500)
         
         LOG.debug("Wrote snapshot: %s" % snapshot)
