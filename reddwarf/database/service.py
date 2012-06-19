@@ -143,9 +143,11 @@ class InstanceController(BaseController):
             LOG.debug("Deleting remote instance with id %s" % remote_uuid)
             # request Nova to delete the instance
             models.Instance.delete(credential, region_az, remote_uuid)
+        except exception.NotFound:
+            LOG.warn("Deleting Non-Existant Remote instance")
         except exception.ReddwarfError:
             LOG.exception("Failed Deleting Remote instance")
-            return wsgi.Result(errors.wrap(errors.Instance.NOVA_DELETE), 404)
+            return wsgi.Result(errors.wrap(errors.Instance.NOVA_DELETE), 500)
 
         # Try to delete the Reddwarf lite instance
         try:
