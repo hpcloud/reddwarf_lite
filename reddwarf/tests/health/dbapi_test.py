@@ -162,20 +162,22 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-        
-        # SSH into instance and check expectations
-        instance_ip = content['instance']['hostname']
+
+
         if status != 'running':
+            self.fail("for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
+        else:
+        # SSH into instance and check expectations
             try:
+                instance_ip = content['instance']['hostname']
                 self._check_hostname_and_file_injection(instance_ip)
             except Exception, e:
                 LOG.exception("Failed to ssh into instance")
                 self.fail("SSH failure: %s " % e)
-                
-            self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
 
 
         # Test resetting the password on a db instance.
+
         # ---------------------------------------------
         LOG.info("* Resetting password on instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/resetpassword", "POST", "")
@@ -313,7 +315,7 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.exception("Failed to ssh into instance")
                 self.fail("SSH failure: %s " % e)
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
-            
+
         # NOW... take a snapshot
         # ----------------------
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + ( r""", "name": "%s" } }""" % INSTANCE_NAME)
