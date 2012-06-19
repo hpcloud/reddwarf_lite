@@ -58,12 +58,6 @@ class API():
         dbutils.update_guest_status(id, int(result))
         return result
 
-    def stop_messaging_service(self, context, id):
-        """Make a synchronous call to trigger smart agent for checking MySQL status"""
-        instance = dbutils.get_instance(id)
-        LOG.debug("Triggering smart agent on Instance %s (%s) to stop messaging service.", id, instance['remote_hostname'])
-        rpc.cast(context, instance['remote_hostname'], {"method": "stop_messaging_service"})
-
     def reset_password(self, context, id, password):
         """Make a synchronous call to trigger smart agent for resetting MySQL password"""
         try:
@@ -133,6 +127,7 @@ class PhoneHomeMessageHandler():
 
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
+        LOG.info("Received PhoneHome to Update Instance State: %s" % msg)
         # validate input message
         if not msg['args']['hostname']:
             raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
@@ -152,6 +147,8 @@ class PhoneHomeMessageHandler():
 
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
+        LOG.debug("Received PhoneHome to Update Snapshot State: %s" % msg)
+
         # validate input message
         if not msg['args']['sid']:
             raise exception.NotFound("Required element/key 'sid' was not specified in phone home message.")
