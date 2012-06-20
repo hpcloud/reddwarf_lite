@@ -125,6 +125,15 @@ class PhoneHomeMessageHandler():
         if not msg['args']:
             raise exception.NotFound("Required element/key 'args' was not specified in phone home message.")
 
+    def _extract_public_ip(self, remote_server):
+        adds = remote_server.addresses['private']
+        for address in adds:
+            if address['addr'].startswith('15.185'):
+                public_ip = address['addr']
+                break;
+            
+        return public_ip
+        
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
         LOG.info("Received PhoneHome to Update Instance State: %s" % msg)
@@ -141,10 +150,19 @@ class PhoneHomeMessageHandler():
         # Treat running and success the same
         if state == 'running' or state == 'success':
             state = 'running'
-            
+        
         LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
         dbutils.update_guest_status(instance['id'], state)
+        
+        credential_id = instance['credential']
+        region = instance['availability_zone']
+        remote_uuid = instance['remote_uuid']
+        
+        credential = models.Credential.find_by(id=credential_id)
 
+        remote_instance = models.Instance(credential, region, uuid=remote_uuid)
+        public_ip = self._extract_public_ip(remote_instance)
+    
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
         LOG.debug("Received PhoneHome to Update Snapshot State: %s" % msg)
