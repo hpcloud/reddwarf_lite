@@ -203,7 +203,7 @@ class TestInstanceController(ControllerTestBase):
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, mock_flip_data, {'/home/nova/agent.config':'blah'}))
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, {'/home/nova/agent.config':'blah'}))
         
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
         worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
