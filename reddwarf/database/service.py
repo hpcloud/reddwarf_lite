@@ -239,7 +239,7 @@ class InstanceController(BaseController):
         password = utils.generate_password()
         
         try:
-            server, floating_ip, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor_id, snapshot, password)
+            server, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor_id, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -258,7 +258,6 @@ class InstanceController(BaseController):
                                      user_id=context.user,
                                      tenant_id=context.tenant,
                                      credential=credential['id'],
-                                     address=floating_ip,
                                      port='3306',
                                      flavor=1,
                                      availability_zone=region_az)
@@ -397,7 +396,7 @@ class InstanceController(BaseController):
             if not server:
                 raise exception.ReddwarfError(errors.Instance.NOVA_CREATE)
             
-            return (server, null, file_dict)
+            return (server, file_dict)
         except (Exception) as e:
             LOG.exception("Error attempting to create a remote Server")
             raise exception.ReddwarfError(e)
