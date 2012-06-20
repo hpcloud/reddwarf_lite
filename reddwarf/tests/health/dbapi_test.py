@@ -162,18 +162,9 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-        
-        # SSH into instance and check expectations
-        instance_ip = content['instance']['hostname']
-        if status != 'running':
-            try:
-                self._check_hostname_and_file_injection(instance_ip)
-            except Exception, e:
-                LOG.exception("Failed to ssh into instance")
-                self.fail("SSH failure: %s " % e)
-                
-            self.fail("File Injection and Hostname verified, but for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
 
+        if status != 'running':
+            self.fail("for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
 
         # Test resetting the password on a db instance.
         # ---------------------------------------------
@@ -211,15 +202,8 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
-            
-        # SSH into instance and check expectations
-        instance_ip = content['instance']['hostname']
+
         if status != 'running':
-            try:
-                self._check_hostname_and_file_injection(instance_ip)
-            except Exception, e:
-                LOG.exception("Failed to ssh into instance")
-                self.fail("SSH failure: %s " % e)
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
 
 
@@ -304,16 +288,9 @@ class DBFunctionalTests(unittest.TestCase):
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
 
-        # SSH into instance and check expectations
-        instance_ip = content['instance']['hostname']
         if status != 'running':
-            try:
-                self._check_hostname_and_file_injection(instance_ip)
-            except Exception, e:
-                LOG.exception("Failed to ssh into instance")
-                self.fail("SSH failure: %s " % e)
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
-            
+
         # NOW... take a snapshot
         # ----------------------
         body = r"""{ "snapshot": { "instanceId": """ + "\"" + self.instance_id + "\"" + ( r""", "name": "%s" } }""" % INSTANCE_NAME)
@@ -477,28 +454,6 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(content)
         return (resp,content)
 
-    
-    def _check_hostname_and_file_injection(self, instance_ip):
-        # Check the hostname
-        result = self._ssh_and_execute(instance_ip, SSH_KEY, 'hostname')
-        size = len(result)
-        LOG.debug("len(result) = %i" % size)
-        if(size == 0):
-            self.fail(("Unable to SSH into and execute 'hostname' on ip" % instance_ip))
-
-        LOG.debug("'hostname' of instance: %s" % result[0])
-        self.assertTrue(re.search(UUID_PATTERN, result[0]), ("Hostname not uuid format, instead: %s" % result[0]))
-        
-        # Check file injection
-        result = self._ssh_and_execute(instance_ip, SSH_KEY, 'cat /home/nova/agent.config')
-        size = len(result)
-        LOG.debug("len(result) = %i" % size)
-
-        if(size == 0):
-            self.fail(("Unable to SSH into and execute 'cat /home/nova/agent.config' on ip" % instance_ip))
-        
-        LOG.debug("agent.config contents: \n%s" % '\n'.join(result))
-        self.assertTrue(size > 6, ("Did not find the expected number of lines in agent.config: \n%s" % '\n'.join(result)))
 
     def _attempt_telnet(self, instance_ip, telnet_port):
         success = False
