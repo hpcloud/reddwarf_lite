@@ -454,28 +454,6 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug(content)
         return (resp,content)
 
-    
-    def _check_hostname_and_file_injection(self, instance_ip):
-        # Check the hostname
-        result = self._ssh_and_execute(instance_ip, SSH_KEY, 'hostname')
-        size = len(result)
-        LOG.debug("len(result) = %i" % size)
-        if(size == 0):
-            self.fail(("Unable to SSH into and execute 'hostname' on ip" % instance_ip))
-
-        LOG.debug("'hostname' of instance: %s" % result[0])
-        self.assertTrue(re.search(UUID_PATTERN, result[0]), ("Hostname not uuid format, instead: %s" % result[0]))
-        
-        # Check file injection
-        result = self._ssh_and_execute(instance_ip, SSH_KEY, 'cat /home/nova/agent.config')
-        size = len(result)
-        LOG.debug("len(result) = %i" % size)
-
-        if(size == 0):
-            self.fail(("Unable to SSH into and execute 'cat /home/nova/agent.config' on ip" % instance_ip))
-        
-        LOG.debug("agent.config contents: \n%s" % '\n'.join(result))
-        self.assertTrue(size > 6, ("Did not find the expected number of lines in agent.config: \n%s" % '\n'.join(result)))
 
     def _attempt_telnet(self, instance_ip, telnet_port):
         success = False
