@@ -126,7 +126,7 @@ class PhoneHomeMessageHandler():
             raise exception.NotFound("Required element/key 'args' was not specified in phone home message.")
 
     def _extract_public_ip(self, remote_server):
-        adds = remote_server.addresses['private']
+        adds = remote_server['addresses']['private']
         for address in adds:
             if address['addr'].startswith('15.185'):
                 public_ip = address['addr']
@@ -158,10 +158,16 @@ class PhoneHomeMessageHandler():
         region = instance['availability_zone']
         remote_uuid = instance['remote_uuid']
         
-        credential = models.Credential.find_by(id=credential_id)
+	if instance['address'] is None:
+            # Look up the public_ip for nova instance
+            credential = models.Credential.find_by(id=credential_id)
+            remote_instance = models.Instance(credential=credential, region=region, uuid=remote_uuid)
 
-        remote_instance = models.Instance(credential, region, uuid=remote_uuid)
-        public_ip = self._extract_public_ip(remote_instance)
+            public_ip = self._extract_public_ip(remote_instance.data())
+            LOG.debug("Updating Instance %s with IP: %s" % (instance['id'], public_ip))
+
+            dbutils.update_instance_with_ip(instance['id'], public_ip)
+
     
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
