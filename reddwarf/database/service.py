@@ -258,7 +258,7 @@ class InstanceController(BaseController):
                                      user_id=context.user,
                                      tenant_id=context.tenant,
                                      credential=credential['id'],
-                                     address=floating_ip['ip'],
+                                     address=floating_ip,
                                      port='3306',
                                      flavor=1,
                                      availability_zone=region_az)
@@ -390,38 +390,17 @@ class InstanceController(BaseController):
             userdata = file_dict_as_userdata(file_dict)
             #userdata = open('../development/bootstrap/dbaas-image.sh')
 
-            floating_ip = models.FloatingIP.create(credential, region).data()
-
-            server = models.Instance.create(credential, region, body, image_id, flavor_id, 
+            server = models.Instance.create(credential, region, body, image_id, flavor_id,
                                             security_groups=sec_group, key_name=keypair,
                                             userdata=userdata, files=None).data()
             
             if not server:
                 raise exception.ReddwarfError(errors.Instance.NOVA_CREATE)
             
-            self._try_assign_ip(credential, region, server, floating_ip)
-            
-            return (server, floating_ip, file_dict)
+            return (server, null, file_dict)
         except (Exception) as e:
             LOG.exception("Error attempting to create a remote Server")
             raise exception.ReddwarfError(e)
-
-    def _try_assign_ip(self, credential, region, server, floating_ip):
-        LOG.debug("Attempt to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
-        success = False
-        # Total time should be 120 seconds
-        for i in range(24):
-            try:          
-                models.FloatingIP.assign(credential, region, floating_ip, server['id'])
-                success = True
-                break
-            except Exception:
-                success = False
-                eventlet.sleep(5)
-                
-        if not success:
-            LOG.error("Failed to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
-            raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)                
 
     def _extract_snapshot(self, body, tenant_id):
 
