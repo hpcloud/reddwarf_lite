@@ -32,11 +32,11 @@ LOG = logging.getLogger(__name__)
 class API():
     """API for interacting with the guest manager."""
 
-    def ensure_create_instance(self, context, instance, agent_config):
+    def ensure_create_instance(self, context, instance, user_data):
         LOG.debug("Triggering worker app server to ensure instance created: %s.", instance['id'])
         rpc.cast(context, 'work',
                  {"create-instance":{"uuid": instance['id'],
                                      "remoteUuid": instance['remote_uuid'],
                                      "remoteHostName": instance['remote_hostname'],
                                      "tenantId": instance['tenant_id'],
-                                     "agentConfig": base64.b64encode(agent_config)}})
+                                     "userData": base64.b64encode(user_data)}})

@@ -276,7 +276,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
         # Invoke worker to ensure instance gets created
-        worker_api.API().ensure_create_instance(None, instance, file_dict['/home/nova/agent.config'])
+        worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
