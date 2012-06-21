@@ -45,6 +45,7 @@ import telnetlib
 import os
 import time
 import re
+import MySQLdb
 from reddwarf.common import ssh
 from reddwarf.common import utils
 
@@ -258,6 +259,8 @@ class DBFunctionalTests(unittest.TestCase):
         self.instance_id = content['instance']['id']
         LOG.debug("Instance ID: %s" % self.instance_id)
 
+
+
         # Test creating a db snapshot immediately after creation.
         # -------------------------------------------------------
         LOG.info("* Creating immediate snapshot for instance %s" % self.instance_id)
@@ -289,7 +292,48 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
-            self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
+            self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
+        else :
+            # Add customized data to the database
+            LOG.info("* Creating customized DB and inserting data")
+            pub_ip = content['instance']['hostname']
+            username = content['instance']['credential']['username']
+            password = content['instance']['credential']['password']
+            db_name = 'food'
+
+            try:
+                conn = MySQLdb.connect(host = pub_ip,
+                    user = username,
+                    passwd = password,
+                    db = db_name)
+            except MySQLdb.Error as ex:
+                self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
+
+            try:
+                cursor = conn.cursor()
+                cursor.execute("CREATE DATABASE IF NOT EXISTS food")
+            except MySQLdb.Error as ex:
+                self.fail("creating database food encounters error")
+
+            try:
+                cursor.execute("""
+                CREATE TABLE product
+                (
+                  name    CHAR(40),
+                  category CHAR(40)
+                )
+                """)
+                cursor.execute("""
+                INSERT INTO product (name, category)
+                VALUES
+                    ('apple', 'fruits'),
+                    ('tomato', 'vegetables'),
+                    ('broccoli', 'vegetables')
+                """)
+                LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
+            except MySQLdb.Error as ex:
+                self.fail("error occurred during creating table and inserting data")
+
 
         # NOW... take a snapshot
         # ----------------------
@@ -378,9 +422,78 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertEqual(201, resp.status, "Expected 201 status to request to create instance from a snapshot ")       
         content = self._load_json(content,'Create Instance from Snapshot')
 
+        self.instance_id = content['instance']['id']
+        LOG.debug("create-from-snapshot Instance ID: %s" % self.instance_id)
+
         # TODO (vipulsabhaya): Verify that some data exists in the new instance
         # Probably have to spin until instance comes up before deleting the snapshot also
-                
+
+        # Ensure the instance is up
+        # -------------------------
+        LOG.info("* Getting instance from snapshot %s" % self.instance_id)
+        resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+        self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
+        content = self._load_json(content,'Get Single Instance')
+
+        wait_so_far = 0
+        status = content['instance']['status']
+        while (status != 'running'):
+            # wait a max of max_wait for instance status to show running
+            time.sleep(10)
+            wait_so_far += 10
+            if wait_so_far >= MAX_WAIT_RUNNING:
+                break
+
+            resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+            self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
+            content = self._load_json(content,'Get Single Instance')
+            status = content['instance']['status']
+
+        if status != 'running':
+            self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
+        else :
+            # verify customized data is inside the DB
+            LOG.info("* now verifying the customized data is inside the DB")
+            pub_ip = content['instance']['hostname']
+            username = content['instance']['credential']['username']
+            password = content['instance']['credential']['password']
+            db_name = 'food'
+
+            try:
+                conn = MySQLdb.connect(host = pub_ip,
+                    user = username,
+                    passwd = password,
+                    db = db_name)
+            except MySQLdb.Error as ex:
+                self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
+
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                SELECT name FROM food
+                WHERE category = 'fruits'
+                """)
+
+                rows = cursor.fetchall()
+                for row in rows:
+                    if row == None or row[0] != "apple":
+                        self.fail("instance does not have the customized data - fruits")
+
+                cursor.execute("""
+                SELECT name FROM food
+                WHERE category = 'vegetables'
+                """)
+
+                rows = cursor.fetchall()
+                for row in rows:
+                    if ( row == None or
+                    (row[0] != 'tomato' and
+                     row[0] != 'broccoli')
+                    ) :
+                        self.fail("instance does not have the customized data - vegetables")
+            except MySQLdb.Error as ex:
+                self.fail("post snapshot verification failed on inconsistent data")
+
         # Test deleting a db snapshot.
         LOG.info("* Deleting snapshot %s" % self.snapshot_id)
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "DELETE", "")
