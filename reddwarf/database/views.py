@@ -65,7 +65,7 @@ class DBInstanceView(object):
                     "links": self._build_links(),    
                     "name": self.instance['name'],
                     "id": self.instance['id'],                        
-                    "hostname": self.instance['address'],
+                    "hostname": "" if self.instance['address'] is None else self.instance['address'],
                     "created": self.instance['created_at'],            
                     "credential": credential
                 } 
@@ -86,7 +86,7 @@ class DBInstanceView(object):
                     "links": self._build_links(),                
                     "name": self.instance['name'],
                     "id": self.instance['id'],            
-                    "hostname": self.instance['address'],
+                    "hostname": "" if self.instance['address'] is None else self.instance['address'],
                     "created": self.instance['created_at'],  
                     "port": self.instance['port'],          
                     "updated": self.instance['updated_at'],
