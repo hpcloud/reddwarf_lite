@@ -158,15 +158,20 @@ class PhoneHomeMessageHandler():
         region = instance['availability_zone']
         remote_uuid = instance['remote_uuid']
         
-	if instance['address'] is None:
+        if instance['address'] is None:
             # Look up the public_ip for nova instance
             credential = models.Credential.find_by(id=credential_id)
-            remote_instance = models.Instance(credential=credential, region=region, uuid=remote_uuid)
+            try:
+                remote_instance = models.Instance(credential=credential, region=region, uuid=remote_uuid)
+                
+                public_ip = self._extract_public_ip(remote_instance.data())
+                LOG.debug("Updating Instance %s with IP: %s" % (instance['id'], public_ip))
 
-            public_ip = self._extract_public_ip(remote_instance.data())
-            LOG.debug("Updating Instance %s with IP: %s" % (instance['id'], public_ip))
-
-            dbutils.update_instance_with_ip(instance['id'], public_ip)
+                dbutils.update_instance_with_ip(instance['id'], public_ip)
+            except exception.NotFound:
+                LOG.warn("Unable to find Remote instance and extract public ip")
+            except exception.ReddwarfError:
+                LOG.exception("Error occurred updating instance with public ip")
 
     
     def update_snapshot_state(self, msg):
