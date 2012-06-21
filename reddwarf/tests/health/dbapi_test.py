@@ -86,7 +86,7 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
 INSTANCE_NAME = 'dbapi_health_' + utils.generate_uuid()
-MAX_WAIT_RUNNING = 300
+MAX_WAIT_RUNNING = 600
 
 class DBFunctionalTests(unittest.TestCase):
 
