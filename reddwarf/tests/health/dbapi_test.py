@@ -49,16 +49,16 @@ from reddwarf.common import ssh
 from reddwarf.common import utils
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
-X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
-AUTH_TOKEN = os.environ['OS_PASSWORD']
+X_AUTH_PROJECT_ID = os.environ['DBAAS_TENANT_NAME']
+X_AUTH_USERNAME = os.environ['DBAAS_USERNAME']
+AUTH_TOKEN = os.environ['DBAAS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
-SSH_KEY = os.environ['DBAAS_SSH_KEY']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
                    "User-Agent": "python-novaclient"}
 
-KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (X_AUTH_PROJECT_ID, X_AUTH_PROJECT_ID, AUTH_TOKEN)
+KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (X_AUTH_USERNAME, X_AUTH_PROJECT_ID, AUTH_TOKEN)
 
 print KEYSTONE_BODY
 req = httplib2.Http(".cache")
