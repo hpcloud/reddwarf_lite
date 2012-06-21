@@ -179,7 +179,7 @@ class DBFunctionalTests(unittest.TestCase):
             try:
                 conn = MySQLdb.connect(host = pub_ip,
                     user = db_user,
-                    passwd = db_passwd,
+                    passwd = 'fake',
                     db= db_name)
             except MySQLdb.Error as ex:
                 self.fail("failed to connect to mysql via pub_ip %s" % pub_ip)
