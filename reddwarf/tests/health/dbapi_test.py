@@ -44,7 +44,6 @@ import httplib2
 import telnetlib
 import os
 import time
-import re
 import MySQLdb
 from reddwarf.common import ssh
 from reddwarf.common import utils
@@ -476,7 +475,7 @@ class DBFunctionalTests(unittest.TestCase):
 
                 rows = cursor.fetchall()
                 for row in rows:
-                    if row == None or row[0] != "apple":
+                    if row is None or row[0] != "apple":
                         self.fail("instance does not have the customized data - fruits")
 
                 cursor.execute("""
@@ -486,7 +485,7 @@ class DBFunctionalTests(unittest.TestCase):
 
                 rows = cursor.fetchall()
                 for row in rows:
-                    if ( row == None or
+                    if ( row is None or
                     (row[0] != 'tomato' and
                      row[0] != 'broccoli')
                     ) :
@@ -598,7 +597,7 @@ class DBFunctionalTests(unittest.TestCase):
             raise Exception("Telnet attempt to port 22 Failed.  The box is not be ssh-able.")
         
         try:
-            attempt = 0;
+            attempt = 0
             while attempt < 10:
                 try:
                     LOG.debug("- SSH connection attempt %i" % attempt)
