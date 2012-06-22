@@ -293,6 +293,7 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
+            LOG.info("* instance is still not up after 5 minutes")
             self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
         else :
             # Add customized data to the database
@@ -302,21 +303,28 @@ class DBFunctionalTests(unittest.TestCase):
             password = credential['password']
             db_name = 'food'
 
+            time.sleep(20)
+            LOG.info("* Connecting to mysql on first boot: %s, %s, %s" %(username, password, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
                     user = username,
                     passwd = password,
                     db = db_name)
             except MySQLdb.Error as ex:
+                LOG.exception("* connecting to mysql on first boot failed:")
                 self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
 
             try:
+                LOG.info("* Creating database %s" % db_name)
                 cursor = conn.cursor()
                 cursor.execute("CREATE DATABASE IF NOT EXISTS food")
+                LOG.info("* database %s created" % db_name)
             except MySQLdb.Error as ex:
+                LOG.exception("* creating database %s failed" % db_name)
                 self.fail("creating database food encounters error")
 
             try:
+                LOG.info("* creating table")
                 cursor.execute("""
                 CREATE TABLE product
                 (
@@ -324,6 +332,8 @@ class DBFunctionalTests(unittest.TestCase):
                   category CHAR(40)
                 )
                 """)
+                LOG.info("* table product created")
+                LOG.info("* inserting data into table")
                 cursor.execute("""
                 INSERT INTO product (name, category)
                 VALUES
@@ -333,6 +343,7 @@ class DBFunctionalTests(unittest.TestCase):
                 """)
                 LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
             except MySQLdb.Error as ex:
+                LOG.exception("* creating table or inserting data failed:")
                 self.fail("error occurred during creating table and inserting data")
 
 
@@ -429,8 +440,6 @@ class DBFunctionalTests(unittest.TestCase):
         self.instance_id = content['instance']['id']
         LOG.debug("create-from-snapshot Instance ID: %s" % self.instance_id)
 
-        # TODO (vipulsabhaya): Verify that some data exists in the new instance
-        # Probably have to spin until instance comes up before deleting the snapshot also
 
         # Ensure the instance is up
         # -------------------------
@@ -454,6 +463,7 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
+            LOG.info("* instance is still not up after 5 minutes")
             self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
         else :
             # verify customized data is inside the DB
@@ -463,15 +473,21 @@ class DBFunctionalTests(unittest.TestCase):
             password = credential['password']
             db_name = 'food'
 
+            time.sleep(20)
+            LOG.info("* connecting to mysql (instance boot from snapshot): %s, %s, %s" %(username, password, pub_ip))
+
             try:
                 conn = MySQLdb.connect(host = pub_ip,
                     user = username,
                     passwd = password,
                     db = db_name)
+                LOG.info("*")
             except MySQLdb.Error as ex:
-                self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
+                LOG.exception("* connecting to mysql (instance boot from snapshot) failed:")
+                self.fail("connecting to mysql failed (instance boot from snapshot) using pub ip %s" % pub_ip)
 
             try:
+                LOG.info("* searching for fruit in the database: ")
                 cursor = conn.cursor()
                 cursor.execute("""
                 SELECT name FROM food
@@ -481,8 +497,12 @@ class DBFunctionalTests(unittest.TestCase):
                 rows = cursor.fetchall()
                 for row in rows:
                     if row is None or row[0] != "apple":
+                        LOG.info("* no fruits found in database")
                         self.fail("instance does not have the customized data - fruits")
+                    else:
+                        LOG.info("* here comes %s" % row)
 
+                LOG.info("* searching for vegetable in db:")
                 cursor.execute("""
                 SELECT name FROM food
                 WHERE category = 'vegetables'
@@ -494,8 +514,12 @@ class DBFunctionalTests(unittest.TestCase):
                     (row[0] != 'tomato' and
                      row[0] != 'broccoli')
                     ) :
+                        LOG.info("* no veggie in db")
                         self.fail("instance does not have the customized data - vegetables")
+                    else:
+                        LOG.info("* here comes %s" % row)
             except MySQLdb.Error as ex:
+                LOG.exception("something is wrong in the db:")
                 self.fail("post snapshot verification failed on inconsistent data")
 
         # Test deleting a db snapshot.
