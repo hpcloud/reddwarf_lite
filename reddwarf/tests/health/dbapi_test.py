@@ -176,7 +176,7 @@ class DBFunctionalTests(unittest.TestCase):
             db_passwd = credential['password']
             db_name = 'mysql'
 
-            Log.info("* Trying to connect to mysql DB: %s, %s, %s" %(db_user, db_passwd, pub_ip))
+            LOG.info("* Trying to connect to mysql DB: %s, %s, %s" %(db_user, db_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
                     user = db_user,
@@ -197,7 +197,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         if resp.status == 200 :
             db_new_passwd = content['password']
-            Log.info("* Trying to connect to mysql DB: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
+            LOG.info("* Trying to connect to mysql DB: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
                     user = db_user,
