@@ -491,7 +491,7 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.info("* searching for fruit in the database: ")
                 cursor = conn.cursor()
                 cursor.execute("""
-                SELECT name FROM food
+                SELECT name FROM product
                 WHERE category = 'fruits'
                 """)
 
