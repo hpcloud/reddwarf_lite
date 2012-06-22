@@ -257,8 +257,8 @@ class DBFunctionalTests(unittest.TestCase):
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
         else:
             # try to connect to mysql instance
-            time.sleep(10)
-            LOG.info("* Trying to connect to mysql DB after rebooting the instance: %s, %s, %s" %(db_user, db_passwd, pub_ip))
+            time.sleep(15)
+            LOG.info("* Trying to connect to mysql DB after rebooting the instance: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
                     user = db_user,
