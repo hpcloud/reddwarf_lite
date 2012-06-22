@@ -301,7 +301,7 @@ class DBFunctionalTests(unittest.TestCase):
             pub_ip = content['instance']['hostname']
             username = credential['username']
             password = credential['password']
-            db_name = 'food'
+            db_name = 'mysql'
 
             time.sleep(20)
             LOG.info("* Connecting to mysql on first boot: %s, %s, %s" %(username, password, pub_ip))
@@ -315,6 +315,7 @@ class DBFunctionalTests(unittest.TestCase):
                 self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
 
             try:
+                db_name = 'food'
                 LOG.info("* Creating database %s" % db_name)
                 cursor = conn.cursor()
                 cursor.execute("CREATE DATABASE IF NOT EXISTS food")
