@@ -176,6 +176,7 @@ class DBFunctionalTests(unittest.TestCase):
             db_passwd = credential['password']
             db_name = 'mysql'
 
+            time.sleep(10)
             LOG.info("* Trying to connect to mysql DB: %s, %s, %s" %(db_user, db_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
