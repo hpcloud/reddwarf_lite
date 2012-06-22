@@ -208,7 +208,7 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.info("* connection to mysql seems healthy")
             except MySQLdb.Error as ex:
                 LOG.exception("* something is wrong with mysql connection after resetting password")
-                Log.info("* Maybe the old password still works ?")
+                LOG.info("* Maybe the old password still works ?")
                 try:
                     conn = MySQLdb.connect(host = pub_ip,
                         user = db_user,
