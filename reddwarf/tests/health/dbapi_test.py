@@ -192,7 +192,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.info("* Resetting password on instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/resetpassword", "POST", "")
         self.assertEqual(200, resp.status, ("Expecting 200 as response status of reset password but received %s" % resp.status))
-
+        content = self._load_json(content,'Get new password')
 
         if resp.status == 200 :
             db_new_passwd = content['password']
