@@ -255,6 +255,8 @@ class DBFunctionalTests(unittest.TestCase):
         content = self._load_json(content,'Create Instance for Snapshotting')
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not contain 'instance' element")
 
+        credential = content['instance']['credential']
+
         self.instance_id = content['instance']['id']
         LOG.debug("Instance ID: %s" % self.instance_id)
 
@@ -296,8 +298,8 @@ class DBFunctionalTests(unittest.TestCase):
             # Add customized data to the database
             LOG.info("* Creating customized DB and inserting data")
             pub_ip = content['instance']['hostname']
-            username = content['instance']['credential']['username']
-            password = content['instance']['credential']['password']
+            username = credential['username']
+            password = credential['password']
             db_name = 'food'
 
             try:
@@ -417,9 +419,12 @@ class DBFunctionalTests(unittest.TestCase):
 
         resp, content = self._execute_request(client, "instances", "POST", snap_body)
 
+
         # Assert 1) that the request was accepted
         self.assertEqual(201, resp.status, "Expected 201 status to request to create instance from a snapshot ")       
         content = self._load_json(content,'Create Instance from Snapshot')
+
+        credential = content['instance']['credential']
 
         self.instance_id = content['instance']['id']
         LOG.debug("create-from-snapshot Instance ID: %s" % self.instance_id)
@@ -454,8 +459,8 @@ class DBFunctionalTests(unittest.TestCase):
             # verify customized data is inside the DB
             LOG.info("* now verifying the customized data is inside the DB")
             pub_ip = content['instance']['hostname']
-            username = content['instance']['credential']['username']
-            password = content['instance']['credential']['password']
+            username = credential['username']
+            password = credential['password']
             db_name = 'food'
 
             try:
