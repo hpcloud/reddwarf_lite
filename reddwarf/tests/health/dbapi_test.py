@@ -176,7 +176,7 @@ class DBFunctionalTests(unittest.TestCase):
             db_passwd = credential['password']
             db_name = 'mysql'
 
-            time.sleep(10)
+            time.sleep(20)
             LOG.info("* Trying to connect to mysql DB on first boot: %s, %s, %s" %(db_user, db_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
@@ -200,7 +200,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         if resp.status == 200 :
             db_new_passwd = content['password']
-            time.sleep(10)
+            time.sleep(20)
             LOG.info("* Trying to connect to mysql DB after resetting password: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
@@ -257,7 +257,7 @@ class DBFunctionalTests(unittest.TestCase):
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
         else:
             # try to connect to mysql instance
-            time.sleep(15)
+            time.sleep(20)
             LOG.info("* Trying to connect to mysql DB after rebooting the instance: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
             try:
                 conn = MySQLdb.connect(host = pub_ip,
