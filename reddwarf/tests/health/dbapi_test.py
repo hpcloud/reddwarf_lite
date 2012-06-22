@@ -186,7 +186,7 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.info("* connection to mysql seems healthy")
             except MySQLdb.Error as ex:
                 LOG.exception("* something is wrong with mysql connection")
-                self.fail("failed to connect to mysql via pub_ip %s" % pub_ip)
+                self.fail("failed to connect to mysql via pub_ip %s on the first boot" % pub_ip)
             conn.close()
 
 
@@ -220,7 +220,7 @@ class DBFunctionalTests(unittest.TestCase):
                 except MySQLdb.Error as ex:
                     LOG.exception("* no, old password does not work anymore")
                 conn.close()
-                self.fail("failed to connect to mysql via pub_ip %s" % pub_ip)
+                self.fail("failed to connect to mysql via pub_ip %s after resetting password" % pub_ip)
             conn.close()
 
 
