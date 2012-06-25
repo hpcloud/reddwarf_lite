@@ -670,22 +670,22 @@ class DBFunctionalTests(unittest.TestCase):
 
 
     def verify_data(self, username, password, pub_ip):
-    # verify customized data is inside the DB
+        # verify customized data is inside the DB
         LOG.info("* now verifying the customized data is inside the DB")
         db_name = 'food'
 
         time.sleep(20)
-        LOG.info("* connecting to mysql (instance boot from snapshot): %s, %s, %s" %(username, password, pub_ip))
+        LOG.info("* connecting to mysql database %s: %s, %s, %s" %(db_name, username, password, pub_ip))
 
         try:
             conn = MySQLdb.connect(host = pub_ip,
                 user = username,
                 passwd = password,
                 db = db_name)
-            LOG.info("*")
+            LOG.info("* connected to database %s" % db_name)
         except MySQLdb.Error as ex:
-            LOG.exception("* connecting to mysql (instance boot from snapshot) failed:")
-            self.fail("connecting to mysql failed (instance boot from snapshot) using pub ip %s" % pub_ip)
+            LOG.exception("* connecting to mysql database %s failed:" % db_name)
+            self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
 
         try:
             LOG.info("* searching for fruit in the database: ")
@@ -693,25 +693,25 @@ class DBFunctionalTests(unittest.TestCase):
             cursor.execute("""
                 SELECT name FROM product
                 WHERE category = 'fruits'
-                """)
+            """)
 
             rows = cursor.fetchall()
-            LOG.info("have a look at the rows: %s" % rows)
+            LOG.info("have a look at the rows: %r" % repr(rows))
             for row in rows:
                 if row is None or row[0] != "apple":
                     LOG.info("* no fruits found in database")
                     self.fail("instance does not have the customized data - fruits")
                 else:
-                    LOG.info("* here comes %s" % row)
+                    LOG.info("* here comes %r" % row)
 
             LOG.info("* searching for vegetable in db:")
             cursor.execute("""
                 SELECT name FROM product
                 WHERE category = 'vegetables'
-                """)
+            """)
 
             rows = cursor.fetchall()
-            LOG.info("have a look at the rows: %s" % rows)
+            LOG.info("have a look at the rows: %r" % repr(rows))
             for row in rows:
                 if ( row is None or
                      (row[0] != 'tomato' and
@@ -720,7 +720,10 @@ class DBFunctionalTests(unittest.TestCase):
                     LOG.info("* no veggie in db")
                     self.fail("instance does not have the customized data - vegetables")
                 else:
-                    LOG.info("* here comes %s" % row)
+                    LOG.info("* here comes %r" % row)
         except MySQLdb.Error as ex:
             LOG.exception("something is wrong in the db:")
             self.fail("post snapshot verification failed on inconsistent data")
+        except Exception as ex:
+            LOG.exception("other exception caught:")
+            self.fail("something not mysql related went wrong")
