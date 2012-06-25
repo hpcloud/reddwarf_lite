@@ -151,7 +151,7 @@ class DBFunctionalTests(unittest.TestCase):
         # -----------------------------------------------------
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -191,7 +191,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -219,7 +219,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug("Verifying that instance %s has been deleted" % self.instance_id)
         resp, content = self._execute_request(client, "instances", "GET", "")
         
-        if content == []:
+        if not content:
             pass
         else:
             content = json.loads(content)
@@ -280,7 +280,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -347,6 +347,9 @@ class DBFunctionalTests(unittest.TestCase):
                 LOG.exception("* creating table or inserting data failed:")
                 self.fail("error occurred during creating table and inserting data")
 
+            #verify the data in the db before taking snapshots:
+            self.verify_data(username, password, pub_ip)
+
 
         # NOW... take a snapshot
         # ----------------------
@@ -408,7 +411,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         wait_so_far = 0
         status = content['snapshot']['status']
-        while (status != 'success'):
+        while status != 'success':
             # wait a max of max_wait for snapshot status to show success
             time.sleep(10)
             wait_so_far += 10
@@ -451,7 +454,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -468,60 +471,61 @@ class DBFunctionalTests(unittest.TestCase):
             self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
         else :
             # verify customized data is inside the DB
-            LOG.info("* now verifying the customized data is inside the DB")
+            #LOG.info("* now verifying the customized data is inside the DB")
             pub_ip = content['instance']['hostname']
             username = credential['username']
             password = credential['password']
-            db_name = 'food'
+       #     db_name = 'food'
+            self.verify_data(username, password, pub_ip)
 
-            time.sleep(20)
-            LOG.info("* connecting to mysql (instance boot from snapshot): %s, %s, %s" %(username, password, pub_ip))
-
-            try:
-                conn = MySQLdb.connect(host = pub_ip,
-                    user = username,
-                    passwd = password,
-                    db = db_name)
-                LOG.info("*")
-            except MySQLdb.Error as ex:
-                LOG.exception("* connecting to mysql (instance boot from snapshot) failed:")
-                self.fail("connecting to mysql failed (instance boot from snapshot) using pub ip %s" % pub_ip)
-
-            try:
-                LOG.info("* searching for fruit in the database: ")
-                cursor = conn.cursor()
-                cursor.execute("""
-                SELECT name FROM product
-                WHERE category = 'fruits'
-                """)
-
-                rows = cursor.fetchall()
-                for row in rows:
-                    if row is None or row[0] != "apple":
-                        LOG.info("* no fruits found in database")
-                        self.fail("instance does not have the customized data - fruits")
-                    else:
-                        LOG.info("* here comes %s" % row)
-
-                LOG.info("* searching for vegetable in db:")
-                cursor.execute("""
-                SELECT name FROM product
-                WHERE category = 'vegetables'
-                """)
-
-                rows = cursor.fetchall()
-                for row in rows:
-                    if ( row is None or
-                    (row[0] != 'tomato' and
-                     row[0] != 'broccoli')
-                    ) :
-                        LOG.info("* no veggie in db")
-                        self.fail("instance does not have the customized data - vegetables")
-                    else:
-                        LOG.info("* here comes %s" % row)
-            except MySQLdb.Error as ex:
-                LOG.exception("something is wrong in the db:")
-                self.fail("post snapshot verification failed on inconsistent data")
+#            time.sleep(20)
+#            LOG.info("* connecting to mysql (instance boot from snapshot): %s, %s, %s" %(username, password, pub_ip))
+#
+#            try:
+#                conn = MySQLdb.connect(host = pub_ip,
+#                    user = username,
+#                    passwd = password,
+#                    db = db_name)
+#                LOG.info("*")
+#            except MySQLdb.Error as ex:
+#                LOG.exception("* connecting to mysql (instance boot from snapshot) failed:")
+#                self.fail("connecting to mysql failed (instance boot from snapshot) using pub ip %s" % pub_ip)
+#
+#            try:
+#                LOG.info("* searching for fruit in the database: ")
+#                cursor = conn.cursor()
+#                cursor.execute("""
+#                SELECT name FROM product
+#                WHERE category = 'fruits'
+#                """)
+#
+#                rows = cursor.fetchall()
+#                for row in rows:
+#                    if row is None or row[0] != "apple":
+#                        LOG.info("* no fruits found in database")
+#                        self.fail("instance does not have the customized data - fruits")
+#                    else:
+#                        LOG.info("* here comes %s" % row)
+#
+#                LOG.info("* searching for vegetable in db:")
+#                cursor.execute("""
+#                SELECT name FROM product
+#                WHERE category = 'vegetables'
+#                """)
+#
+#                rows = cursor.fetchall()
+#                for row in rows:
+#                    if ( row is None or
+#                    (row[0] != 'tomato' and
+#                     row[0] != 'broccoli')
+#                    ) :
+#                        LOG.info("* no veggie in db")
+#                        self.fail("instance does not have the customized data - vegetables")
+#                    else:
+#                        LOG.info("* here comes %s" % row)
+#            except MySQLdb.Error as ex:
+#                LOG.exception("something is wrong in the db:")
+#                self.fail("post snapshot verification failed on inconsistent data")
 
         # Test deleting a db snapshot.
         LOG.info("* Deleting snapshot %s" % self.snapshot_id)
@@ -594,7 +598,7 @@ class DBFunctionalTests(unittest.TestCase):
         resp, content = client.request(API_URL + path, method, body, AUTH_HEADER)
         LOG.debug(resp)
         LOG.debug(content)
-        return (resp,content)
+        return resp,content
 
 
     def _attempt_telnet(self, instance_ip, telnet_port):
@@ -641,8 +645,8 @@ class DBFunctionalTests(unittest.TestCase):
                 except Exception, e:
                     #print e
                     pass
-                
-                attempt = attempt + 1
+
+                attempt += 1
                 time.sleep(4)
         except Exception, e:
             LOG.exception("Error connecting to instance")
@@ -658,3 +662,58 @@ class DBFunctionalTests(unittest.TestCase):
             self.fail("Response to %s was not proper JSON: $s" % (operation,content))
 
         return content
+
+
+    def verify_data(self, username, password, pub_ip):
+    # verify customized data is inside the DB
+        LOG.info("* now verifying the customized data is inside the DB")
+        db_name = 'food'
+
+        time.sleep(20)
+        LOG.info("* connecting to mysql (instance boot from snapshot): %s, %s, %s" %(username, password, pub_ip))
+
+        try:
+            conn = MySQLdb.connect(host = pub_ip,
+                user = username,
+                passwd = password,
+                db = db_name)
+            LOG.info("*")
+        except MySQLdb.Error as ex:
+            LOG.exception("* connecting to mysql (instance boot from snapshot) failed:")
+            self.fail("connecting to mysql failed (instance boot from snapshot) using pub ip %s" % pub_ip)
+
+        try:
+            LOG.info("* searching for fruit in the database: ")
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT name FROM product
+                WHERE category = 'fruits'
+                """)
+
+            rows = cursor.fetchall()
+            for row in rows:
+                if row is None or row[0] != "apple":
+                    LOG.info("* no fruits found in database")
+                    self.fail("instance does not have the customized data - fruits")
+                else:
+                    LOG.info("* here comes %s" % row)
+
+            LOG.info("* searching for vegetable in db:")
+            cursor.execute("""
+                SELECT name FROM product
+                WHERE category = 'vegetables'
+                """)
+
+            rows = cursor.fetchall()
+            for row in rows:
+                if ( row is None or
+                     (row[0] != 'tomato' and
+                      row[0] != 'broccoli')
+                    ) :
+                    LOG.info("* no veggie in db")
+                    self.fail("instance does not have the customized data - vegetables")
+                else:
+                    LOG.info("* here comes %s" % row)
+        except MySQLdb.Error as ex:
+            LOG.exception("something is wrong in the db:")
+            self.fail("post snapshot verification failed on inconsistent data")
