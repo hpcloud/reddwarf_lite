@@ -696,6 +696,7 @@ class DBFunctionalTests(unittest.TestCase):
                 """)
 
             rows = cursor.fetchall()
+            LOG.info("have a look at the rows: %s" % rows)
             for row in rows:
                 if row is None or row[0] != "apple":
                     LOG.info("* no fruits found in database")
@@ -710,6 +711,7 @@ class DBFunctionalTests(unittest.TestCase):
                 """)
 
             rows = cursor.fetchall()
+            LOG.info("have a look at the rows: %s" % rows)
             for row in rows:
                 if ( row is None or
                      (row[0] != 'tomato' and
