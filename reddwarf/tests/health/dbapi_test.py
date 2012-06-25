@@ -331,6 +331,7 @@ class DBFunctionalTests(unittest.TestCase):
                 """)
                 LOG.info("* switched to use database %s" % db_name)
                 LOG.info("* creating table")
+                cursor.execute ("DROP TABLE IF EXISTS product")
                 cursor.execute("""
                 CREATE TABLE product
                 (
@@ -348,9 +349,17 @@ class DBFunctionalTests(unittest.TestCase):
                     ('broccoli', 'vegetables')
                 """)
                 LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
+                cursor.execute("""
+                    SELECT * FROM product
+                """)
+                LOG.info("* show table product: %r" % repr(cursor.fetchall()))
+                cursor.close()
             except MySQLdb.Error as ex:
                 LOG.exception("* creating table or inserting data failed:")
                 self.fail("error occurred during creating table and inserting data")
+            finally:
+                conn.commit()
+                conn.close()
 
             #verify the data in the db before taking snapshots:
             self.verify_data(username, password, pub_ip)
@@ -482,55 +491,6 @@ class DBFunctionalTests(unittest.TestCase):
             password = credential['password']
        #     db_name = 'food'
             self.verify_data(username, password, pub_ip)
-
-#            time.sleep(20)
-#            LOG.info("* connecting to mysql (instance boot from snapshot): %s, %s, %s" %(username, password, pub_ip))
-#
-#            try:
-#                conn = MySQLdb.connect(host = pub_ip,
-#                    user = username,
-#                    passwd = password,
-#                    db = db_name)
-#                LOG.info("*")
-#            except MySQLdb.Error as ex:
-#                LOG.exception("* connecting to mysql (instance boot from snapshot) failed:")
-#                self.fail("connecting to mysql failed (instance boot from snapshot) using pub ip %s" % pub_ip)
-#
-#            try:
-#                LOG.info("* searching for fruit in the database: ")
-#                cursor = conn.cursor()
-#                cursor.execute("""
-#                SELECT name FROM product
-#                WHERE category = 'fruits'
-#                """)
-#
-#                rows = cursor.fetchall()
-#                for row in rows:
-#                    if row is None or row[0] != "apple":
-#                        LOG.info("* no fruits found in database")
-#                        self.fail("instance does not have the customized data - fruits")
-#                    else:
-#                        LOG.info("* here comes %s" % row)
-#
-#                LOG.info("* searching for vegetable in db:")
-#                cursor.execute("""
-#                SELECT name FROM product
-#                WHERE category = 'vegetables'
-#                """)
-#
-#                rows = cursor.fetchall()
-#                for row in rows:
-#                    if ( row is None or
-#                    (row[0] != 'tomato' and
-#                     row[0] != 'broccoli')
-#                    ) :
-#                        LOG.info("* no veggie in db")
-#                        self.fail("instance does not have the customized data - vegetables")
-#                    else:
-#                        LOG.info("* here comes %s" % row)
-#            except MySQLdb.Error as ex:
-#                LOG.exception("something is wrong in the db:")
-#                self.fail("post snapshot verification failed on inconsistent data")
 
         # Test deleting a db snapshot.
         LOG.info("* Deleting snapshot %s" % self.snapshot_id)
@@ -689,41 +649,28 @@ class DBFunctionalTests(unittest.TestCase):
 
         try:
             LOG.info("* searching for fruit in the database: ")
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT name FROM product
-                WHERE category = 'fruits'
-            """)
+            cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
-            rows = cursor.fetchall()
-            LOG.info("have a look at the rows: %r" % repr(rows))
-            for row in rows:
-                if row is None or row[0] != "apple":
-                    LOG.info("* no fruits found in database")
-                    self.fail("instance does not have the customized data - fruits")
+            cursor.execute ("SELECT name, category FROM product")
+
+            result_set = cursor.fetchall()
+            for row in result_set:
+                if row['category'] == 'fruits':
+                    if row['name'] != 'apple':
+                        self.fail("data inconsistency: %s" % row['name'])
+                    else:
+                        LOG.info("found fruit %s" % row['name'])
+                elif row['category'] == 'vegetables':
+                    if row['name'] != 'tomato' and row['name'] != 'broccoli':
+                        self.fail("data inconsistency: %s" % row['name'])
+                    else:
+                        LOG.info("found veggie: %s" % row['name'])
                 else:
-                    LOG.info("* here comes %r" % row)
-
-            LOG.info("* searching for vegetable in db:")
-            cursor.execute("""
-                SELECT name FROM product
-                WHERE category = 'vegetables'
-            """)
-
-            rows = cursor.fetchall()
-            LOG.info("have a look at the rows: %r" % repr(rows))
-            for row in rows:
-                if ( row is None or
-                     (row[0] != 'tomato' and
-                      row[0] != 'broccoli')
-                    ) :
-                    LOG.info("* no veggie in db")
-                    self.fail("instance does not have the customized data - vegetables")
-                else:
-                    LOG.info("* here comes %r" % row)
+                    self.fail("data inconsistency: %s" % row['name'])
+            cursor.close()
         except MySQLdb.Error as ex:
-            LOG.exception("something is wrong in the db:")
-            self.fail("post snapshot verification failed on inconsistent data")
-        except Exception as ex:
-            LOG.exception("other exception caught:")
-            self.fail("something not mysql related went wrong")
+            LOG.exception("something wrong during verifying data:")
+            self.fail("failed to verify data in DB, check log for details")
+        finally:
+            conn.close()
+
