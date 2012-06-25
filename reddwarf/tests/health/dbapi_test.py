@@ -325,6 +325,11 @@ class DBFunctionalTests(unittest.TestCase):
                 self.fail("creating database food encounters error")
 
             try:
+                LOG.info("* switching to the new database")
+                cursor.execute("""
+                use food
+                """)
+                LOG.info("* switched to use database %s" % db_name)
                 LOG.info("* creating table")
                 cursor.execute("""
                 CREATE TABLE product
