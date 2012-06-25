@@ -45,15 +45,16 @@ import os
 import time
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
-X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
-AUTH_TOKEN = os.environ['OS_PASSWORD']
+TENANT_NAME = os.environ['DBAAS_TENANT_NAME']
+USERNAME = os.environ['DBAAS_USERNAME']
+PASSWORD = os.environ['DBAAS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
                    "User-Agent": "python-novaclient"}
 
-KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (X_AUTH_PROJECT_ID, X_AUTH_PROJECT_ID, AUTH_TOKEN)
+KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (TENANT_NAME, USERNAME, PASSWORD)
 
 print KEYSTONE_BODY
 req = httplib2.Http(".cache")
@@ -65,7 +66,7 @@ AUTH_TOKEN = content['access']['token']['id']
 AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN, 
                'content-type': 'application/json', 
                'Accept': 'application/json',
-               'X-Auth-Project-Id': '%s' % X_AUTH_PROJECT_ID}
+               'X-Auth-Project-Id': '%s' % TENANT_NAME}
 
 TENANT_ID = content['access']['token']['tenant']['id']
 API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"

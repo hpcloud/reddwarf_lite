@@ -197,34 +197,6 @@ class InstanceController(BaseController):
             maximum_instances_allowed = quota.get_tenant_quotas(context, context.tenant)['instances']
             return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
-        # Attempt to find Image for a specific tenant
-        try:
-            service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id)
-        except models.ModelNotFoundError, e:
-            LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
-            service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant')
-
-        image_id = service_image['image_id']
-        
-        flavor = models.ServiceFlavor.find_by(service_name="database")
-        flavor_id = flavor['flavor_id']
-
-        service_keypair = models.ServiceKeypair.find_by(service_name='database')
-        keypair_name = service_keypair['key_name']
-        
-        try:
-            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id)
-        except models.ModelNotFoundError, e:
-            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
-            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant')
-
-        region_az = service_zone['availability_zone']
-        
-        LOG.debug("Using ImageID %s" % image_id)
-        LOG.debug("Using FlavorID %s" % flavor_id)
-        LOG.debug("Using Keypair %s" % keypair_name)
-        LOG.debug("Using Region %s" % region_az)
-        
         try:
             snapshot = self._extract_snapshot(body, tenant_id)
         except exception.ReddwarfError, e:
@@ -233,9 +205,10 @@ class InstanceController(BaseController):
         except Exception, e:
             LOG.exception("Error creating new instance")
             return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
-        
-        # Get the credential to use for proxy compute resource
-        credential = models.Credential.find_by(type='compute')
+
+        # Fetch all boot parameters from Database
+        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(tenant_id)
+
         password = utils.generate_password()
         
         try:
@@ -276,7 +249,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
 
         # Invoke worker to ensure instance gets created
-        worker_api.API().ensure_create_instance(None, instance, file_dict['/home/nova/agent.config'])
+        worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
         return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
 
@@ -417,6 +390,40 @@ class InstanceController(BaseController):
                     LOG.error("Error finding snapshot to create new instance with - Snapshot Record with id %s not found" % snapshot_id)
                     raise e
 
+    def _load_boot_params(self, tenant_id):
+        # Attempt to find Boot parameters for a specific tenant
+        try:
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, deleted=False)
+        except models.ModelNotFoundError, e:
+            LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant', deleted=False)
+
+        image_id = service_image['image_id']
+        
+        flavor = models.ServiceFlavor.find_by(service_name="database", deleted=False)
+        flavor_id = flavor['flavor_id']
+
+        service_keypair = models.ServiceKeypair.find_by(service_name='database', deleted=False)
+        keypair_name = service_keypair['key_name']
+        
+        try:
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
+        except models.ModelNotFoundError, e:
+            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
+
+        region_az = service_zone['availability_zone']
+        
+        # Get the credential to use for proxy compute resource
+        credential = models.Credential.find_by(type='compute', deleted=False)
+        
+        LOG.debug("Using ImageID %s" % image_id)
+        LOG.debug("Using FlavorID %s" % flavor_id)
+        LOG.debug("Using Keypair %s" % keypair_name)
+        LOG.debug("Using Region %s" % region_az)
+        
+        return (image_id, flavor_id, keypair_name, region_az, credential)
+        
     def _create_boot_config_file(self, snapshot, password):
         """Creates a config file that gets placed in the instance
         for the Agent to configure itself"""

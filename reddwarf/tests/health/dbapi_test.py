@@ -45,20 +45,21 @@ import telnetlib
 import os
 import time
 import re
+import MySQLdb
 from reddwarf.common import ssh
 from reddwarf.common import utils
 
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
-X_AUTH_PROJECT_ID = os.environ['OS_TENANT_NAME']
-AUTH_TOKEN = os.environ['OS_PASSWORD']
+TENANT_NAME = os.environ['DBAAS_TENANT_NAME']
+USERNAME = os.environ['DBAAS_USERNAME']
+PASSWORD = os.environ['DBAAS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
-SSH_KEY = os.environ['DBAAS_SSH_KEY']
 
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
                    "User-Agent": "python-novaclient"}
 
-KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (X_AUTH_PROJECT_ID, X_AUTH_PROJECT_ID, AUTH_TOKEN)
+KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (TENANT_NAME, USERNAME, PASSWORD)
 
 print KEYSTONE_BODY
 req = httplib2.Http(".cache")
@@ -70,7 +71,7 @@ AUTH_TOKEN = content['access']['token']['id']
 AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN, 
                'content-type': 'application/json', 
                'Accept': 'application/json',
-               'X-Auth-Project-Id': '%s' % X_AUTH_PROJECT_ID}
+               'X-Auth-Project-Id': '%s' % TENANT_NAME}
 
 TENANT_ID = content['access']['token']['tenant']['id']
 API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"
@@ -86,7 +87,7 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
 INSTANCE_NAME = 'dbapi_health_' + utils.generate_uuid()
-MAX_WAIT_RUNNING = 300
+MAX_WAIT_RUNNING = 600
 
 class DBFunctionalTests(unittest.TestCase):
 
@@ -116,6 +117,8 @@ class DBFunctionalTests(unittest.TestCase):
         self.assertEqual(201, resp.status, ("Expecting 201 as response status of create instance but received %s" % resp.status))
         content = self._load_json(content,'Create Instance')
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not have 'instance' field")
+
+        credential = content['instance']['credential']
 
         self.instance_id = content['instance']['id']
         LOG.debug("Instance ID: %s" % self.instance_id)
@@ -165,15 +168,62 @@ class DBFunctionalTests(unittest.TestCase):
 
         if status != 'running':
             self.fail("for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
+        else:
+            # try to connect to mysql instance
+            pub_ip = content['instance']['hostname']
+            # user/pass = credentials
+            db_user = credential['username']
+            db_passwd = credential['password']
+            db_name = 'mysql'
+
+            time.sleep(20)
+            LOG.info("* Trying to connect to mysql DB on first boot: %s, %s, %s" %(db_user, db_passwd, pub_ip))
+            try:
+                conn = MySQLdb.connect(host = pub_ip,
+                    user = db_user,
+                    passwd = db_passwd,
+                    db= db_name)
+                LOG.info("* connection to mysql seems healthy")
+            except MySQLdb.Error as ex:
+                LOG.exception("* something is wrong with mysql connection on the first boot")
+                self.fail("failed to connect to mysql via pub_ip %s on the first boot" % pub_ip)
+            conn.close()
+
+
 
         # Test resetting the password on a db instance.
         # ---------------------------------------------
         LOG.info("* Resetting password on instance %s" % self.instance_id)
         resp, content = self._execute_request(client, "instances/" + self.instance_id +"/resetpassword", "POST", "")
         self.assertEqual(200, resp.status, ("Expecting 200 as response status of reset password but received %s" % resp.status))
+        content = self._load_json(content,'Get new password')
 
-        # TODO (vipulsabhaya) Attept to log into with this password
-        
+        if resp.status == 200 :
+            db_new_passwd = content['password']
+            time.sleep(20)
+            LOG.info("* Trying to connect to mysql DB after resetting password: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
+            try:
+                conn = MySQLdb.connect(host = pub_ip,
+                    user = db_user,
+                    passwd = db_new_passwd,
+                    db= db_name)
+                LOG.info("* connection to mysql seems healthy")
+            except MySQLdb.Error as ex:
+                LOG.exception("* something is wrong with mysql connection after resetting password")
+                LOG.info("* Maybe the old password still works ?")
+                try:
+                    conn = MySQLdb.connect(host = pub_ip,
+                        user = db_user,
+                        passwd = db_passwd,
+                        db= db_name)
+                    LOG.info("* yeah, old one still works, new password has not kicked in")
+                except MySQLdb.Error as ex:
+                    LOG.exception("* no, old password does not work anymore")
+                conn.close()
+                self.fail("failed to connect to mysql via pub_ip %s after resetting password" % pub_ip)
+            conn.close()
+
+
         # XXX: Suspect restarting too soon after a "reset password" command is putting the instance in a bad mood on restart
         time.sleep(30)
 
@@ -205,7 +255,20 @@ class DBFunctionalTests(unittest.TestCase):
 
         if status != 'running':
             self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
-
+        else:
+            # try to connect to mysql instance
+            time.sleep(20)
+            LOG.info("* Trying to connect to mysql DB after rebooting the instance: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
+            try:
+                conn = MySQLdb.connect(host = pub_ip,
+                    user = db_user,
+                    passwd = db_new_passwd,
+                    db= db_name)
+                LOG.info("* connection to mysql seems healthy")
+            except MySQLdb.Error as ex:
+                LOG.exception("* something is wrong with mysql connection after rebooting instance")
+                self.fail("failed to connect to mysql via pub_ip %s after rebooting the instance" % pub_ip)
+            conn.close()
 
         # Test deleting a db instance.
         # ----------------------------
