@@ -305,14 +305,10 @@ class DBFunctionalTests(unittest.TestCase):
 
             time.sleep(20)
             LOG.info("* Connecting to mysql on first boot: %s, %s, %s" %(username, password, pub_ip))
-            try:
-                conn = MySQLdb.connect(host = pub_ip,
-                    user = username,
-                    passwd = password,
-                    db = db_name)
-            except MySQLdb.Error as ex:
-                LOG.exception("* connecting to mysql on first boot failed:")
-                self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
+
+            conn = self.db_connect(username, password, pub_ip, db_name)
+            if conn is None:
+                self.fail("* maximum trials reached, db connection failed over %s: " % pub_ip)
 
             try:
                 db_name = 'food'
@@ -637,15 +633,9 @@ class DBFunctionalTests(unittest.TestCase):
         time.sleep(20)
         LOG.info("* connecting to mysql database %s: %s, %s, %s" %(db_name, username, password, pub_ip))
 
-        try:
-            conn = MySQLdb.connect(host = pub_ip,
-                user = username,
-                passwd = password,
-                db = db_name)
-            LOG.info("* connected to database %s" % db_name)
-        except MySQLdb.Error as ex:
-            LOG.exception("* connecting to mysql database %s failed:" % db_name)
-            self.fail("connecting to mysql failed using pub ip %s" % pub_ip)
+        conn = self.db_connect(username, password, pub_ip, db_name)
+        if conn is None:
+            self.fail("* maximum trials reached, db connection failed over %s: " % pub_ip)
 
         try:
             LOG.info("* searching for fruit in the database: ")
@@ -674,3 +664,29 @@ class DBFunctionalTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def db_connect(self, username, password, hostname, db_name):
+        trial_count = 1
+        MAX_TRIAL = 5
+        SLEEP_INTERVAL = 10
+
+        while True:
+            try:
+                LOG.info("* db connection trial # %d: %s, %s, %s, %s" % (trial_count,
+                                                                         username,
+                                                                         password,
+                                                                         hostname,
+                                                                         db_name))
+                connection = MySQLdb.connect(host = hostname,
+                    user = username,
+                    passwd = password,
+                    db = db_name)
+                LOG.info("* connection established, returning connection object")
+                return connection
+            except MySQLdb.Error as ex:
+                if trial_count < MAX_TRIAL:
+                    trial_count += 1
+                    LOG.info("* db seems not ready for socket connection, sleep for %d seconds" % SLEEP_INTERVAL)
+                    time.sleep(SLEEP_INTERVAL)
+                else:
+                    LOG.exception("* maximum %d trials reached, db connection failed: " % MAX_TRIAL)
+                    return None
