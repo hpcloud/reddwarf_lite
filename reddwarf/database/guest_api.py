@@ -151,9 +151,6 @@ class PhoneHomeMessageHandler():
         if state == 'running' or state == 'success':
             state = 'running'
         
-        LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
-        dbutils.update_guest_status(instance['id'], state)
-        
         credential_id = instance['credential']
         region = instance['availability_zone']
         remote_uuid = instance['remote_uuid']
@@ -173,6 +170,9 @@ class PhoneHomeMessageHandler():
             except exception.ReddwarfError:
                 LOG.exception("Error occurred updating instance with public ip")
 
+        LOG.debug("Updating mysql instance state for Instance %s", instance['id'])
+        dbutils.update_guest_status(instance['id'], state)
+        
     
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
