@@ -97,12 +97,12 @@ INSTANCE_NAME = 'dbapi_dist_health_' + utils.generate_uuid()
 class DistributedCreateTest(unittest.TestCase):
 
     def setUp(self):
-        options = { 'sql_connection' : 'mysql://vipul:tapasiya@15.185.163.25/reddwarf' }
+        options = { 'sql_connection' : SQL_CONNECTION }
         db_api.configure_db(options)
         
         config.Config.instance = { "rabbit_host" : RABBIT_HOST,
-                                   "rabbit_userid" : "guest",
-                                   "rabbit_password" : "guest",
+                                   "rabbit_userid" : RABBIT_USER,
+                                   "rabbit_password" : RABBIT_PASSWORD,
                                    "rabbit_virtual_host" : "/",
                                    "rabbit_port" : "5671",
                                    "rabbit_use_ssl" : "True" }
