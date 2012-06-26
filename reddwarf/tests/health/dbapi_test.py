@@ -303,7 +303,6 @@ class DBFunctionalTests(unittest.TestCase):
             password = credential['password']
             db_name = 'mysql'
 
-            time.sleep(20)
             LOG.info("* Connecting to mysql on first boot: %s, %s, %s" %(username, password, pub_ip))
 
             conn = self.db_connect(username, password, pub_ip, db_name)
@@ -630,7 +629,6 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.info("* now verifying the customized data is inside the DB")
         db_name = 'food'
 
-        time.sleep(20)
         LOG.info("* connecting to mysql database %s: %s, %s, %s" %(db_name, username, password, pub_ip))
 
         conn = self.db_connect(username, password, pub_ip, db_name)
