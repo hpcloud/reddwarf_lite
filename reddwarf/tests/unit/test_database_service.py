@@ -183,14 +183,14 @@ class TestInstanceController(ControllerTestBase):
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
 #        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
 
+        self.mock.StubOutWithMock(models.ServiceZone, 'find_by')
+        models.ServiceZone.find_by(service_name="database", tenant_id='123', deleted=False).AndReturn(self.ServiceZone)  
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
-        models.ServiceImage.find_by(service_name="database", tenant_id='123', deleted=False).AndReturn(self.ServiceImage)
+        models.ServiceImage.find_by(service_name="database", tenant_id='123', availability_zone=self.ServiceZone["availability_zone"], deleted=False).AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
         models.ServiceFlavor.find_by(service_name="database", deleted=False).AndReturn(self.ServiceFlavor)
         self.mock.StubOutWithMock(models.ServiceKeypair, 'find_by')
         models.ServiceKeypair.find_by(service_name="database", deleted=False).AndReturn(self.ServiceKeypair)  
-        self.mock.StubOutWithMock(models.ServiceZone, 'find_by')
-        models.ServiceZone.find_by(service_name="database", tenant_id='123', deleted=False).AndReturn(self.ServiceZone)  
         self.mock.StubOutWithMock(models.Credential, 'find_by')
         models.Credential.find_by(type="compute", deleted=False).AndReturn(self.Credential)                
         
