@@ -331,18 +331,18 @@ class DBFunctionalTests(unittest.TestCase):
                 """)
                 LOG.info("* switched to use database %s" % db_name)
                 LOG.info("* creating table")
-                cursor.execute ("DROP TABLE IF EXISTS product")
+                cursor.execute ("DROP TABLE IF EXISTS produce")
                 cursor.execute("""
-                CREATE TABLE product
+                CREATE TABLE produce
                 (
                   name    CHAR(40),
                   category CHAR(40)
                 )
                 """)
-                LOG.info("* table product created")
+                LOG.info("* table produce created")
                 LOG.info("* inserting data into table")
                 cursor.execute("""
-                INSERT INTO product (name, category)
+                INSERT INTO produce (name, category)
                 VALUES
                     ('apple', 'fruits'),
                     ('tomato', 'vegetables'),
@@ -350,9 +350,9 @@ class DBFunctionalTests(unittest.TestCase):
                 """)
                 LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
                 cursor.execute("""
-                    SELECT * FROM product
+                    SELECT * FROM produce
                 """)
-                LOG.info("* show table product: %r" % repr(cursor.fetchall()))
+                LOG.info("* show table produce: %r" % repr(cursor.fetchall()))
                 cursor.close()
             except MySQLdb.Error as ex:
                 LOG.exception("* creating table or inserting data failed:")
@@ -651,7 +651,7 @@ class DBFunctionalTests(unittest.TestCase):
             LOG.info("* searching for fruit in the database: ")
             cursor = conn.cursor(MySQLdb.cursors.DictCursor)
 
-            cursor.execute ("SELECT name, category FROM product")
+            cursor.execute ("SELECT name, category FROM produce")
 
             result_set = cursor.fetchall()
             for row in result_set:
