@@ -391,12 +391,20 @@ class InstanceController(BaseController):
                     raise e
 
     def _load_boot_params(self, tenant_id):
+        try:
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
+        except models.ModelNotFoundError, e:
+            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
+
+        region_az = service_zone['availability_zone']
+
         # Attempt to find Boot parameters for a specific tenant
         try:
-            service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, deleted=False)
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, availability_zone=region_az, deleted=False)
         except models.ModelNotFoundError, e:
             LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
-            service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant', deleted=False)
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant', availability_zone=region_az, deleted=False)
 
         image_id = service_image['image_id']
         
@@ -405,14 +413,6 @@ class InstanceController(BaseController):
 
         service_keypair = models.ServiceKeypair.find_by(service_name='database', deleted=False)
         keypair_name = service_keypair['key_name']
-        
-        try:
-            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
-        except models.ModelNotFoundError, e:
-            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
-            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
-
-        region_az = service_zone['availability_zone']
         
         # Get the credential to use for proxy compute resource
         credential = models.Credential.find_by(type='compute', deleted=False)
