@@ -44,7 +44,6 @@ import httplib2
 import telnetlib
 import os
 import time
-import re
 import MySQLdb
 from reddwarf.common import ssh
 from reddwarf.common import utils
@@ -154,7 +153,7 @@ class DBFunctionalTests(unittest.TestCase):
         # -----------------------------------------------------
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -241,7 +240,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -282,7 +281,7 @@ class DBFunctionalTests(unittest.TestCase):
         LOG.debug("Verifying that instance %s has been deleted" % self.instance_id)
         resp, content = self._execute_request(client, "instances", "GET", "")
         
-        if content == []:
+        if not content:
             pass
         else:
             content = json.loads(content)
@@ -318,8 +317,12 @@ class DBFunctionalTests(unittest.TestCase):
         content = self._load_json(content,'Create Instance for Snapshotting')
         self.assertTrue(content.has_key('instance'), "Response body of create instance does not contain 'instance' element")
 
+        credential = content['instance']['credential']
+
         self.instance_id = content['instance']['id']
         LOG.debug("Instance ID: %s" % self.instance_id)
+
+
 
         # Test creating a db snapshot immediately after creation.
         # -------------------------------------------------------
@@ -339,7 +342,7 @@ class DBFunctionalTests(unittest.TestCase):
         
         wait_so_far = 0
         status = content['instance']['status']
-        while (status != 'running'):
+        while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(10)
             wait_so_far += 10
@@ -352,7 +355,20 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
-            self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
+            LOG.info("* instance is still not up after 5 minutes")
+            self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
+        else :
+            # Add customized data to the database
+            LOG.info("* Creating customized DB and inserting data")
+            pub_ip = content['instance']['hostname']
+            username = credential['username']
+            password = credential['password']
+
+            self.populate_data(username, password, pub_ip)
+
+            #verify the data in the db before taking snapshots:
+            self.verify_data(username, password, pub_ip)
+
 
         # NOW... take a snapshot
         # ----------------------
@@ -414,7 +430,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         wait_so_far = 0
         status = content['snapshot']['status']
-        while (status != 'success'):
+        while status != 'success':
             # wait a max of max_wait for snapshot status to show success
             time.sleep(10)
             wait_so_far += 10
@@ -437,13 +453,50 @@ class DBFunctionalTests(unittest.TestCase):
 
         resp, content = self._execute_request(client, "instances", "POST", snap_body)
 
+
         # Assert 1) that the request was accepted
         self.assertEqual(201, resp.status, "Expected 201 status to request to create instance from a snapshot ")       
         content = self._load_json(content,'Create Instance from Snapshot')
 
-        # TODO (vipulsabhaya): Verify that some data exists in the new instance
-        # Probably have to spin until instance comes up before deleting the snapshot also
-                
+        credential = content['instance']['credential']
+
+        self.instance_id = content['instance']['id']
+        LOG.debug("create-from-snapshot Instance ID: %s" % self.instance_id)
+
+
+        # Ensure the instance is up
+        # -------------------------
+        LOG.info("* Getting instance from snapshot %s" % self.instance_id)
+        resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+        self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
+        content = self._load_json(content,'Get Single Instance')
+
+        wait_so_far = 0
+        status = content['instance']['status']
+        while status != 'running':
+            # wait a max of max_wait for instance status to show running
+            time.sleep(10)
+            wait_so_far += 10
+            if wait_so_far >= MAX_WAIT_RUNNING:
+                break
+
+            resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
+            self.assertEqual(200, resp.status, ("Expecting 200 response status to Instance Show but received %s" % resp.status))
+            content = self._load_json(content,'Get Single Instance')
+            status = content['instance']['status']
+
+        if status != 'running':
+            LOG.info("* instance is still not up after 5 minutes")
+            self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
+        else :
+            # verify customized data is inside the DB
+            #LOG.info("* now verifying the customized data is inside the DB")
+            pub_ip = content['instance']['hostname']
+            username = credential['username']
+            password = credential['password']
+       #     db_name = 'food'
+            self.verify_data(username, password, pub_ip)
+
         # Test deleting a db snapshot.
         LOG.info("* Deleting snapshot %s" % self.snapshot_id)
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "DELETE", "")
@@ -515,7 +568,7 @@ class DBFunctionalTests(unittest.TestCase):
         resp, content = client.request(API_URL + path, method, body, AUTH_HEADER)
         LOG.debug(resp)
         LOG.debug(content)
-        return (resp,content)
+        return resp,content
 
 
     def _attempt_telnet(self, instance_ip, telnet_port):
@@ -548,7 +601,7 @@ class DBFunctionalTests(unittest.TestCase):
             raise Exception("Telnet attempt to port 22 Failed.  The box is not be ssh-able.")
         
         try:
-            attempt = 0;
+            attempt = 0
             while attempt < 10:
                 try:
                     LOG.debug("- SSH connection attempt %i" % attempt)
@@ -562,8 +615,8 @@ class DBFunctionalTests(unittest.TestCase):
                 except Exception, e:
                     #print e
                     pass
-                
-                attempt = attempt + 1
+
+                attempt += 1
                 time.sleep(4)
         except Exception, e:
             LOG.exception("Error connecting to instance")
@@ -579,3 +632,126 @@ class DBFunctionalTests(unittest.TestCase):
             self.fail("Response to %s was not proper JSON: $s" % (operation,content))
 
         return content
+
+
+    def populate_data(self, username, password, pub_ip):
+        db_name = 'mysql'
+
+        LOG.info("* Connecting to mysql to add customized data: %s, %s, %s" %(username, password, pub_ip))
+
+        conn = self.db_connect(username, password, pub_ip, db_name)
+        if conn is None:
+            self.fail("* maximum trials reached, db connection failed over %s: " % pub_ip)
+
+        try:
+            db_name = 'food'
+            LOG.info("* Creating database %s" % db_name)
+            cursor = conn.cursor()
+            cursor.execute("CREATE DATABASE IF NOT EXISTS food")
+            LOG.info("* database %s created" % db_name)
+        except MySQLdb.Error as ex:
+            LOG.exception("* creating database %s failed" % db_name)
+            conn.close()
+            self.fail("creating database food encounters error")
+
+        try:
+            LOG.info("* switching to the new database")
+            cursor.execute("""
+                    use food
+                    """)
+            LOG.info("* switched to use database %s" % db_name)
+            LOG.info("* creating table")
+            cursor.execute ("DROP TABLE IF EXISTS produce")
+            cursor.execute("""
+                    CREATE TABLE produce
+                    (
+                      name    CHAR(40),
+                      category CHAR(40)
+                    )
+                    """)
+            LOG.info("* table produce created")
+            LOG.info("* inserting data into table")
+            cursor.execute("""
+                    INSERT INTO produce (name, category)
+                    VALUES
+                        ('apple', 'fruits'),
+                        ('tomato', 'vegetables'),
+                        ('broccoli', 'vegetables')
+                    """)
+            LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
+            cursor.execute("""
+                        SELECT * FROM produce
+                    """)
+            LOG.info("* show table produce: %r" % repr(cursor.fetchall()))
+            cursor.close()
+            conn.commit()
+        except MySQLdb.Error as ex:
+            LOG.exception("* creating table or inserting data failed:")
+            self.fail("error occurred during creating table and inserting data")
+        finally:
+            conn.close()
+
+    def verify_data(self, username, password, pub_ip):
+        # verify customized data is inside the DB
+        LOG.info("* now verifying the customized data is inside the DB")
+        db_name = 'food'
+
+        LOG.info("* connecting to mysql database %s: %s, %s, %s" %(db_name, username, password, pub_ip))
+
+        conn = self.db_connect(username, password, pub_ip, db_name)
+        if conn is None:
+            self.fail("* maximum trials reached, db connection failed over %s: " % pub_ip)
+
+        try:
+            LOG.info("* searching for fruit in the database: ")
+            cursor = conn.cursor(MySQLdb.cursors.DictCursor)
+
+            cursor.execute ("SELECT name, category FROM produce")
+
+            result_set = cursor.fetchall()
+            for row in result_set:
+                if row['category'] == 'fruits':
+                    if row['name'] != 'apple':
+                        self.fail("data inconsistency: %s" % row['name'])
+                    else:
+                        LOG.info("found fruit %s" % row['name'])
+                elif row['category'] == 'vegetables':
+                    if row['name'] != 'tomato' and row['name'] != 'broccoli':
+                        self.fail("data inconsistency: %s" % row['name'])
+                    else:
+                        LOG.info("found veggie: %s" % row['name'])
+                else:
+                    self.fail("data inconsistency: %s" % row['name'])
+            cursor.close()
+        except MySQLdb.Error as ex:
+            LOG.exception("something wrong during verifying data:")
+            self.fail("failed to verify data in DB, check log for details")
+        finally:
+            conn.close()
+
+    def db_connect(self, username, password, hostname, db_name):
+        trial_count = 1
+        MAX_TRIAL = 5
+        SLEEP_INTERVAL = 10
+
+        while True:
+            try:
+                LOG.info("* db connection trial # %d: %s, %s, %s, %s" % (trial_count,
+                                                                         username,
+                                                                         password,
+                                                                         hostname,
+                                                                         db_name))
+                connection = MySQLdb.connect(host = hostname,
+                    user = username,
+                    passwd = password,
+                    db = db_name)
+                LOG.info("* connection established, returning connection object")
+                return connection
+            except MySQLdb.Error as ex:
+                if trial_count < MAX_TRIAL:
+                    trial_count += 1
+                    LOG.info("* db seems not ready for socket connection, sleep for %d seconds" % SLEEP_INTERVAL)
+                    time.sleep(SLEEP_INTERVAL)
+                else:
+                    LOG.exception("* maximum %d trials reached, db connection failed: " % MAX_TRIAL)
+                    return None
