@@ -175,17 +175,10 @@ class DBFunctionalTests(unittest.TestCase):
             db_passwd = credential['password']
             db_name = 'mysql'
 
-            time.sleep(20)
             LOG.info("* Trying to connect to mysql DB on first boot: %s, %s, %s" %(db_user, db_passwd, pub_ip))
-            try:
-                conn = MySQLdb.connect(host = pub_ip,
-                    user = db_user,
-                    passwd = db_passwd,
-                    db= db_name)
-                LOG.info("* connection to mysql seems healthy")
-            except MySQLdb.Error as ex:
-                LOG.exception("* something is wrong with mysql connection on the first boot")
-                self.fail("failed to connect to mysql via pub_ip %s on the first boot" % pub_ip)
+            conn = self.db_connect(db_user, db_passwd, pub_ip, db_name)
+            if conn is None:
+                self.fail("* maximum trials reached, db connection failed on first boot over %s: " % pub_ip)
             conn.close()
 
 
@@ -199,28 +192,19 @@ class DBFunctionalTests(unittest.TestCase):
 
         if resp.status == 200 :
             db_new_passwd = content['password']
-            time.sleep(20)
             LOG.info("* Trying to connect to mysql DB after resetting password: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
-            try:
-                conn = MySQLdb.connect(host = pub_ip,
-                    user = db_user,
-                    passwd = db_new_passwd,
-                    db= db_name)
-                LOG.info("* connection to mysql seems healthy")
-            except MySQLdb.Error as ex:
+            conn = self.db_connect(db_user, db_new_passwd, pub_ip, db_name)
+            if conn is None:
                 LOG.exception("* something is wrong with mysql connection after resetting password")
-                LOG.info("* Maybe the old password still works ?")
-                try:
-                    conn = MySQLdb.connect(host = pub_ip,
-                        user = db_user,
-                        passwd = db_passwd,
-                        db= db_name)
-                    LOG.info("* yeah, old one still works, new password has not kicked in")
-                except MySQLdb.Error as ex:
-                    LOG.exception("* no, old password does not work anymore")
                 conn.close()
-                self.fail("failed to connect to mysql via pub_ip %s after resetting password" % pub_ip)
-            conn.close()
+                LOG.info("* Maybe the old password still works ?")
+                conn_2 = self.db_connect(db_user, db_passwd, pub_ip, db_name)
+                if conn_2 is None:
+                    LOG.exception("* no, old password does not work anymore")
+                else:
+                    LOG.info("* old password still works, new password has not kicked in")
+                conn_2.close()
+                self.fail("* maximum trials reached, db connection failed after resetting password over %s: " % pub_ip)
 
 
         # XXX: Suspect restarting too soon after a "reset password" command is putting the instance in a bad mood on restart
@@ -258,15 +242,10 @@ class DBFunctionalTests(unittest.TestCase):
             # try to connect to mysql instance
             time.sleep(20)
             LOG.info("* Trying to connect to mysql DB after rebooting the instance: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
-            try:
-                conn = MySQLdb.connect(host = pub_ip,
-                    user = db_user,
-                    passwd = db_new_passwd,
-                    db= db_name)
-                LOG.info("* connection to mysql seems healthy")
-            except MySQLdb.Error as ex:
-                LOG.exception("* something is wrong with mysql connection after rebooting instance")
-                self.fail("failed to connect to mysql via pub_ip %s after rebooting the instance" % pub_ip)
+
+            conn = self.db_connect(db_user, db_new_passwd, pub_ip, db_name)
+            if conn is None:
+                self.fail("* maximum trials reached, db connection failed after rebooting instance over %s: " % pub_ip)
             conn.close()
 
         # Test deleting a db instance.
