@@ -50,16 +50,15 @@ USERNAME = os.environ['DBAAS_USERNAME']
 PASSWORD = os.environ['DBAAS_PASSWORD']
 API_ENDPOINT = os.environ['DBAAS_ENDPOINT']
 
+
 # Try to authenticate with HP Cloud
 KEYSTONE_HEADER = {"Content-Type": "application/json",
                    "User-Agent": "python-novaclient"}
 
 KEYSTONE_BODY = r'''{"auth": {"tenantName": "%s", "passwordCredentials": {"username": "%s", "password": "%s"}}}''' % (TENANT_NAME, USERNAME, PASSWORD)
 
-print KEYSTONE_BODY
 req = httplib2.Http(".cache")
 resp, content = req.request(AUTH_URL, "POST", KEYSTONE_BODY, KEYSTONE_HEADER)
-print content
 content = json.loads(content)
 
 AUTH_TOKEN = content['access']['token']['id']
@@ -79,61 +78,95 @@ LOG.debug("Response from Keystone: %s" % content)
 LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
 LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
-class DBFunctionalTests(unittest.TestCase):
 
-    def test_instance_api(self):
+from reddwarf.db import db_api
+from reddwarf.common import config
+from reddwarf.common import utils
+from reddwarf.database import utils as rd_utils
+from reddwarf.database import models
+from reddwarf.database import worker_api
+
+SQL_CONNECTION = os.environ['SQL_CONNECTION']
+RABBIT_HOST = os.environ['RABBIT_HOST']
+RABBIT_USER = os.environ['RABBIT_USER']
+RABBIT_PASSWORD = os.environ['RABBIT_PASSWORD']
+
+INSTANCE_NAME = 'dbapi_dist_health_' + utils.generate_uuid()
+
+
+class DistributedCreateTest(unittest.TestCase):
+
+    def setUp(self):
+        options = { 'sql_connection' : SQL_CONNECTION }
+        db_api.configure_db(options)
         
-        """Comprehensive instance API test using an instance lifecycle."""
+        config.Config.instance = { "rabbit_host" : RABBIT_HOST,
+                                   "rabbit_userid" : RABBIT_USER,
+                                   "rabbit_password" : RABBIT_PASSWORD,
+                                   "rabbit_virtual_host" : "/",
+                                   "rabbit_port" : "5671",
+                                   "rabbit_use_ssl" : "True" }
+        
+        super(DistributedCreateTest, self).setUp()
 
-        # Test creating a db instance.
-        LOG.info("* Creating db instance")
-        body = r"""
-        {"instance": {
-            "name": "dbapi_distributed_test",
-            "flavorRef": "medium",
-            "port": "3306",
-            "dbtype": {
-                "name": "mysql",
-                "version": "5.5"
-                }
-            }
-        }"""
-
-        req = httplib2.Http(".cache")
-        resp, content = req.request(API_URL + "instances", "POST", body, AUTH_HEADER)
-        LOG.debug(content)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
-
-        self.instance_id = content['instance']['id']
-        LOG.debug("Instance ID: %s" % self.instance_id)
-
-        # Assert 1) that the request was accepted and 2) that the response
-        # is in the expected format.
-        self.assertEqual(201, resp.status, "Response status of create instance not 201")
-        self.assertTrue(content.has_key('instance'), "Response body of create instance does not have 'instance' field")
+    def test_create_instance(self):
+        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
+        
+        remote_hostname = utils.generate_uuid()
+        
+        try:
+            db_instance = models.DBInstance().create(name=INSTANCE_NAME,
+                                     status='building',
+                                     remote_hostname=remote_hostname,
+                                     tenant_id=TENANT_ID,
+                                     credential=credential['id'],
+                                     port='3306',
+                                     flavor=1,
+                                     availability_zone=region_az)
+            
+        except Exception, e:
+            LOG.exception("Error creating DB Instance record")
+            self.fail("Could not create a DB Instance record")
+            
+        LOG.debug("Wrote DB Instance: %s" % db_instance)
+        
+        instance_id = db_instance['id']
+        
+        # Add a GuestStatus record pointing to the new instance for Maxwell
+        try:
+            guest_status = models.GuestStatus().create(instance_id=db_instance['id'], state='building')
+        except Exception, e:
+            LOG.exception("Error creating GuestStatus instance %s" % db_instance.data()['id'])
+            self.fail("Unable to create GuestStatus entry")
+            
+        file_dict = { '/home/nova/agent.config': rd_utils.create_boot_config(config.Config, None, None, 'test') }
+        
+        instance = { 'id' : instance_id,
+                     'remote_uuid' : None,
+                     'remote_hostname' : remote_hostname,
+                     'tenant_id' : TENANT_ID
+                    }
+        
+        # Invoke worker to ensure instance gets created
+        worker_api.API().ensure_create_instance(None, instance, rd_utils.file_dict_as_userdata(file_dict))
+        
+        
 
         # Test getting a specific db instance.
-        LOG.info("* Getting instance %s" % self.instance_id)
-        resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
-        content = json.loads(content)
-        LOG.debug(resp)
-        LOG.debug(content)
+        # ------------------------------------
+        LOG.info("* Getting instance %s" % instance_id)
+        resp, content = req.request(API_URL + "instances/" + instance_id, "GET", "", AUTH_HEADER)
+        self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
 
-        # Assert 1) that the request was accepted and 2) that the returned
-        # instance is the same as the accepted instance.
-        self.assertEqual(200, resp.status, "Response status of show instance not 200")
-        self.assertEqual(self.instance_id, str(content['instance']['id']), "Instance ID not found in Show Instance response")
-
-
-        # Check to see if the instance we previously created is 
+        # Check to see if the instance created is 
         # in the 'running' state
                 
-        # wait a max of 5 minutes for instance to come up
+        # wait a max of 15 minutes for instance to come up
         max_wait_for_instance = 960 
 
         wait_so_far = 0
+        LOG.debug("Content: %s" % content)
+        content = json.loads(content)
         status = content['instance']['status']
         while (status != 'running'):
             # wait a max of max_wait for instance status to show running
@@ -142,12 +175,49 @@ class DBFunctionalTests(unittest.TestCase):
             if wait_so_far >= max_wait_for_instance:
                 break
             
-            resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
+            resp, content = req.request(API_URL + "instances/" + instance_id, "GET", "", AUTH_HEADER)
+            self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
+
             LOG.debug("Content: %s" % content)
             content = json.loads(content)
             status = content['instance']['status']
             
-        self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % self.instance_id))
+        self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % instance_id))
+
+    def _load_boot_params(self, tenant_id):
+        # Attempt to find Boot parameters for a specific tenant
+        try:
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, deleted=False)
+        except models.ModelNotFoundError, e:
+            LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
+            service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant', deleted=False)
+
+        image_id = service_image['image_id']
+        
+        flavor = models.ServiceFlavor.find_by(service_name="database", deleted=False)
+        flavor_id = flavor['flavor_id']
+
+        service_keypair = models.ServiceKeypair.find_by(service_name='database', deleted=False)
+        keypair_name = service_keypair['key_name']
+        
+        try:
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
+        except models.ModelNotFoundError, e:
+            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
+            service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
+
+        region_az = service_zone['availability_zone']
+        
+        # Get the credential to use for proxy compute resource
+        credential = models.Credential.find_by(type='compute', deleted=False)
+        
+        LOG.debug("Using ImageID %s" % image_id)
+        LOG.debug("Using FlavorID %s" % flavor_id)
+        LOG.debug("Using Keypair %s" % keypair_name)
+        LOG.debug("Using Region %s" % region_az)
+        
+        return (image_id, flavor_id, keypair_name, region_az, credential)
+            
 
     def tearDown(self):
         """Run a clean-up check to catch orphaned instances/snapshots due to
@@ -164,7 +234,7 @@ class DBFunctionalTests(unittest.TestCase):
 
         for each in content['instances']:
 #            LOG.debug("EACH: %s" % each)
-            if each['name'] == "dbapi_distributed_test":               
+            if each['name'] == INSTANCE_NAME:               
                 LOG.info("Deleting instance: %s" % each['id'])
                 resp, content = req.request(API_URL + "instances/" + each['id'], "DELETE", "", AUTH_HEADER)
                 LOG.debug(resp)
