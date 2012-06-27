@@ -20,3 +20,5 @@ cover
 .cache
 *.swp
 nosetests.xml
+ChangeLog
+requirements.txt

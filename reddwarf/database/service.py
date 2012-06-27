@@ -207,12 +207,12 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
 
         # Fetch all boot parameters from Database
-        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(tenant_id)
+        image_id, flavor, keypair_name, region_az, credential = self._load_boot_params(tenant_id)
 
         password = utils.generate_password()
         
         try:
-            server, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor_id, snapshot, password)
+            server, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor['flavor_id'], snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -232,7 +232,7 @@ class InstanceController(BaseController):
                                      tenant_id=context.tenant,
                                      credential=credential['id'],
                                      port='3306',
-                                     flavor=1,
+                                     flavor=flavor['id'],
                                      availability_zone=region_az)
             
         except exception.ReddwarfError, e:
@@ -409,8 +409,7 @@ class InstanceController(BaseController):
         image_id = service_image['image_id']
         
         flavor = models.ServiceFlavor.find_by(service_name="database", deleted=False)
-        flavor_id = flavor['flavor_id']
-
+        
         service_keypair = models.ServiceKeypair.find_by(service_name='database', deleted=False)
         keypair_name = service_keypair['key_name']
         
@@ -418,11 +417,11 @@ class InstanceController(BaseController):
         credential = models.Credential.find_by(type='compute', deleted=False)
         
         LOG.debug("Using ImageID %s" % image_id)
-        LOG.debug("Using FlavorID %s" % flavor_id)
+        LOG.debug("Using FlavorID %s" % flavor['flavor_id'])
         LOG.debug("Using Keypair %s" % keypair_name)
         LOG.debug("Using Region %s" % region_az)
         
-        return (image_id, flavor_id, keypair_name, region_az, credential)
+        return (image_id, flavor, keypair_name, region_az, credential)
         
     def _create_boot_config_file(self, snapshot, password):
         """Creates a config file that gets placed in the instance
