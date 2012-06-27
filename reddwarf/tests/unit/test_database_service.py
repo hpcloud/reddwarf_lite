@@ -164,7 +164,7 @@ class TestInstanceController(ControllerTestBase):
 
     def test_create(self):
         self.ServiceImage = {"image_id": "1240"}
-        self.ServiceFlavor = {"flavor_id": "100"}
+        self.ServiceFlavor = {"id": "1", "flavor_id": "100"}
         self.ServiceKeypair = {"key_name": "dbas-dev"}
         self.ServiceZone = {"availability_zone": "az2"}
         self.Credential = {'id': '1'}
