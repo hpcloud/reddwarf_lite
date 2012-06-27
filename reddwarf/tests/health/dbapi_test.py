@@ -301,60 +301,8 @@ class DBFunctionalTests(unittest.TestCase):
             pub_ip = content['instance']['hostname']
             username = credential['username']
             password = credential['password']
-            db_name = 'mysql'
 
-            LOG.info("* Connecting to mysql on first boot: %s, %s, %s" %(username, password, pub_ip))
-
-            conn = self.db_connect(username, password, pub_ip, db_name)
-            if conn is None:
-                self.fail("* maximum trials reached, db connection failed over %s: " % pub_ip)
-
-            try:
-                db_name = 'food'
-                LOG.info("* Creating database %s" % db_name)
-                cursor = conn.cursor()
-                cursor.execute("CREATE DATABASE IF NOT EXISTS food")
-                LOG.info("* database %s created" % db_name)
-            except MySQLdb.Error as ex:
-                LOG.exception("* creating database %s failed" % db_name)
-                self.fail("creating database food encounters error")
-
-            try:
-                LOG.info("* switching to the new database")
-                cursor.execute("""
-                use food
-                """)
-                LOG.info("* switched to use database %s" % db_name)
-                LOG.info("* creating table")
-                cursor.execute ("DROP TABLE IF EXISTS produce")
-                cursor.execute("""
-                CREATE TABLE produce
-                (
-                  name    CHAR(40),
-                  category CHAR(40)
-                )
-                """)
-                LOG.info("* table produce created")
-                LOG.info("* inserting data into table")
-                cursor.execute("""
-                INSERT INTO produce (name, category)
-                VALUES
-                    ('apple', 'fruits'),
-                    ('tomato', 'vegetables'),
-                    ('broccoli', 'vegetables')
-                """)
-                LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
-                cursor.execute("""
-                    SELECT * FROM produce
-                """)
-                LOG.info("* show table produce: %r" % repr(cursor.fetchall()))
-                cursor.close()
-            except MySQLdb.Error as ex:
-                LOG.exception("* creating table or inserting data failed:")
-                self.fail("error occurred during creating table and inserting data")
-            finally:
-                conn.commit()
-                conn.close()
+            self.populate_data(username, password, pub_ip)
 
             #verify the data in the db before taking snapshots:
             self.verify_data(username, password, pub_ip)
@@ -623,6 +571,63 @@ class DBFunctionalTests(unittest.TestCase):
 
         return content
 
+
+    def populate_data(self, username, password, pub_ip):
+        db_name = 'mysql'
+
+        LOG.info("* Connecting to mysql to add customized data: %s, %s, %s" %(username, password, pub_ip))
+
+        conn = self.db_connect(username, password, pub_ip, db_name)
+        if conn is None:
+            self.fail("* maximum trials reached, db connection failed over %s: " % pub_ip)
+
+        try:
+            db_name = 'food'
+            LOG.info("* Creating database %s" % db_name)
+            cursor = conn.cursor()
+            cursor.execute("CREATE DATABASE IF NOT EXISTS food")
+            LOG.info("* database %s created" % db_name)
+        except MySQLdb.Error as ex:
+            LOG.exception("* creating database %s failed" % db_name)
+            conn.close()
+            self.fail("creating database food encounters error")
+
+        try:
+            LOG.info("* switching to the new database")
+            cursor.execute("""
+                    use food
+                    """)
+            LOG.info("* switched to use database %s" % db_name)
+            LOG.info("* creating table")
+            cursor.execute ("DROP TABLE IF EXISTS produce")
+            cursor.execute("""
+                    CREATE TABLE produce
+                    (
+                      name    CHAR(40),
+                      category CHAR(40)
+                    )
+                    """)
+            LOG.info("* table produce created")
+            LOG.info("* inserting data into table")
+            cursor.execute("""
+                    INSERT INTO produce (name, category)
+                    VALUES
+                        ('apple', 'fruits'),
+                        ('tomato', 'vegetables'),
+                        ('broccoli', 'vegetables')
+                    """)
+            LOG.info("* Number of rows inserted: %d" %cursor.rowcount)
+            cursor.execute("""
+                        SELECT * FROM produce
+                    """)
+            LOG.info("* show table produce: %r" % repr(cursor.fetchall()))
+            cursor.close()
+            conn.commit()
+        except MySQLdb.Error as ex:
+            LOG.exception("* creating table or inserting data failed:")
+            self.fail("error occurred during creating table and inserting data")
+        finally:
+            conn.close()
 
     def verify_data(self, username, password, pub_ip):
         # verify customized data is inside the DB
