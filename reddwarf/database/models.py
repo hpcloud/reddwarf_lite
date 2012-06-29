@@ -232,6 +232,64 @@ class FloatingIP(RemoteModelBase):
             raise rd_exceptions.ReddwarfError(str(e))
 
 
+class Volume(RemoteModelBase):
+
+    _data_fields = ['id', 'attachments', 'size', 'status']
+    
+    def __init__(self, volume=None, credential=None, region=None, id=None):
+        if id is None and volume is None:
+            msg = "id is not defined"
+            raise InvalidModelError(msg)
+        elif volume is None:
+            try:
+                self._data_object = self.get_client(credential, region).volumes.get(id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(id=id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.ReddwarfError(str(e))
+        else:
+            self._data_object = volume
+
+    @classmethod
+    def create(cls, credential, region, size, display_name):
+        """Creates a new Volume"""
+        client = cls.get_client(credential, region)
+        
+        try:
+            volume = client.volumes.create(size=size, display_name=display_name)
+        except nova_exceptions.ClientException, e:
+            LOG.exception('Failed to create remote volume')
+            raise rd_exceptions.ReddwarfError(str(e))
+
+        return Volume(volume=volume)
+    
+    @classmethod
+    def attach(cls, credential, region, volume, server_id, device):
+        """Assigns a floating ip to a server"""
+        client = cls.get_client(credential, region)
+        try:
+            client.volumes.create_server_volume(server_id, volume['id'], device)
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError(str(e))
+        
+    @classmethod
+    def detach(cls, credential, region, server_id, volume_id):
+        try:
+            cls.get_client(credential, region).volumes.delete_server_volume(server_id, volume_id)
+        except nova_exceptions.NotFound, e:
+            raise rd_exceptions.NotFound(uuid=volume_id)
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError()
+
+    @classmethod
+    def delete(cls, credential, region, volume_id):
+        try:
+            cls.get_client(credential, region).volumes.delete(volume_id)
+        except nova_exceptions.NotFound, e:
+            raise rd_exceptions.NotFound(uuid=volume_id)
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError()
+        
 class Instances(Instance):
 
     def __init__(self, credential, region):
@@ -365,7 +423,10 @@ class Snapshot(DatabaseModelBase):
 class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']
     
-   
+class DBVolume(DatabaseModelBase):
+    _data_fields = ['volume_id', 'instance_id', 'size']
+    
+       
 def persisted_models():
     return {
         'instance': DBInstance,
@@ -378,8 +439,8 @@ def persisted_models():
         'quota': Quota,
         'service_secgroup': ServiceSecgroup,
         'service_keypair': ServiceKeypair,
-        'service_zone': ServiceZone
-
+        'service_zone': ServiceZone,
+        'volume' : DBVolume
         }
 
 
