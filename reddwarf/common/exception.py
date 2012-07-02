@@ -52,3 +52,96 @@ class NotFound(ReddwarfError):
 class QuotaError(ReddwarfError):
 
     message = _("Quota exceeded")
+
+class BadValue(ReddwarfError):
+
+    message = _("Value could not be converted: %(msg)s")
+    
+class FlavorNotFound(ReddwarfError):
+
+    message = _("Resource %(uuid)s cannot be found")
+
+
+class ComputeInstanceNotFound(NotFound):
+
+    internal_message = _("Cannot find compute instance %(server_id)s for "
+                         "instance %(instance_id)s.")
+
+    message = _("Resource %(instance_id)s can not be retrieved.")
+
+
+class DnsRecordNotFound(NotFound):
+
+    message = _("DnsRecord with name= %(name)s not found.")
+
+
+class OverLimit(ReddwarfError):
+
+    internal_message = _("The server rejected the request due to its size or "
+                         "rate.")
+
+
+class QuotaExceeded(ReddwarfError):
+
+    message = _("User instance quota exceeded.")
+
+
+class VolumeQuotaExceeded(QuotaExceeded):
+
+    message = _("Instance volume quota exceeded.")
+
+
+class GuestError(ReddwarfError):
+
+    message = _("An error occurred communicating with the guest: "
+                "%(original_message)s.")
+
+
+class GuestTimeout(ReddwarfError):
+
+    message = _("Timeout trying to connect to the Guest Agent.")
+
+
+class BadRequest(ReddwarfError):
+
+    message = _("The server could not comply with the request since it is "
+                "either malformed or otherwise incorrect.")
+
+
+class MissingKey(BadRequest):
+
+    message = _("Required element/key - %(key)s was not specified")
+
+
+class UnprocessableEntity(ReddwarfError):
+
+    message = _("Unable to process the contained request")
+
+
+class VolumeAttachmentsNotFound(NotFound):
+
+    message = _("Cannot find the volumes attached to compute "
+                "instance %(server_id)")
+
+
+class VolumeCreationFailure(ReddwarfError):
+
+    message = _("Failed to create a volume in Nova.")
+
+
+class PollTimeOut(ReddwarfError):
+    message = _("Polling request timed out.")
+
+
+class Forbidden(ReddwarfError):
+    message = _("User does not have admin privileges.")
+
+
+class InvalidModelError(ReddwarfError):
+
+    message = _("The following values are invalid: %(errors)s")
+
+
+class ModelNotFoundError(NotFound):
+
+    message = _("Not Found")

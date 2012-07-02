@@ -197,6 +197,7 @@ class InstanceController(BaseController):
             maximum_instances_allowed = quota.get_tenant_quotas(context, context.tenant)['instances']
             return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
+        # Extract any snapshot info from the request
         try:
             snapshot = self._extract_snapshot(body, tenant_id)
         except exception.ReddwarfError, e:
@@ -206,48 +207,45 @@ class InstanceController(BaseController):
             LOG.exception("Error creating new instance")
             return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
 
+        # Extract volume size info from the request and check Quota
+        try:
+            volume_size = self._extract_volume_size(body)
+            if volume_size is None:
+                volume_size = config.Config.get('default_volume_size', 10)
+            
+            self._check_volume_size_quota(context, volume_size)
+        except exception.BadValue, e:
+            LOG.exception("Bad value for volume size")
+            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 400)
+        except exception.QuotaError, e:
+            LOG.exception("Unable to allocate volume, Volume Size Quota has been exceeded")
+            maximum_snapshots_allowed = quota.get_tenant_quotas(context, context.tenant)['volume_space']
+            return wsgi.Result(errors.wrap(errors.Instance.VOLUME_QUOTA_EXCEEDED, "You are only allowed to allocate %s GBs of Volume Space for your account." % maximum_snapshots_allowed), 413)
+        except exception.ReddwarfError, e:
+            LOG.exception()
+            return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
+            
         # Fetch all boot parameters from Database
         image_id, flavor, keypair_name, region_az, credential = self._load_boot_params(tenant_id)
 
         password = utils.generate_password()
         
         try:
-            server, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor['flavor_id'], snapshot, password)
+            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor['flavor_id'], volume_size, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
-                LOG.exception("Error creating Remote Nova instance")
-                return wsgi.Result(errors.wrap(errors.Instance.NOVA_CREATE), 500)
+                LOG.exception("Error creating DBaaS instance")
+                return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
             
-        LOG.debug("Wrote remote server: %s" % server)
         try:
-            instance = models.DBInstance().create(name=body['instance']['name'],
-                                     status='building',
-                                     remote_id=server['id'],
-                                     remote_uuid=server['uuid'],
-                                     remote_hostname=server['name'],
-                                     user_id=context.user,
-                                     tenant_id=context.tenant,
-                                     credential=credential['id'],
-                                     port='3306',
-                                     flavor=flavor['id'],
-                                     availability_zone=region_az)
-            
+            self._try_attach_volume(context, body, credential, region_az, volume_size, instance)
         except exception.ReddwarfError, e:
-            LOG.exception("Error creating DB Instance record")
+            LOG.exception("Error creating DBaaS instance - volume attachment failed")
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
-            
-        LOG.debug("Wrote DB Instance: %s" % instance)
         
-        # Add a GuestStatus record pointing to the new instance for Maxwell
-        try:
-            guest_status = models.GuestStatus().create(instance_id=instance['id'], state='building')
-        except exception.ReddwarfError, e:
-            LOG.exception("Error deleting GuestStatus instance %s" % instance.data()['id'])
-            return wsgi.Result(errors.wrap(errors.Instance.GUEST_CREATE), 500)
-
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
@@ -367,12 +365,74 @@ class InstanceController(BaseController):
                                             userdata=userdata, files=None).data()
             
             if not server:
-                raise exception.ReddwarfError(errors.Instance.NOVA_CREATE)
+                raise exception.ReddwarfError(errors.Instance.REDDWARF_CREATE)
+
+            LOG.debug("Wrote remote server: %s" % server)
             
-            return (server, file_dict)
         except (Exception) as e:
             LOG.exception("Error attempting to create a remote Server")
             raise exception.ReddwarfError(e)
+
+        # TODO (vipulsabhaya) Need to create a record with 'scheduling' status
+
+        # Create DB Instance record
+        try:
+            instance = models.DBInstance().create(name=body['instance']['name'],
+                                     status='building',
+                                     remote_id=server['id'],
+                                     remote_uuid=server['uuid'],
+                                     remote_hostname=server['name'],
+                                     user_id=context.user,
+                                     tenant_id=context.tenant,
+                                     credential=credential['id'],
+                                     port='3306',
+                                     flavor=flavor_id,
+                                     availability_zone=region)
+
+            LOG.debug("Wrote DB Instance: %s" % instance)
+        except exception.ReddwarfError, e:
+            LOG.exception("Error creating DB Instance record")
+            raise e
+        
+        # Add a GuestStatus record pointing to the new instance for Maxwell
+        try:
+            guest_status = models.GuestStatus().create(instance_id=instance['id'], state='building')
+        except exception.ReddwarfError, e:
+            LOG.exception("Error creating GuestStatus instance %s" % instance.data()['id'])
+            raise e
+        
+        return instance, guest_status, file_dict
+
+
+    def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
+        # Create the remote volume
+        try:
+            volume = models.Volume.create(credential, region, volume_size, 'mysql-' + instance['remote_id'])
+        except Exception as e:
+            LOG.exception("Failed to create a remote volume of size %s" % volume_size)
+            raise exception.ReddwarfError(e)
+        
+        LOG.debug("Created remote volume %s of size %s" % (volume['id'], volume_size))
+        
+        try:
+            device_name = config.Config.get('volume_device_name', '/dev/vdc')
+            volume = models.Volume.attach(credential, region, volume, instance['remote_id'], device_name)
+        except Exception as e:
+            LOG.exception("Failed to attach volume %s with instance remote_id %s" % (volume['id'], instance['remote_id']))
+            raise exception.ReddwarfError(e)
+        
+        LOG.debug("Attached volume %s to instance %s" % (volume['id'], instance['remote_id']))
+        
+        try:
+            models.DBVolume().create(volume_id=volume['id'],
+                                     size=volume_size,
+                                     availability_zone=region,
+                                     instance_id=instance['id'])
+
+        except Exception as e:
+            LOG.exception("Failed to write DB Volume record for instance volume attachment")
+            raise exception.ReddwarfError(e)
+
 
     def _extract_snapshot(self, body, tenant_id):
 
@@ -390,6 +450,18 @@ class InstanceController(BaseController):
                     LOG.error("Error finding snapshot to create new instance with - Snapshot Record with id %s not found" % snapshot_id)
                     raise e
 
+    def _extract_volume_size(self, body):
+        if body['instance'].get('volume', None) is not None:
+            try:
+                volume_size = int(body['instance']['volume']['size'])
+            except ValueError as e:
+                raise exception.BadValue(msg=e)
+        else:
+            volume_size = None
+            
+        return volume_size
+        
+        
     def _load_boot_params(self, tenant_id):
         try:
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
@@ -454,6 +526,23 @@ class InstanceController(BaseController):
             raise exception.QuotaError("InstanceLimitExceeded")
 
         return num_instances
+    
+    def _check_volume_size_quota(self, context, requested_size=1):
+        allowed_volume_size = quota.allowed_volume_size(context, requested_size)
+        LOG.debug('size of volume allowed to create %s' % allowed_volume_size)
+        if allowed_volume_size < requested_size:
+            tid = context.tenant
+            if allowed_volume_size <= 0:
+                msg = _("Cannot allocated any more volume space.")
+            else:
+                msg = (_("Can only allocated %s more space for volumes.") %
+                       allowed_volume_size)
+            LOG.warn(_("Quota exceeded for %(tid)s,"
+                  " tried to allocate %(requested_size)s volume space. %(msg)s"), locals())
+            
+            raise exception.QuotaError("VolumeSizeLimitExceeded")
+
+        return allowed_volume_size
         
     def get_guest_state_mapping(self, id_list):
         """Returns a dictionary of guest statuses keyed by guest ids."""

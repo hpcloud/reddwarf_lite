@@ -424,7 +424,7 @@ class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']
     
 class DBVolume(DatabaseModelBase):
-    _data_fields = ['volume_id', 'instance_id', 'size']
+    _data_fields = ['volume_id', 'instance_id', 'size', 'availability_zone']
     
        
 def persisted_models():
