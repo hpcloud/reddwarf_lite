@@ -303,7 +303,8 @@ class Volume(RemoteModelBase):
         def volume_is_detached():
             try:
                 volume = client.volumes.get(volume_id)
-                if volume.status is not 'in-use':
+                LOG.info("volume status %s" % volume.status)
+                if volume.status != 'in-use':
                     return True
                 else:
                     return False
