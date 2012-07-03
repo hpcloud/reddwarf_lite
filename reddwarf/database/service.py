@@ -452,7 +452,7 @@ class InstanceController(BaseController):
         if remote_server_deleted:
             # Attempt to delete the volume
             try:
-                models.Volume().delete(credential, region_az, db_volume['volume_id'])
+                models.Volume.delete(credential, region_az, db_volume['volume_id'])
             except exception.NotFound as e:
                 LOG.debug("Could not delete remote volume with id %s, may already be deleted" % db_volume['volume_id'])
                 pass
