@@ -407,7 +407,7 @@ class InstanceController(BaseController):
     def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
         # Create the remote volume
         try:
-            volume = models.Volume.create(credential, region, volume_size, 'mysql-' + instance['remote_id']).data()
+            volume = models.Volume.create(credential, region, volume_size, 'mysql-%s' % instance['remote_id']).data()
         except Exception as e:
             LOG.exception("Failed to create a remote volume of size %s" % volume_size)
             raise exception.ReddwarfError(e)

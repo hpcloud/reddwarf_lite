@@ -31,7 +31,6 @@ from eventlet import semaphore
 from eventlet.green import subprocess
 
 from reddwarf.openstack.common import utils as openstack_utils
-from reddwarf.common import exception
 
 LOG = logging.getLogger(__name__)
 
@@ -217,6 +216,8 @@ def poll_until(retriever, condition=lambda value: value,
     amount of time is eclipsed.
 
     """
+    from reddwarf.common import exception
+
     start_time = time.time()
 
     def poll_and_check():
