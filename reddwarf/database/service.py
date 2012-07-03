@@ -459,7 +459,14 @@ class InstanceController(BaseController):
             except exception.VolumeDeletionFailure as e:
                 LOG.error("Failed to delete remote volume with id %s" % db_volume['volume_id'])
                 raise e
-                
+            
+            # Delete the DB Volume Record
+            try:
+                db_volume = db_volume.delete()
+            except exception.ReddwarfError, e:
+                LOG.exception("Failed to Delete DB Volume record")
+                raise e
+            
             # Try to delete the Reddwarf lite instance
             try:
                 server = server.delete()
