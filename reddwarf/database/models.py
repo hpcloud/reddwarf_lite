@@ -297,12 +297,34 @@ class Volume(RemoteModelBase):
 
     @classmethod
     def delete(cls, credential, region, volume_id):
+        client = cls.get_client(credential, region)
+
+        # Poll until the volume is attached.
+        def volume_is_detached():
+            try:
+                volume = client.volumes.get(volume_id)
+                if volume.status is not 'in-use':
+                    return True
+                else:
+                    return False
+            except nova_exceptions.ClientException as e:
+                LOG.debug(e)
+                return False
         try:
-            cls.get_client(credential, region).volumes.delete(volume_id)
-        except nova_exceptions.NotFound, e:
-            raise rd_exceptions.NotFound(uuid=volume_id)
-        except nova_exceptions.ClientException, e:
-            raise rd_exceptions.ReddwarfError()
+            # Wait until volume is detached, before issuing delete
+            utils.poll_until(volume_is_detached, sleep_time=2,
+                             time_out=int(config.Config.get('volume_detach_time_out', 30))) 
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout waiting for volume to detach: %s" % volume_id)
+            raise rd_exceptions.VolumeDeletionFailure(str(pto))
+        else:
+            # No exception, attempt to delete
+            try:
+                client.volumes.delete(volume_id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(uuid=volume_id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.VolumeDeletionFailure(str(e))
         
 class Instances(Instance):
 

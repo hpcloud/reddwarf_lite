@@ -131,42 +131,18 @@ class InstanceController(BaseController):
             LOG.exception("Attempting to Delete Instance - Exception occurred finding instance by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
         
-        remote_uuid = server["remote_uuid"]
-        region_az = server['availability_zone']
-        if region_az is None:
-            region_az = CONFIG.get('reddwarf_proxy_default_region', 'az-2.region-a.geo-1')
-            
         credential = models.Credential().find_by(id=server['credential'])
-        
-        # Try to delete the Nova instance
         try:
-            LOG.debug("Deleting remote instance with id %s" % remote_uuid)
-            # request Nova to delete the instance
-            models.Instance.delete(credential, region_az, remote_uuid)
-        except exception.NotFound:
-            LOG.warn("Deleting Non-Existant Remote instance")
-        except exception.ReddwarfError:
-            LOG.exception("Failed Deleting Remote instance")
-            return wsgi.Result(errors.wrap(errors.Instance.NOVA_DELETE), 500)
+            volume = models.DBVolume().find_by(instance_id=id)
+        except exception.ReddwarfError, e:
+            LOG.exception("Attempting to Delete Instance - Exception occurred finding volume by instance_id %s, ignore?" % id)
 
-        # Try to delete the Reddwarf lite instance
         try:
-            server = server.delete()
-        except exception.ReddwarfError, e:
-            LOG.exception("Failed to Delete DB Instance record")
+            self._try_delete_instance(credential, server, volume)
+        except exception.ReddwarfError as e:
+            LOG.exception("Failed to delete instance")
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_DELETE), 500)
-        
-        # Finally, try to delete the associated GuestStatus record
-        try:
-            guest_status = models.GuestStatus().find_by(instance_id=server['id'])
-            guest_status.delete()
-        except exception.ReddwarfError, e:
-            LOG.exception("Failed to Delete GuestStatus record")
-            return wsgi.Result(errors.wrap(errors.Instance.GUEST_DELETE), 500)
-        
-        
-        # TODO(cp16net): need to set the return code correctly
-        LOG.debug("Returning value")
+
         return wsgi.Result(None, 204)
 
     def create(self, req, body, tenant_id):
@@ -452,6 +428,55 @@ class InstanceController(BaseController):
                 LOG.exception("Failed to update DB Volume with instance id")
                 raise exception.ReddwarfError(e)
 
+    def _try_delete_instance(self, credential, region, server, db_volume):
+        
+        remote_uuid = server["remote_uuid"]
+        region_az = server['availability_zone']
+        if region_az is None:
+            region_az = CONFIG.get('reddwarf_proxy_default_region', 'az-2.region-a.geo-1')
+            
+        # Try to delete the Nova instance
+        remote_server_deleted = False
+        try:
+            LOG.debug("Deleting remote instance with id %s" % remote_uuid)
+            # request Nova to delete the instance
+            models.Instance.delete(credential, region_az, remote_uuid)
+            remote_server_deleted = True
+        except exception.NotFound:
+            LOG.warn("Deleting Non-Existant Remote instance")
+            remote_server_deleted = True
+        except exception.ReddwarfError as e:
+            LOG.exception("Failed Deleting Remote instance")
+            raise e
+
+        if remote_server_deleted:
+            # Attempt to delete the volume
+            try:
+                models.Volume().delete(credential, region, db_volume['volume_id'])
+            except exception.NotFound as e:
+                LOG.debug("Could not delete remote volume with id %s, may already be deleted" % db_volume['volume_id'])
+                pass
+            except exception.VolumeDeletionFailure as e:
+                LOG.error("Failed to delete remote volume with id %s" % db_volume['volume_id'])
+                raise e
+                
+            # Try to delete the Reddwarf lite instance
+            try:
+                server = server.delete()
+            except exception.ReddwarfError, e:
+                LOG.exception("Failed to Delete DB Instance record")
+                raise e
+            
+            # Finally, try to delete the associated GuestStatus record
+            try:
+                guest_status = models.GuestStatus().find_by(instance_id=server['id'])
+                guest_status.delete()
+            except exception.ReddwarfError, e:
+                LOG.exception("Failed to Delete GuestStatus record")
+                raise e
+        else:
+            raise exception.ReddwarfError("Failed to delete instance")
+        
     def _extract_snapshot(self, body, tenant_id):
 
         if 'instance' not in body:
