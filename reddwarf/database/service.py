@@ -428,7 +428,7 @@ class InstanceController(BaseController):
                                      size=volume_size,
                                      availability_zone=region,
                                      instance_id=instance['id'],
-                                     tenant_id=context['tenant'])
+                                     tenant_id=context.tenant)
 
         except Exception as e:
             LOG.exception("Failed to write DB Volume record for instance volume attachment")

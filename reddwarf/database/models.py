@@ -259,7 +259,7 @@ class Volume(RemoteModelBase):
             volume = client.volumes.create(size=size, display_name=display_name)
         except nova_exceptions.ClientException, e:
             LOG.exception('Failed to create remote volume')
-            raise rd_exceptions.ReddwarfError(str(e))
+            raise rd_exceptions.VolumeCreationFailure(str(e))
 
         return Volume(volume=volume)
     
@@ -278,15 +278,18 @@ class Volume(RemoteModelBase):
                     LOG.info(" ----- " + str(name) + " : " + str(thing) )
 
                 return True
-            except nova_exceptions.ClientException:
-                LOG.exception()
+            except nova_exceptions.ClientException as e:
+                LOG.debug(e)
                 return False
 
         try:
+            # Attempt to attach volume
             utils.poll_until(volume_is_attached, sleep_time=5,
-                             time_out=int(config.Config.get('volume_attach_time_out', 10)))
+                             time_out=int(config.Config.get('volume_attach_time_out', 60)))
+            
         except rd_exceptions.PollTimeOut as pto:
             LOG.error("Timeout trying to attach volume: %s" % volume['id'])
+            raise rd_exceptions.VolumeAttachmentFailure(str(pto))
         
     @classmethod
     def detach(cls, credential, region, server_id, volume_id):

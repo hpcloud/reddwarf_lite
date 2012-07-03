@@ -128,6 +128,9 @@ class VolumeCreationFailure(ReddwarfError):
 
     message = _("Failed to create a volume in Nova.")
 
+class VolumeAttachmentFailure(ReddwarfError):
+
+    message = _("Failed to attach a volume in Nova.")
 
 class PollTimeOut(ReddwarfError):
     message = _("Polling request timed out.")
