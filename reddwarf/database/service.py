@@ -231,7 +231,7 @@ class InstanceController(BaseController):
         password = utils.generate_password()
         
         try:
-            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor['flavor_id'], volume_size, snapshot, password)
+            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor['flavor_id'], snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -407,7 +407,7 @@ class InstanceController(BaseController):
     def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
         # Create the remote volume
         try:
-            volume = models.Volume.create(credential, region, volume_size, 'mysql-' + instance['remote_id'])
+            volume = models.Volume.create(credential, region, volume_size, 'mysql-' + instance['remote_id']).data()
         except Exception as e:
             LOG.exception("Failed to create a remote volume of size %s" % volume_size)
             raise exception.ReddwarfError(e)
@@ -416,7 +416,7 @@ class InstanceController(BaseController):
         
         try:
             device_name = config.Config.get('volume_device_name', '/dev/vdc')
-            volume = models.Volume.attach(credential, region, volume, instance['remote_id'], device_name)
+            models.Volume.attach(credential, region, volume, instance['remote_id'], device_name)
         except Exception as e:
             LOG.exception("Failed to attach volume %s with instance remote_id %s" % (volume['id'], instance['remote_id']))
             raise exception.ReddwarfError(e)
@@ -433,7 +433,6 @@ class InstanceController(BaseController):
         except Exception as e:
             LOG.exception("Failed to write DB Volume record for instance volume attachment")
             raise exception.ReddwarfError(e)
-
 
     def _extract_snapshot(self, body, tenant_id):
 

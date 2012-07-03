@@ -267,10 +267,26 @@ class Volume(RemoteModelBase):
     def attach(cls, credential, region, volume, server_id, device):
         """Assigns a floating ip to a server"""
         client = cls.get_client(credential, region)
+        
+        # Poll until the volume is attached.
+        def volume_is_attached():
+            try:
+                volume_attachment = client.volumes.create_server_volume(server_id, volume['id'], device)
+
+                from inspect import getmembers
+                for name,thing in getmembers(volume):
+                    LOG.info(" ----- " + str(name) + " : " + str(thing) )
+
+                return True
+            except nova_exceptions.ClientException:
+                LOG.exception()
+                return False
+
         try:
-            client.volumes.create_server_volume(server_id, volume['id'], device)
-        except nova_exceptions.ClientException, e:
-            raise rd_exceptions.ReddwarfError(str(e))
+            utils.poll_until(volume_is_attached, sleep_time=5,
+                             time_out=int(config.Config.get('volume_attach_time_out', 10)))
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout trying to attach volume: %s" % volume['id'])
         
     @classmethod
     def detach(cls, credential, region, server_id, volume_id):
