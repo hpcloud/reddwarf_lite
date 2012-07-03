@@ -271,12 +271,7 @@ class Volume(RemoteModelBase):
         # Poll until the volume is attached.
         def volume_is_attached():
             try:
-                volume_attachment = client.volumes.create_server_volume(server_id, volume['id'], device)
-
-                from inspect import getmembers
-                for name,thing in getmembers(volume):
-                    LOG.info(" ----- " + str(name) + " : " + str(thing) )
-
+                client.volumes.create_server_volume(server_id, volume['id'], device)
                 return True
             except nova_exceptions.ClientException as e:
                 LOG.debug(e)

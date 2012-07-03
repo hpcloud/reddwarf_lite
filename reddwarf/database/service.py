@@ -405,34 +405,52 @@ class InstanceController(BaseController):
 
 
     def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
-        # Create the remote volume
+        # Create the remote volume and a DB Volume record
         try:
             volume = models.Volume.create(credential, region, volume_size, 'mysql-%s' % instance['remote_id']).data()
         except Exception as e:
             LOG.exception("Failed to create a remote volume of size %s" % volume_size)
-            raise exception.ReddwarfError(e)
-        
-        LOG.debug("Created remote volume %s of size %s" % (volume['id'], volume_size))
-        
+            raise exception.VolumeCreationFailure(e)
+        else:
+            LOG.debug("Created remote volume %s of size %s" % (volume['id'], volume_size))
+            try:
+                db_volume = models.DBVolume().create(volume_id=volume['id'],
+                                                     size=volume_size,
+                                                     availability_zone=region,
+                                                     instance_id="TBD",
+                                                     tenant_id=context.tenant)
+                
+            except Exception as e:
+                LOG.exception("Failed to write DB Volume record for instance volume")
+                raise exception.ReddwarfError(e)
+
+        # Attempt to attach the volume to an instance        
         try:
             device_name = config.Config.get('volume_device_name', '/dev/vdc')
             models.Volume.attach(credential, region, volume, instance['remote_id'], device_name)
         except Exception as e:
             LOG.exception("Failed to attach volume %s with instance remote_id %s" % (volume['id'], instance['remote_id']))
-            raise exception.ReddwarfError(e)
-        
-        LOG.debug("Attached volume %s to instance %s" % (volume['id'], instance['remote_id']))
-        
-        try:
-            models.DBVolume().create(volume_id=volume['id'],
-                                     size=volume_size,
-                                     availability_zone=region,
-                                     instance_id=instance['id'],
-                                     tenant_id=context.tenant)
-
-        except Exception as e:
-            LOG.exception("Failed to write DB Volume record for instance volume attachment")
-            raise exception.ReddwarfError(e)
+            
+            # Failed to attach the volume delete the volume
+            try:
+                models.Volume.delete(credential, region, volume['id'])
+            except exception.NotFound as e:
+                # volume not found, ok
+                pass
+            except exception.ReddwarfError as e:
+                LOG.exception("Failed to delete volume after attachment failure")
+            else:
+                # Delete the DB volume record as well
+                db_volume.delete()
+            
+            raise exception.VolumeAttachmentFailure(e)
+        else:
+            LOG.debug("Attached volume %s to instance %s" % (volume['id'], instance['remote_id']))        
+            try:
+                db_volume.update(instance_id=instance['id'])
+            except Exception as e:
+                LOG.exception("Failed to update DB Volume with instance id")
+                raise exception.ReddwarfError(e)
 
     def _extract_snapshot(self, body, tenant_id):
 
