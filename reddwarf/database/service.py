@@ -450,22 +450,23 @@ class InstanceController(BaseController):
             raise e
 
         if remote_server_deleted:
-            # Attempt to delete the volume
-            try:
-                models.Volume.delete(credential, region_az, db_volume['volume_id'])
-            except exception.NotFound as e:
-                LOG.debug("Could not delete remote volume with id %s, may already be deleted" % db_volume['volume_id'])
-                pass
-            except exception.VolumeDeletionFailure as e:
-                LOG.error("Failed to delete remote volume with id %s" % db_volume['volume_id'])
-                raise e
-            
-            # Delete the DB Volume Record
-            try:
-                db_volume = db_volume.delete()
-            except exception.ReddwarfError, e:
-                LOG.exception("Failed to Delete DB Volume record")
-                raise e
+            if db_volume is not None:
+                # Attempt to delete the volume
+                try:
+                    models.Volume.delete(credential, region_az, db_volume['volume_id'])
+                except exception.NotFound as e:
+                    LOG.debug("Could not delete remote volume with id %s, may already be deleted" % db_volume['volume_id'])
+                    pass
+                except exception.VolumeDeletionFailure as e:
+                    LOG.error("Failed to delete remote volume with id %s" % db_volume['volume_id'])
+                    raise e
+                
+                # Delete the DB Volume Record
+                try:
+                    db_volume = db_volume.delete()
+                except exception.ReddwarfError, e:
+                    LOG.exception("Failed to Delete DB Volume record")
+                    raise e
             
             # Try to delete the Reddwarf lite instance
             try:
