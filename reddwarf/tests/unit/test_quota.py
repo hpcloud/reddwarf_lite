@@ -138,7 +138,7 @@ class QuotaTest(tests.BaseTest):
         
         
 
-    def test_allowed_snapshotss(self):
+    def test_allowed_snapshots(self):
         """Tests that given a quota on snapshots, the number of 
         snapshots allowed to be created is calculated appropriately"""
 
@@ -207,3 +207,69 @@ class QuotaTest(tests.BaseTest):
         # Check if we are allowed to create 1 snapshot
         allowed = quota.allowed_snapshots(self.DUMMY_CONTEXT, 1)
         self.assertTrue(allowed == 0, 'Expected 0 allowed snapshot, instead got %s' % allowed)
+        
+        
+    
+    def test_allowed_volume_size(self):
+        """Tests that given a quota on volume_space, the size of 
+        volume allowed to be created is calculated appropriately"""
+
+        DUMMY_DBVOLUME_LIST = [ { 'size': 4 },
+                                { 'size': 2 } ]
+        
+        # Pretend that 2 volume exists for this tenant
+        self.mock.StubOutWithMock(models.DBVolume, 'find_all')
+        models.DBVolume.find_all(tenant_id='12345', deleted=False).AndReturn(DUMMY_DBVOLUME_LIST)
+
+        # Allow up to 20 GBs of volume space
+        default_quotas = [{ "tenant_id": "12345", "hard_limit": 20, "resource":"volume_space"}]        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id='12345', deleted=False).AndReturn(default_quotas)
+        
+        self.mock.ReplayAll()
+        
+        # Check if we are allowed to create volume of 5 GBs
+        allowed = quota.allowed_volume_size(self.DUMMY_CONTEXT, 5)
+        self.assertTrue(allowed == 5, 'Expected size of 5 allowed for volumes size, instead got %s' % allowed)
+
+        
+    def test_allowed_volume_size_truncated(self):
+        """ Ensure that the request for a volume size that exceeds quota
+        gets truncated to the maximum allowed """
+        DUMMY_DBVOLUME_LIST = [ { 'size': 4 },
+                                { 'size': 2 } ]
+        
+        # Pretend that 2 volumes exists for this tenant
+        self.mock.StubOutWithMock(models.DBVolume, 'find_all')
+        models.DBVolume.find_all(tenant_id='12345', deleted=False).AndReturn(DUMMY_DBVOLUME_LIST)
+
+        # Allow up to 5 snapshots to be created
+        default_quotas = [{ "tenant_id": "12345", "hard_limit": 10, "resource":"volume_space"}]        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id='12345', deleted=False).AndReturn(default_quotas)
+        
+        self.mock.ReplayAll()
+        
+        # Check if we are allowed to create 1 snapshot
+        allowed = quota.allowed_volume_size(self.DUMMY_CONTEXT, 5)
+        self.assertTrue(allowed == 4, 'Expected 4 GB allowed volume space, instead got %s' % allowed)
+
+    def test_allowed_volume_size_exceeds_quota(self):
+        """ Ensure that a 0 is returned when used volume size == quota limit """
+        DUMMY_DBVOLUME_LIST = [ { 'size': 4 },
+                                { 'size': 6 } ]
+        
+        # Pretend that 2 volume exists for this tenant
+        self.mock.StubOutWithMock(models.DBVolume, 'find_all')
+        models.DBVolume.find_all(tenant_id='12345', deleted=False).AndReturn(DUMMY_DBVOLUME_LIST)
+
+        # Allow up to 20 GBs of volume space
+        default_quotas = [{ "tenant_id": "12345", "hard_limit": 10, "resource":"volume_space"}]        
+        self.mock.StubOutWithMock(models.Quota, 'find_all')
+        models.Quota.find_all(tenant_id='12345', deleted=False).AndReturn(default_quotas)
+        
+        self.mock.ReplayAll()
+
+        # Check if we are allowed to create 1 snapshot
+        allowed = quota.allowed_volume_size(self.DUMMY_CONTEXT, 1)
+        self.assertTrue(allowed == 0, 'Expected 0 allowed volume space, instead got %s' % allowed)

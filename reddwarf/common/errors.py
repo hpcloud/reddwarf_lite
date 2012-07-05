@@ -29,9 +29,7 @@ class Instance():
     REDDWARF_DELETE = "There was a problem deleting the specified DBaaS instance."
     GUEST_DELETE = "There was a problem deleting the guest record associated with this instance."
     RESET_PASSWORD = "There was a problem resetting the password on the specified instance."
-    NOVA_CREATE = "There was a problem creating the requested Nova instance."
     REDDWARF_CREATE = "There was a problem creating the requested DBaaS instance."
-    GUEST_CREATE = "There was a problem creating the guest record associated with this instance."
     IP_ASSIGN = "There was a problem assigning an IP address to the requested instance."
     RESTART = "There was a problem restarting the specified instance."
     INSTANCE_NOT_RUNNING = "The requested instance is not in running state."
@@ -40,7 +38,8 @@ class Instance():
     #QUOTA_EXCEEDED = "Creation of this instance would exceed the available resources of this account."
     QUOTA_EXCEEDED = "Quota has been reached for instance creation on this account."
     RAM_QUOTA_EXCEEDED = "Compute RAM Quota has been reached for this account."
-
+    VOLUME_QUOTA_EXCEEDED = "Volume Space Quota has been reached for this account."
+    
 class Snapshot():
     NOT_FOUND = "The requested snapshot does not exist."
     DELETE = "There was a problem deleting the specified snapshot."
