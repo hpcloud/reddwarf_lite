@@ -76,7 +76,12 @@ class TestInstanceController(ControllerTestBase):
     DUMMY_SERVER = {
         "uuid": utils.generate_uuid(), 
         "id": "76543",
-        "name": "test_server"
+        "name": "test_server",
+        "remote_id": 22222,
+        "credential": "credential",
+        "address" : "ipaddress" ,
+        "created_at": "createtime",
+        "updated_at": "updatedtime"
     }
 
     def setUp(self):
@@ -177,11 +182,12 @@ class TestInstanceController(ControllerTestBase):
         mock_flip_data = {"ip": "blah"}
         
         default_quotas = [{ "tenant_id": self.tenant, "hard_limit": 3, "resource":"instances"},
-                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"}]
+                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"},
+                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"volume_space"}]
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
-#        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
 
         self.mock.StubOutWithMock(models.ServiceZone, 'find_by')
         models.ServiceZone.find_by(service_name="database", tenant_id='123', deleted=False).AndReturn(self.ServiceZone)  
@@ -203,7 +209,14 @@ class TestInstanceController(ControllerTestBase):
         
         service.InstanceController._try_create_server(mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
-                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, {'/home/nova/agent.config':'blah'}))
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, self.DUMMY_GUEST_STATUS, {'/home/nova/agent.config':'blah'}))
+        
+        self.mock.StubOutWithMock(service.InstanceController, '_try_attach_volume')
+        
+        service.InstanceController._try_attach_volume(mox.IgnoreArg(),
+                            mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
+        
+        #volume = models.Volume.create(credential, region, volume_size, 'mysql-%s' % instance['remote_id']).data()
         
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
         worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
