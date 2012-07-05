@@ -135,6 +135,7 @@ class InstanceController(BaseController):
         try:
             volume = models.DBVolume().find_by(instance_id=id)
         except exception.ReddwarfError, e:
+            volume = None
             LOG.exception("Attempting to Delete Instance - Exception occurred finding volume by instance_id %s, ignore?" % id)
 
         try:
