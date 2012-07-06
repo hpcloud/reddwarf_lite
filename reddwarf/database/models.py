@@ -316,7 +316,14 @@ class Volume(RemoteModelBase):
                              time_out=int(config.Config.get('volume_detach_time_out', 30))) 
         except rd_exceptions.PollTimeOut as pto:
             LOG.error("Timeout waiting for volume to detach: %s" % volume_id)
-            raise rd_exceptions.VolumeDeletionFailure(str(pto))
+            
+            # Failed waiting for volume to detach, attempt to delete anyway
+            try:
+                client.volumes.delete(volume_id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(uuid=volume_id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.VolumeDeletionFailure(str(pto))
         else:
             # No exception, attempt to delete
             try:
