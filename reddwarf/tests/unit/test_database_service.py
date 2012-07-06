@@ -183,7 +183,7 @@ class TestInstanceController(ControllerTestBase):
         
         default_quotas = [{ "tenant_id": self.tenant, "hard_limit": 3, "resource":"instances"},
                           { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"},
-                          { "tenant_id": self.tenant, "hard_limit": 10, "resource":"volume_space"}]
+                          { "tenant_id": self.tenant, "hard_limit": 20, "resource":"volume_space"}]
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)

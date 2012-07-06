@@ -188,7 +188,7 @@ class InstanceController(BaseController):
         try:
             volume_size = self._extract_volume_size(body)
             if volume_size is None:
-                volume_size = config.Config.get('default_volume_size', 10)
+                volume_size = config.Config.get('default_volume_size', 20)
             
             self._check_volume_size_quota(context, volume_size)
         except exception.BadValue, e:
