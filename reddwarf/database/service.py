@@ -193,7 +193,7 @@ class InstanceController(BaseController):
             self._check_volume_size_quota(context, volume_size)
         except exception.BadValue, e:
             LOG.exception("Bad value for volume size")
-            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 400)
+            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY, 'Invalid volume size'), 400)
         except exception.QuotaError, e:
             LOG.exception("Unable to allocate volume, Volume Size Quota has been exceeded")
             maximum_snapshots_allowed = quota.get_tenant_quotas(context, context.tenant)['volume_space']
@@ -215,13 +215,13 @@ class InstanceController(BaseController):
                 return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
                 LOG.exception("Error creating DBaaS instance")
-                return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
+                return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Instance creation failure"), 500)
             
         try:
             self._try_attach_volume(context, body, credential, region_az, volume_size, instance)
         except exception.ReddwarfError, e:
             LOG.exception("Error creating DBaaS instance - volume attachment failed")
-            return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
+            return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Volume Attachment failure"), 500)
         
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
