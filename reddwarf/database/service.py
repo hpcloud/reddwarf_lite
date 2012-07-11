@@ -382,6 +382,12 @@ class InstanceController(BaseController):
 
 
     def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
+        
+        volume_support = CONFIG.get('reddwarf_volume_support', 'False')
+        if not utils.bool_from_string(volume_support):
+            # Do nothing if volume-support is not enabled
+            return
+
         # Create the remote volume and a DB Volume record
         try:
             volume = models.Volume.create(credential, region, volume_size, 'mysql-%s' % instance['remote_id']).data()
