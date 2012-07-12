@@ -208,7 +208,7 @@ class InstanceController(BaseController):
         password = utils.generate_password()
         
         try:
-            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor['flavor_id'], snapshot, password)
+            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor, snapshot, password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -321,7 +321,7 @@ class InstanceController(BaseController):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
-    def _try_create_server(self, context, body, credential, region, keypair, image_id, flavor_id, snapshot=None, password=None):
+    def _try_create_server(self, context, body, credential, region, keypair, image_id, flavor, snapshot=None, password=None):
         """Create remote Server """
         try:
             # TODO (vipulsabhaya) move this into the db we should
@@ -337,7 +337,7 @@ class InstanceController(BaseController):
             userdata = file_dict_as_userdata(file_dict)
             #userdata = open('../development/bootstrap/dbaas-image.sh')
 
-            server = models.Instance.create(credential, region, body, image_id, flavor_id,
+            server = models.Instance.create(credential, region, body, image_id, flavor['flavor_id'],
                                             security_groups=sec_group, key_name=keypair,
                                             userdata=userdata, files=None).data()
             
@@ -363,7 +363,7 @@ class InstanceController(BaseController):
                                      tenant_id=context.tenant,
                                      credential=credential['id'],
                                      port='3306',
-                                     flavor=flavor_id,
+                                     flavor=flavor['id'],
                                      availability_zone=region)
 
             LOG.debug("Wrote DB Instance: %s" % instance)
