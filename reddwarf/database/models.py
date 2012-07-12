@@ -232,6 +232,107 @@ class FloatingIP(RemoteModelBase):
             raise rd_exceptions.ReddwarfError(str(e))
 
 
+class Volume(RemoteModelBase):
+
+    _data_fields = ['id', 'attachments', 'size', 'status']
+    
+    def __init__(self, volume=None, credential=None, region=None, id=None):
+        if id is None and volume is None:
+            msg = "id is not defined"
+            raise InvalidModelError(msg)
+        elif volume is None:
+            try:
+                self._data_object = self.get_client(credential, region).volumes.get(id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(id=id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.ReddwarfError(str(e))
+        else:
+            self._data_object = volume
+
+    @classmethod
+    def create(cls, credential, region, size, display_name):
+        """Creates a new Volume"""
+        client = cls.get_client(credential, region)
+        
+        try:
+            volume = client.volumes.create(size=size, display_name=display_name)
+        except nova_exceptions.ClientException, e:
+            LOG.exception('Failed to create remote volume')
+            raise rd_exceptions.VolumeCreationFailure(str(e))
+
+        return Volume(volume=volume)
+    
+    @classmethod
+    def attach(cls, credential, region, volume, server_id, device):
+        """Assigns a floating ip to a server"""
+        client = cls.get_client(credential, region)
+        
+        # Poll until the volume is attached.
+        def volume_is_attached():
+            try:
+                client.volumes.create_server_volume(server_id, volume['id'], device)
+                return True
+            except nova_exceptions.ClientException as e:
+                LOG.debug(e)
+                return False
+
+        try:
+            # Attempt to attach volume
+            utils.poll_until(volume_is_attached, sleep_time=5,
+                             time_out=int(config.Config.get('volume_attach_time_out', 60)))
+            
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout trying to attach volume: %s" % volume['id'])
+            raise rd_exceptions.VolumeAttachmentFailure(str(pto))
+        
+    @classmethod
+    def detach(cls, credential, region, server_id, volume_id):
+        try:
+            cls.get_client(credential, region).volumes.delete_server_volume(server_id, volume_id)
+        except nova_exceptions.NotFound, e:
+            raise rd_exceptions.NotFound(uuid=volume_id)
+        except nova_exceptions.ClientException, e:
+            raise rd_exceptions.ReddwarfError()
+
+    @classmethod
+    def delete(cls, credential, region, volume_id):
+        client = cls.get_client(credential, region)
+
+        # Poll until the volume is attached.
+        def volume_is_detached():
+            try:
+                volume = client.volumes.get(volume_id)
+                if volume.status != 'in-use':
+                    return True
+                else:
+                    return False
+            except nova_exceptions.ClientException as e:
+                LOG.debug(e)
+                return False
+        try:
+            # Wait until volume is detached, before issuing delete
+            utils.poll_until(volume_is_detached, sleep_time=2,
+                             time_out=int(config.Config.get('volume_detach_time_out', 30))) 
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout waiting for volume to detach: %s" % volume_id)
+            
+            # Failed waiting for volume to detach, attempt to delete anyway
+            try:
+                client.volumes.delete(volume_id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(uuid=volume_id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.VolumeDeletionFailure(str(pto))
+        else:
+            # No exception, attempt to delete
+            try:
+                client.volumes.delete(volume_id)
+            except nova_exceptions.NotFound, e:
+                raise rd_exceptions.NotFound(uuid=volume_id)
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.VolumeDeletionFailure(str(e))
+        
 class Instances(Instance):
 
     def __init__(self, credential, region):
@@ -365,7 +466,10 @@ class Snapshot(DatabaseModelBase):
 class Quota(DatabaseModelBase):
     _data_fields = ['tenant_id', 'resource', 'hard_limit']
     
-   
+class DBVolume(DatabaseModelBase):
+    _data_fields = ['volume_id', 'instance_id', 'size', 'availability_zone']
+    
+       
 def persisted_models():
     return {
         'instance': DBInstance,
@@ -378,8 +482,8 @@ def persisted_models():
         'quota': Quota,
         'service_secgroup': ServiceSecgroup,
         'service_keypair': ServiceKeypair,
-        'service_zone': ServiceZone
-
+        'service_zone': ServiceZone,
+        'volume' : DBVolume
         }
 
 

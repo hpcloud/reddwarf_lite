@@ -53,6 +53,9 @@ def map(engine, models):
     orm.mapper(models['service_zone'],
                Table('service_zones', meta, autoload=True))
 
+    orm.mapper(models['volume'],
+               Table('volumes', meta, autoload=True))
+
 def mapping_exists(model):
     try:
         orm.class_mapper(model)

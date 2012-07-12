@@ -27,7 +27,8 @@ LOG = logging.getLogger(__name__)
 def _get_default_quotas():
     defaults = {
         'instances': CONFIG.get('quota_instances', 0),
-        'snapshots': CONFIG.get('snapshot_instances', 0)
+        'snapshots': CONFIG.get('quota_snapshots', 0),
+        'volume_space' : CONFIG.get('quota_volume_space', 0)
     }
     # -1 in the quota flags means unlimited
     for key in defaults.keys():
@@ -72,3 +73,28 @@ def allowed_snapshots(context, requested_snapshots):
     allowed_snapshots = quota['snapshots'] - usage
 
     return min(requested_snapshots, allowed_snapshots)
+
+def allowed_volume_size(context, requested_volume_size):
+    """Check quota for volumes and return min(requested_volume_size, remaining_volume_size)"""
+    tenant_id = context.tenant
+    
+    usage = 0
+    volumes = models.DBVolume.find_all(tenant_id=tenant_id, deleted=False)
+    if volumes is not None:
+        for volume in volumes:
+            size = int(volume['size'])
+            usage += size
+            
+    quota = get_tenant_quotas(context, tenant_id)
+    LOG.debug('Quota for volume space allowed to create %s, requested %s, used %s' % (quota, requested_volume_size, usage))
+
+    allowed_space = quota['volume_space'] - usage
+
+    return min(requested_volume_size, allowed_space)
+            
+    
+    
+    
+    
+    
+    
