@@ -230,7 +230,7 @@ class DistributedCreateTest(unittest.TestCase):
         time.sleep(20)
 
         try:
-            guest_status.update(state='building')
+            guest_status.update(state='failed')
         except Exception, e:
             LOG.exception("Error updating GuestStatus record to failed %s" % db_instance.data()['id'])
             self.fail("Unable to update GuestStatus entry to 'failed' for recreate")
