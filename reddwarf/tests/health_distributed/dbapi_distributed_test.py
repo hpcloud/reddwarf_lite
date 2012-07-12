@@ -44,6 +44,8 @@ import httplib2
 import os
 import time
 
+import reddwarf.common.exception as rd_exceptions
+
 AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
 TENANT_NAME = os.environ['DBAAS_TENANT_NAME']
 USERNAME = os.environ['DBAAS_USERNAME']
@@ -184,6 +186,81 @@ class DistributedCreateTest(unittest.TestCase):
             
         self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % instance_id))
 
+    def test_teardown_recreate_instance(self):
+        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
+        
+        remote_hostname = utils.generate_uuid()
+        
+        try:
+            db_instance = models.DBInstance().create(name=INSTANCE_NAME,
+                                     status='building',
+                                     remote_hostname=remote_hostname,
+                                     tenant_id=TENANT_ID,
+                                     credential=credential['id'],
+                                     port='3306',
+                                     flavor=1,
+                                     availability_zone=region_az)
+            
+        except Exception, e:
+            LOG.exception("Error creating DB Instance record")
+            self.fail("Could not create a DB Instance record")
+            
+        LOG.debug("Wrote DB Instance: %s" % db_instance)
+        
+        instance_id = db_instance['id']
+        
+        # Add a GuestStatus record pointing to the new instance for Maxwell
+        try:
+            guest_status = models.GuestStatus().create(instance_id=db_instance['id'], state='building')
+        except Exception, e:
+            LOG.exception("Error creating GuestStatus instance %s" % db_instance.data()['id'])
+            self.fail("Unable to create GuestStatus entry")
+            
+        file_dict = { '/home/nova/agent.config': rd_utils.create_boot_config(config.Config, None, None, 'test') }
+        
+        instance = { 'id' : instance_id,
+                     'remote_uuid' : None,
+                     'remote_hostname' : remote_hostname,
+                     'tenant_id' : TENANT_ID }
+        
+        # Invoke worker to ensure instance gets created
+        worker_api.API().ensure_create_instance(None, instance, rd_utils.file_dict_as_userdata(file_dict))
+        
+        # Wait 20 seconds, and mark guest-status as failed
+        time.sleep(20)
+
+        try:
+            guest_status.update(state='building')
+        except Exception, e:
+            LOG.exception("Error updating GuestStatus record to failed %s" % db_instance.data()['id'])
+            self.fail("Unable to update GuestStatus entry to 'failed' for recreate")
+
+
+        # Poll until the instance is running
+        def instance_is_running():
+            try:
+                resp, content = req.request(API_URL + "instances/" + instance_id, "GET", "", AUTH_HEADER)
+                self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
+                LOG.debug("Content: %s" % content)
+                content = json.loads(content)
+                status = content['instance']['status']
+                if status=='running':
+                    return True
+                
+                return False
+            except Exception as e:
+                LOG.debug(e)
+                return False
+
+        try:
+            # Wait up to 15 minutes for instance to go running
+            utils.poll_until(instance_is_running, sleep_time=10,
+                             time_out=int(960))
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout waiting for instance to switch to running")
+            self.fail("Instance did not switch to running after App Server teardown and recreate")
+
+        
     def _load_boot_params(self, tenant_id):
         # Attempt to find Boot parameters for a specific tenant
         try:
