@@ -78,6 +78,33 @@ class BaseController(wsgi.Controller):
 class InstanceController(BaseController):
     """Controller for instance functionality"""
     
+    def action(self, req, body, tenant_id, id):
+        LOG.info("req : '%s'\n\n" % req)
+        LOG.info("Comitting an ACTION again instance %s for tenant '%s'"
+                 % (id, tenant_id))
+        if not body:
+            raise exception.BadRequest(_("Invalid request body."))
+
+        _actions = {
+            'restart': self.restart,
+            'reset-password': self.reset_password
+            }
+        selected_action = None
+        for key in body:
+            if key in _actions:
+                if selected_action is not None:
+                    msg = _("Only one action can be specified per request.")
+                    raise exception.BadRequest(msg)
+                selected_action = _actions[key]
+            else:
+                msg = _("Invalid instance action: %s") % key
+                raise exception.BadRequest(msg)
+
+        if selected_action:
+            return selected_action(req, tenant_id, id)
+        else:
+            raise exception.BadRequest(_("Invalid request body."))
+
     def index(self, req, tenant_id):
         """Return all instances tied to a particular tenant_id."""
         LOG.debug("Index() called with %s, %s" % (tenant_id, id))  
@@ -872,6 +899,10 @@ class API(wsgi.Router):
                        controller=instance_resource,
                        action="reset_password", conditions=dict(method=["POST"],
                                                                 function=self._has_no_body))
+        mapper.connect(path +"/{id}/action",
+                       controller=instance_resource,
+                       action="action", conditions=dict(method=["POST"],
+                                                         function=self._has_no_body))
         
     def _snapshot_router(self, mapper):
         snapshot_resource = SnapshotController().create_resource()
