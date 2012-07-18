@@ -902,7 +902,7 @@ class API(wsgi.Router):
         mapper.connect(path +"/{id}/action",
                        controller=instance_resource,
                        action="action", conditions=dict(method=["POST"],
-                                                         function=self._has_no_body))
+                                                         function=self._has_body))
         
     def _snapshot_router(self, mapper):
         snapshot_resource = SnapshotController().create_resource()
