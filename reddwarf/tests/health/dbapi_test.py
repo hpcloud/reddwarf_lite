@@ -109,7 +109,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }""" % INSTANCE_NAME
 
-        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", body)
 
         # Assert 1) that the request was accepted and 2) that the response
@@ -290,7 +290,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }""" % INSTANCE_NAME
 
-        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", instance_body)
         
         self.assertEqual(201, resp.status, ("Expecting 201 response status to Instance Create but received %s" % resp.status))
@@ -516,7 +516,7 @@ class DBFunctionalTests(unittest.TestCase):
            premature test failures."""
 
         LOG.debug("\n*** Starting cleanup...")
-        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
 
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")
