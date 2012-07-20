@@ -59,7 +59,8 @@ class InstanceController(wsgi.Controller):
 
         _actions = {
             'restart': self.restart,
-            'reset-password': self.reset_password
+            'reset-password': self.reset_password,
+            'resize': self.resize
             }
         selected_action = None
         for key in body:
@@ -77,6 +78,10 @@ class InstanceController(wsgi.Controller):
         else:
             raise exception.BadRequest(_("Invalid request body."))
 
+    def _action_resize(self, req, tenant_id, id):
+        raise exception.NotImplemented(_("Action resize not implemented"))
+    
+        
     def index(self, req, tenant_id):
         """Return all instances tied to a particular tenant_id."""
         LOG.debug("Index() called with %s, %s" % (tenant_id, id))  

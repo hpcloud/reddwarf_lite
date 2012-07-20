@@ -227,6 +227,9 @@ class Controller(object):
         webob.exc.HTTPServerError: [
             exception.VolumeCreationFailure
             ],
+        webob.exc.HTTPNotImplemented: [
+            exception.NotImplemented
+            ],
         }
 
     def __init__(self):

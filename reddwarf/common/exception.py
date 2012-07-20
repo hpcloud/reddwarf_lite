@@ -144,6 +144,10 @@ class Forbidden(ReddwarfError):
     message = _("User does not have admin privileges.")
 
 
+class NotImplemented(ReddwarfError):
+    message = _("Resource not implemented")
+
+
 class InvalidModelError(ReddwarfError):
 
     message = _("The following values are invalid: %(errors)s")
