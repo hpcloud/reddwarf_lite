@@ -60,7 +60,7 @@ class InstanceController(wsgi.Controller):
         _actions = {
             'restart': self.restart,
             'reset-password': self.reset_password,
-            'resize': self.resize
+            'resize': self._action_resize
             }
         selected_action = None
         for key in body:
