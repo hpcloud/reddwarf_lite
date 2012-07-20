@@ -47,35 +47,7 @@ GUEST_API = guest_api.API
 LOG = logging.getLogger(__name__)
 
 
-class BaseController(wsgi.Controller):
-    """Base controller class."""
-
-    exclude_attr = []
-    exception_map = {
-        webob.exc.HTTPUnprocessableEntity: [
-            ],
-        webob.exc.HTTPBadRequest: [
-            models.InvalidModelError,
-            ],
-        webob.exc.HTTPNotFound: [
-            exception.NotFound,
-            models.ModelNotFoundError,
-            ],
-        webob.exc.HTTPConflict: [
-            ],
-        }
-
-    def __init__(self):
-        self.guest_api = guest_api.API()
-
-    def _extract_required_params(self, params, model_name):
-        params = params or {}
-        model_params = params.get(model_name, {})
-        return utils.stringify_keys(utils.exclude(model_params,
-                                                  *self.exclude_attr))
-
-
-class InstanceController(BaseController):
+class InstanceController(wsgi.Controller):
     """Controller for instance functionality"""
     
     def action(self, req, body, tenant_id, id):
@@ -550,7 +522,7 @@ class InstanceController(BaseController):
     def _load_boot_params(self, tenant_id):
         try:
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
-        except models.ModelNotFoundError, e:
+        except exception.ModelNotFoundError, e:
             LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
 
@@ -559,7 +531,7 @@ class InstanceController(BaseController):
         # Attempt to find Boot parameters for a specific tenant
         try:
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, availability_zone=region_az, deleted=False)
-        except models.ModelNotFoundError, e:
+        except exception.ModelNotFoundError, e:
             LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant', availability_zone=region_az, deleted=False)
 
@@ -634,7 +606,7 @@ class InstanceController(BaseController):
         results = db.db_api.find_guest_statuses_for_instances(id_list)
         return dict([(r.instance_id, r) for r in results])
 
-class SnapshotController(BaseController):
+class SnapshotController(wsgi.Controller):
     """Controller for snapshot functionality"""
 
     def show(self, req, tenant_id, id):
