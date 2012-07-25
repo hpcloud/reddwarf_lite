@@ -309,7 +309,7 @@ class InstanceController(wsgi.Controller):
 
         # Dispatch the job to Smart Agent
         try:
-            result = self.guest_api.reset_password(context, id, password)
+            result = GUEST_API.reset_password(context, id, password)
         except exception.NotFound as nf:
             LOG.exception("unable to reset password for instance: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
@@ -782,7 +782,7 @@ class SnapshotController(wsgi.Controller):
             
             try:
                 snapshot_key = CONFIG.get('snapshot_key', 'changeme')
-                guest_api.API().create_snapshot(context,
+                GUEST_API.create_snapshot(context,
                     instance_id,
                     snapshot['id'],
                     credential,
