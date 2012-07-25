@@ -43,7 +43,6 @@ from swiftapi import swift
 
 
 CONFIG = config.Config
-GUEST_API = guest_api.API
 LOG = logging.getLogger(__name__)
 
 
@@ -309,7 +308,7 @@ class InstanceController(wsgi.Controller):
 
         # Dispatch the job to Smart Agent
         try:
-            result = GUEST_API.reset_password(context, id, password)
+            result = guest_api.API().reset_password(context, id, password)
         except exception.NotFound as nf:
             LOG.exception("unable to reset password for instance: %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
@@ -782,7 +781,7 @@ class SnapshotController(wsgi.Controller):
             
             try:
                 snapshot_key = CONFIG.get('snapshot_key', 'changeme')
-                GUEST_API.create_snapshot(context,
+                guest_api.API().create_snapshot(context,
                     instance_id,
                     snapshot['id'],
                     credential,
