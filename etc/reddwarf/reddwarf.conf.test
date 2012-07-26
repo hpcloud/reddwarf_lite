@@ -79,7 +79,7 @@ paste.app_factory = reddwarf.versions:app_factory
 [pipeline:reddwarfapi]
 #pipeline = tokenauth authorization context extensions adminapp reddwarfapp
 #pipeline = tokenauth authorization context extensions reddwarfapp
-pipeline = authorization context extensions reddwarfapp
+pipeline = faultwrapper authorization context extensions reddwarfapp
 #pipeline = debug extensions reddwarfapp
 
 [filter:extensions]
@@ -102,6 +102,9 @@ paste.filter_factory = reddwarf.common.context:filter_factory
 
 [filter:adminapp]
 paste.filter_factory = reddwarf.admin.service:app_factory
+
+[filter:faultwrapper]
+paste.filter_factory = reddwarf.common.wsgi:FaultWrapper.factory
 
 [app:reddwarfapp]
 paste.app_factory = reddwarf.database.service:app_factory
