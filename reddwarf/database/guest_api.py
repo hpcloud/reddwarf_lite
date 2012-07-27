@@ -75,6 +75,7 @@ class API():
         rpc.cast(context, instance['remote_hostname'],
                  {"method": "create_snapshot",
                   "args": {"sid": snapshot_id,
+                           "tenant_id": context.tenant,
                            "snapshot_key": snapshot_key,
                            "credential": {"user": credential['tenant_id']+":"+credential['user_name'],
                                           "key": credential['password'],
