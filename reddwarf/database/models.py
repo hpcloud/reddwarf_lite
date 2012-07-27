@@ -131,7 +131,7 @@ class Instance(RemoteModelBase):
         if server is None and credential is None and uuid is None:
             #TODO(cp16et): what to do now?
             msg = "server, credential, and uuid are not defined"
-            raise InvalidModelError(msg)
+            raise rd_exceptions.InvalidModelError(msg)
         elif server is None:
             try:
                 self._data_object = self.get_client(credential, region).servers.get(uuid)
@@ -182,7 +182,7 @@ class FloatingIP(RemoteModelBase):
     def __init__(self, floating_ip=None, credential=None, region=None, id=None):
         if id is None and floating_ip is None:
             msg = "id is not defined"
-            raise InvalidModelError(msg)
+            raise rd_exceptions.InvalidModelError(msg)
         elif floating_ip is None:
             try:
                 self._data_object = self.get_client(credential, region).servers.get(id)
@@ -239,7 +239,7 @@ class Volume(RemoteModelBase):
     def __init__(self, volume=None, credential=None, region=None, id=None):
         if id is None and volume is None:
             msg = "id is not defined"
-            raise InvalidModelError(msg)
+            raise rd_exceptions.InvalidModelError(msg)
         elif volume is None:
             try:
                 self._data_object = self.get_client(credential, region).volumes.get(id)
@@ -361,7 +361,7 @@ class DatabaseModelBase(ModelBase):
 
     def save(self):
         if not self.is_valid():
-            raise InvalidModelError(self.errors)
+            raise rd_exceptions.InvalidModelError(self.errors)
 #        self._convert_columns_to_proper_type()
 #        self._before_save()
         self['updated_at'] = utils.utcnow()
@@ -394,7 +394,7 @@ class DatabaseModelBase(ModelBase):
     def find_by(cls, **conditions):
         model = cls.get_by(**conditions)
         if model == None:
-            raise ModelNotFoundError(_("%s Not Found") % cls.__name__)
+            raise rd_exceptions.ModelNotFoundError(_("%s Not Found") % cls.__name__)
         return model
 
     @classmethod
@@ -484,17 +484,4 @@ def persisted_models():
         'service_keypair': ServiceKeypair,
         'service_zone': ServiceZone,
         'volume' : DBVolume
-        }
-
-
-class InvalidModelError(rd_exceptions.ReddwarfError):
-
-    message = _("The following values are invalid: %(errors)s")
-
-    def __init__(self, errors, message=None):
-        super(InvalidModelError, self).__init__(message, errors=errors)
-
-
-class ModelNotFoundError(rd_exceptions.ReddwarfError):
-
-    message = _("Not Found")
+    }

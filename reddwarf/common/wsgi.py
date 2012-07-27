@@ -28,19 +28,35 @@ import webob.exc
 
 from reddwarf.common import exception
 from reddwarf.common import utils
+from reddwarf.common import config
+
 from reddwarf.openstack.common import wsgi as openstack_wsgi
 
 
+CONTEXT_KEY = 'reddwarf.context'
 Router = openstack_wsgi.Router
 Server = openstack_wsgi.Server
 Debug = openstack_wsgi.Debug
 Middleware = openstack_wsgi.Middleware
 JSONDictSerializer = openstack_wsgi.JSONDictSerializer
+XMLDictSerializer = openstack_wsgi.XMLDictSerializer
+XMLDeserializer = openstack_wsgi.XMLDeserializer
+RequestDeserializer = openstack_wsgi.RequestDeserializer
 
 eventlet.patcher.monkey_patch(all=False, socket=True)
 
 LOG = logging.getLogger('reddwarf.common.wsgi')
 
+XMLNS = 'http://docs.openstack.org/database/api/v1.0'
+CUSTOM_PLURALS_METADATA = {'databases': '', 'users': ''}
+CUSTOM_SERIALIZER_METADATA = {'instance': {'status': '', 'hostname': '',
+                              'id': '', 'name': '', 'created': '',
+                              'updated': ''},
+                   'volume': {'size': '', 'used': ''},
+                   'flavor': {'id': '', 'ram': '', 'name': ''},
+                   'link': {'href': '', 'rel': ''},
+                   'database': {'name': ''},
+                   'user': {'name': '', 'password': ''}}
 
 def versioned_urlmap(*args, **kwargs):
     urlmap = paste.urlmap.urlmap_factory(*args, **kwargs)
@@ -182,20 +198,104 @@ class Resource(openstack_wsgi.Resource):
 class Controller(object):
     """Base controller that creates a Resource with default serializers."""
 
-    exception_map = {}
+    exclude_attr = []
+
+    exception_map = {
+        webob.exc.HTTPUnprocessableEntity: [
+            exception.UnprocessableEntity,
+            ],
+        webob.exc.HTTPUnauthorized: [
+            exception.Forbidden,
+            ],
+        webob.exc.HTTPBadRequest: [
+            exception.InvalidModelError,
+            exception.BadRequest,
+            exception.BadValue,
+            ],
+        webob.exc.HTTPNotFound: [
+            exception.NotFound,
+            exception.ComputeInstanceNotFound,
+            exception.ModelNotFoundError,
+            ],
+        webob.exc.HTTPConflict: [
+            ],
+        webob.exc.HTTPRequestEntityTooLarge: [
+            exception.OverLimit,
+            exception.QuotaExceeded,
+            exception.VolumeQuotaExceeded,
+            ],
+        webob.exc.HTTPServerError: [
+            exception.VolumeCreationFailure
+            ],
+        webob.exc.HTTPNotImplemented: [
+            exception.NotImplemented
+            ],
+        }
+
+    def __init__(self):
+        self.add_addresses = utils.bool_from_string(
+                        config.Config.get('add_addresses', 'False'))
+        self.add_volumes = utils.bool_from_string(
+                        config.Config.get('reddwarf_volume_support', 'False'))
 
     def create_resource(self):
         serializer = ReddwarfResponseSerializer(
             body_serializers={'application/xml': ReddwarfXMLDictSerializer()})
         return Resource(self,
-            openstack_wsgi.RequestDeserializer(),
+            ReddwarfRequestDeserializer(),
             serializer,
             self.exception_map)
 
+    def _extract_limits(self, params):
+        return dict([(key, params[key]) for key in params.keys()
+                     if key in ["limit", "marker"]])
 
+    def _extract_required_params(self, params, model_name):
+        params = params or {}
+        model_params = params.get(model_name, {})
+        return utils.stringify_keys(utils.exclude(model_params,
+                                                  *self.exclude_attr))
+
+
+class ReddwarfRequestDeserializer(RequestDeserializer):
+    """Break up a Request object into more useful pieces."""
+
+    def __init__(self, body_deserializers=None, headers_deserializer=None,
+                 supported_content_types=None):
+        super(ReddwarfRequestDeserializer, self).__init__(body_deserializers,
+                                                  headers_deserializer,
+                                                  supported_content_types)
+
+        self.body_deserializers['application/xml'] = ReddwarfXMLDeserializer()
+        
+        
+class ReddwarfXMLDeserializer(XMLDeserializer):
+
+    def __init__(self, metadata=None):
+        """
+        :param metadata: information needed to deserialize xml into
+                         a dictionary.
+        """
+        if metadata is None:
+            metadata = {}
+        metadata['plurals'] = None
+        super(ReddwarfXMLDeserializer, self).__init__(metadata)
+
+    def default(self, datastring):
+        # Sanitize the newlines
+        # hub-cap: This feels wrong but minidom keeps the newlines
+        # and spaces as childNodes which is expected behavior.
+        return {'body': self._from_xml(re.sub(r'((?<=>)\s+)*\n*(\s+(?=<))*',
+                                       '', datastring))}
+        
+        
 class ReddwarfXMLDictSerializer(openstack_wsgi.XMLDictSerializer):
 
+    def __init__(self, metadata=None, xmlns=None):
+        super(ReddwarfXMLDictSerializer, self).__init__(metadata, XMLNS)
+
     def _to_xml_node(self, doc, metadata, nodename, data):
+        metadata['attributes'] = CUSTOM_SERIALIZER_METADATA
         if hasattr(data, "to_xml"):
             return data.to_xml()
         return super(ReddwarfXMLDictSerializer, self)._to_xml_node(doc,
@@ -207,6 +307,13 @@ class ReddwarfXMLDictSerializer(openstack_wsgi.XMLDictSerializer):
 class ReddwarfResponseSerializer(openstack_wsgi.ResponseSerializer):
 
     def serialize_body(self, response, data, content_type, action):
+        """Overrides body serialization in openstack_wsgi.ResponseSerializer.
+
+        If the "data" argument is the Result class, its data
+        method is called and *that* is passed to the superclass implementation
+        instead of the actual data.
+
+        """
         if isinstance(data, Result):
             data = data.data(content_type)
         super(ReddwarfResponseSerializer, self).serialize_body(response,
@@ -225,26 +332,59 @@ class ReddwarfResponseSerializer(openstack_wsgi.ResponseSerializer):
 class Fault(webob.exc.HTTPException):
     """Error codes for API faults."""
 
+    code_wrapper = {
+        400: webob.exc.HTTPBadRequest,
+        401: webob.exc.HTTPUnauthorized,
+        403: webob.exc.HTTPUnauthorized,
+        404: webob.exc.HTTPNotFound,
+    }
+
+    resp_codes = [int(code) for code in code_wrapper.keys()]
+
     def __init__(self, exception):
         """Create a Fault for the given webob.exc.exception."""
 
         self.wrapped_exc = exception
+
+    @staticmethod
+    def _get_error_name(exc):
+        # Displays a Red Dwarf specific error name instead of a webob exc name.
+        named_exceptions = {
+            'HTTPBadRequest': 'badRequest',
+            'HTTPUnauthorized': 'unauthorized',
+            'HTTPForbidden': 'forbidden',
+            'HTTPNotFound': 'itemNotFound',
+            'HTTPMethodNotAllowed': 'badMethod',
+            'HTTPRequestEntityTooLarge': 'overLimit',
+            'HTTPUnsupportedMediaType': 'badMediaType',
+            'HTTPInternalServerError': 'instanceFault',
+            'HTTPNotImplemented': 'notImplemented',
+            'HTTPServiceUnavailable': 'serviceUnavailable',
+        }
+        name = exc.__class__.__name__
+        if name in named_exceptions:
+            return named_exceptions[name]
+        # If the exception isn't in our list, at least strip off the
+        # HTTP from the name, and then drop the case on the first letter.
+        name = name.split("HTTP").pop()
+        name = name[:1].lower() + name[1:]
+        return name
 
     @webob.dec.wsgify(RequestClass=Request)
     def __call__(self, req):
         """Generate a WSGI response based on the exception passed to ctor."""
 
         # Replace the body with fault details.
-        fault_name = self.wrapped_exc.__class__.__name__
-        if fault_name.startswith("HTTP"):
-            fault_name = fault_name[4:]
+        fault_name = Fault._get_error_name(self.wrapped_exc)
         fault_data = {
             fault_name: {
                 'code': self.wrapped_exc.status_int,
-                'message': self.wrapped_exc.explanation,
-                'detail': self.wrapped_exc.detail,
                 }
         }
+        if self.wrapped_exc.detail:
+            fault_data[fault_name]['message'] = self.wrapped_exc.detail
+        else:
+            fault_data[fault_name]['message'] = self.wrapped_exc.explanation
 
         # 'code' is an attribute on the fault tag itself
         metadata = {'attributes': {fault_name: 'code'}}
@@ -257,3 +397,28 @@ class Fault(webob.exc.HTTPException):
         self.wrapped_exc.body = serializer.serialize(fault_data, content_type)
         self.wrapped_exc.content_type = content_type
         return self.wrapped_exc
+    
+class FaultWrapper(openstack_wsgi.Middleware):
+    """Calls down the middleware stack, making exceptions into faults."""
+
+    @webob.dec.wsgify(RequestClass=openstack_wsgi.Request)
+    def __call__(self, req):
+        try:
+            resp = req.get_response(self.application)
+            if resp.status_int in Fault.resp_codes:
+                for (header, value) in resp._headerlist:
+                    if header == "Content-Type" and \
+                            value == "text/plain; charset=UTF-8":
+                        return Fault(Fault.code_wrapper[resp.status_int]())
+                return resp
+            return resp
+        except Exception as ex:
+            LOG.exception(_("Caught error: %s"), unicode(ex))
+            exc = webob.exc.HTTPInternalServerError()
+            return Fault(exc)
+
+    @classmethod
+    def factory(cls, global_config, **local_config):
+        def _factory(app):
+            return cls(app)
+        return _factory
