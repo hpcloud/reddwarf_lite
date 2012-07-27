@@ -87,6 +87,7 @@ UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
 INSTANCE_NAME = 'dbapi_health_' + utils.generate_uuid()
 MAX_WAIT_RUNNING = 600
+TIMEOUT_STR="%.2f minutes" % (MAX_WAIT_RUNNING/60.0)
 
 class DBFunctionalTests(unittest.TestCase):
 
@@ -108,7 +109,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }""" % INSTANCE_NAME
 
-        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", body)
 
         # Assert 1) that the request was accepted and 2) that the response
@@ -237,7 +238,7 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
-            self.fail("Instance %s did not go to running after a reboot and waiting 5 minutes" % self.instance_id)
+            self.fail("Instance %s did not go to running after a reboot and waiting %s" % (self.instance_id, TIMEOUT_STR))
         else:
             # try to connect to mysql instance
             time.sleep(20)
@@ -289,7 +290,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }""" % INSTANCE_NAME
 
-        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", instance_body)
         
         self.assertEqual(201, resp.status, ("Expecting 201 response status to Instance Create but received %s" % resp.status))
@@ -334,8 +335,8 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
-            LOG.info("* instance is still not up after 5 minutes")
-            self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
+            LOG.info("* instance is still not up after %s" % (TIMEOUT_STR))
+            self.fail("Instance %s did not go to running after boot and waiting %s" % (self.instance_id, TIMEOUT_STR))
         else :
             # Add customized data to the database
             LOG.info("* Creating customized DB and inserting data")
@@ -421,7 +422,7 @@ class DBFunctionalTests(unittest.TestCase):
             content = json.loads(content)
             status = content['snapshot']['status']
             
-        self.assertTrue(status == 'success', ("Snapshot %s did not switch to 'success' after waiting 5 minutes" % self.snapshot_id))
+        self.assertTrue(status == 'success', ("Snapshot %s did not switch to 'success' after waiting %s" % (self.snapshot_id, TIMEOUT_STR)))
 
         # Test creating a new instance from a snapshot.
         # ---------------------------------------------
@@ -465,8 +466,8 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
-            LOG.info("* instance is still not up after 5 minutes")
-            self.fail("Instance %s did not go to running after boot and waiting 5 minutes" % self.instance_id)
+            LOG.info("* instance is still not up after %s" % (TIMEOUT_STR))
+            self.fail("Instance %s did not go to running after boot and waiting %s" % (self.instance_id, TIMEOUT_STR))
         else :
             # verify customized data is inside the DB
             #LOG.info("* now verifying the customized data is inside the DB")
@@ -515,7 +516,7 @@ class DBFunctionalTests(unittest.TestCase):
            premature test failures."""
 
         LOG.debug("\n*** Starting cleanup...")
-        client = httplib2.Http(".cache", disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
 
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")

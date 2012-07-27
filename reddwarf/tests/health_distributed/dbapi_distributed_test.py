@@ -265,7 +265,7 @@ class DistributedCreateTest(unittest.TestCase):
         # Attempt to find Boot parameters for a specific tenant
         try:
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, deleted=False)
-        except models.ModelNotFoundError, e:
+        except rd_exceptions.ModelNotFoundError, e:
             LOG.info("Service Image for tenant %s not found, using image for 'default_tenant'" % tenant_id)
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id='default_tenant', deleted=False)
 
@@ -279,7 +279,7 @@ class DistributedCreateTest(unittest.TestCase):
         
         try:
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
-        except models.ModelNotFoundError, e:
+        except rd_exceptions.ModelNotFoundError, e:
             LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
 
