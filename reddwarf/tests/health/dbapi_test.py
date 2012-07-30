@@ -750,7 +750,7 @@ class DBFunctionalTests(unittest.TestCase):
                 trial_count += 1
                 LOG.debug("* db seems not ready for socket connection, sleep for %ds" % poll_interval)
             time.sleep(poll_interval)
-            now = time.now()
+            now = time.time()
         # We've fallen through at this point
         LOG.error("* timed out trying to connect to database after %ss and %d attempts", timeout, trial_count)
         return None
