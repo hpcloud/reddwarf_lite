@@ -85,7 +85,8 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
 UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
-INSTANCE_NAME = 'dbapi_health_crickenb' + utils.generate_uuid()
+BUILD_NUMBER = os.environ.get('BUILD_NUMBER', '')
+INSTANCE_NAME = 'dbapi_health_%s_%s' % (BUILD_NUMBER, utils.generate_uuid())
 
 TIMEOUTS = {
     'http': 180,
