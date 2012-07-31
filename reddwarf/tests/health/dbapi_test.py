@@ -475,7 +475,7 @@ class DBFunctionalTests(unittest.TestCase):
         status = content['instance']['status']
         while status != 'running':
             # wait a max of max_wait for instance status to show running
-            time.sleep(POLL_INTERVALS['sleep'])
+            time.sleep(POLL_INTERVALS['boot'])
             wait_so_far += 10
             if wait_so_far >= TIMEOUTS['boot']:
                 break
