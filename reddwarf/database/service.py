@@ -326,6 +326,25 @@ class InstanceController(wsgi.Controller):
 
     def _try_create_server(self, context, body, credential, region, keypair, image_id, flavor, snapshot=None, password=None):
         """Create remote Server """
+        # Create DB Instance record
+        try:
+            instance = models.DBInstance().create(name=body['instance']['name'],
+                                     status='building',
+                                     user_id=context.user,
+                                     tenant_id=context.tenant,
+                                     credential=credential['id'],
+                                     port='3306',
+                                     flavor=flavor['id'],
+                                     availability_zone=region)
+
+            LOG.debug("Wrote DB Instance: %s" % instance)
+
+            guest_status = models.GuestStatus().create(instance_id=instance['id'], state='scheduling')
+        
+        except exception.ReddwarfError, e:
+            LOG.exception("Error creating DB Instance record")
+            raise e
+
         try:
             # TODO (vipulsabhaya) move this into the db we should
             # have a service_secgroup table for mapping
@@ -346,6 +365,14 @@ class InstanceController(wsgi.Controller):
             
             if not server:
                 raise exception.ReddwarfError(errors.Instance.REDDWARF_CREATE)
+            else:
+                # update instance and guest_status
+                instance.update(remote_id=server['id'],
+                                remote_uuid=server['uuid'],
+                                remote_hostname=server['name'])
+                
+                guest_status.update(state='building')
+                
 
             LOG.debug("Wrote remote server: %s" % server)
             
@@ -353,34 +380,6 @@ class InstanceController(wsgi.Controller):
             LOG.exception("Error attempting to create a remote Server")
             raise exception.ReddwarfError(e)
 
-        # TODO (vipulsabhaya) Need to create a record with 'scheduling' status
-
-        # Create DB Instance record
-        try:
-            instance = models.DBInstance().create(name=body['instance']['name'],
-                                     status='building',
-                                     remote_id=server['id'],
-                                     remote_uuid=server['uuid'],
-                                     remote_hostname=server['name'],
-                                     user_id=context.user,
-                                     tenant_id=context.tenant,
-                                     credential=credential['id'],
-                                     port='3306',
-                                     flavor=flavor['id'],
-                                     availability_zone=region)
-
-            LOG.debug("Wrote DB Instance: %s" % instance)
-        except exception.ReddwarfError, e:
-            LOG.exception("Error creating DB Instance record")
-            raise e
-        
-        # Add a GuestStatus record pointing to the new instance for Maxwell
-        try:
-            guest_status = models.GuestStatus().create(instance_id=instance['id'], state='building')
-        except exception.ReddwarfError, e:
-            LOG.exception("Error creating GuestStatus instance %s" % instance.data()['id'])
-            raise e
-        
         return instance, guest_status, file_dict
 
 
