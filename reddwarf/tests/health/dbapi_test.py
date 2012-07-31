@@ -103,7 +103,8 @@ POLL_INTERVALS = {
 
 DELAYS = {
     'between_reset_and_restart': 30,
-    'between_reboot_and_connect': 20
+    'between_reboot_and_connect': 20,
+    'after_delete': 10
 }
 
 TIMEOUT_STR="%.2f minutes" % (TIMEOUTS['boot']/60.0)
@@ -176,7 +177,7 @@ class DBFunctionalTests(unittest.TestCase):
         while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(POLL_INTERVALS['boot'])
-            wait_so_far += 10
+            wait_so_far += POLL_INTERVALS['boot']
             if wait_so_far >= TIMEOUTS['boot']:
                 break
             
@@ -248,7 +249,7 @@ class DBFunctionalTests(unittest.TestCase):
         while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(POLL_INTERVALS['boot'])
-            wait_so_far += 10
+            wait_so_far += POLL_INTERVALS['boot']
             if wait_so_far >= TIMEOUTS['boot']:
                 break
             
@@ -289,7 +290,7 @@ class DBFunctionalTests(unittest.TestCase):
                 self.assertFalse(each['id'] == self.instance_id, ("Instance %s did not actually get deleted" % self.instance_id))
 
         LOG.debug("Sleeping...")
-        time.sleep(10)
+        time.sleep(DELAYS['after_delete'])
 
 
     def test_snapshot_api(self):
@@ -345,7 +346,7 @@ class DBFunctionalTests(unittest.TestCase):
         while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(POLL_INTERVALS['boot'])
-            wait_so_far += 10
+            wait_so_far += POLL_INTERVALS['boot']
             if wait_so_far >= TIMEOUTS['boot']:
                 break
             
@@ -433,7 +434,7 @@ class DBFunctionalTests(unittest.TestCase):
         while status != 'success':
             # wait a max of max_wait for snapshot status to show success
             time.sleep(POLL_INTERVALS['snapshot'])
-            wait_so_far += 10
+            wait_so_far += POLL_INTERVALS['snapshot']
             if wait_so_far >= TIMEOUTS['boot']:
                 break
 
@@ -476,7 +477,7 @@ class DBFunctionalTests(unittest.TestCase):
         while status != 'running':
             # wait a max of max_wait for instance status to show running
             time.sleep(POLL_INTERVALS['boot'])
-            wait_so_far += 10
+            wait_so_far += POLL_INTERVALS['boot']
             if wait_so_far >= TIMEOUTS['boot']:
                 break
 
@@ -508,7 +509,7 @@ class DBFunctionalTests(unittest.TestCase):
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
         self.assertEqual(404, resp.status)
         
-        time.sleep(10)
+        time.sleep(DELAYS['after_delete'])
 
         # Finally, delete the instance.
         LOG.info("* Deleting instance %s" % self.instance_id)
