@@ -89,9 +89,9 @@ BUILD_NUMBER = os.environ.get('BUILD_NUMBER', '')
 INSTANCE_NAME = 'dbapi_health_%s_%s' % (BUILD_NUMBER, utils.generate_uuid())
 
 TIMEOUTS = {
-    'http': 180,
-    'boot': 600,
-    'mysql_connect': 60
+    'http': 270,
+    'boot': 900,
+    'mysql_connect': 90
 }
 
 POLL_INTERVALS = {
