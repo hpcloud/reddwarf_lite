@@ -292,7 +292,7 @@ class DBFunctionalTests(unittest.TestCase):
         time.sleep(DELAYS['after_delete'])
 
 
-    def test_snapshot_api(self):
+    def disabled_snapshot_api(self):
         """Comprehensive snapshot API test using a snapshot lifecycle."""
 
         # Create a DB instance for snapshot tests
