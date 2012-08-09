@@ -75,9 +75,8 @@ AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN,
 TENANT_ID = content['access']['token']['tenant']['id']
 API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"
 
-logging.basicConfig()
+logging.basicConfig(format='%(levelname)-8s [%(asctime)s] %(name)s: %(message)s', level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
 
 LOG.debug("Response from Keystone: %s" % content)
 LOG.debug("Using Auth-Token %s" % AUTH_TOKEN)
@@ -85,9 +84,29 @@ LOG.debug("Using Auth-Header %s" % AUTH_HEADER)
 
 UUID_PATTERN = '[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
 
-INSTANCE_NAME = 'dbapi_health_' + utils.generate_uuid()
-MAX_WAIT_RUNNING = 600
-TIMEOUT_STR="%.2f minutes" % (MAX_WAIT_RUNNING/60.0)
+BUILD_NUMBER = os.environ.get('BUILD_NUMBER', '')
+INSTANCE_NAME = 'dbapi_health_%s_%s' % (BUILD_NUMBER, utils.generate_uuid())
+
+TIMEOUTS = {
+    'http': 270,
+    'boot': 900,
+    'mysql_connect': 90
+}
+
+POLL_INTERVALS = {
+    'boot': 10,
+    'snapshot': 10,
+    'mysql_connect': 10,
+    'ssh': 4
+}
+
+DELAYS = {
+    'between_reset_and_restart': 30,
+    'between_reboot_and_connect': 20,
+    'after_delete': 10
+}
+
+TIMEOUT_STR="%.2f minutes" % (TIMEOUTS['boot']/60.0)
 
 class DBFunctionalTests(unittest.TestCase):
 
@@ -109,7 +128,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }""" % INSTANCE_NAME
 
-        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=TIMEOUTS['http'], disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", body)
 
         # Assert 1) that the request was accepted and 2) that the response
@@ -156,9 +175,9 @@ class DBFunctionalTests(unittest.TestCase):
         status = content['instance']['status']
         while status != 'running':
             # wait a max of max_wait for instance status to show running
-            time.sleep(10)
-            wait_so_far += 10
-            if wait_so_far >= MAX_WAIT_RUNNING:
+            time.sleep(POLL_INTERVALS['boot'])
+            wait_so_far += POLL_INTERVALS['boot']
+            if wait_so_far >= TIMEOUTS['boot']:
                 break
             
             resp, content = self._execute_request(client, "instances/" + self.instance_id, "GET", "")
@@ -167,7 +186,8 @@ class DBFunctionalTests(unittest.TestCase):
             status = content['instance']['status']
 
         if status != 'running':
-            self.fail("for some reason the instance did not switch to 'running' in 5 m" % self.instance_id)
+
+            self.fail("for some reason the instance did not switch to 'running' in %s" % TIMEOUT_STR)
         else:
             # try to connect to mysql instance
             pub_ip = content['instance']['hostname']
@@ -209,7 +229,7 @@ class DBFunctionalTests(unittest.TestCase):
 
 
         # XXX: Suspect restarting too soon after a "reset password" command is putting the instance in a bad mood on restart
-        time.sleep(30)
+        time.sleep(DELAYS['between_reset_and_restart'])
 
         # Test restarting a db instance.
         # ------------------------------
@@ -227,9 +247,9 @@ class DBFunctionalTests(unittest.TestCase):
         status = content['instance']['status']
         while status != 'running':
             # wait a max of max_wait for instance status to show running
-            time.sleep(10)
-            wait_so_far += 10
-            if wait_so_far >= MAX_WAIT_RUNNING:
+            time.sleep(POLL_INTERVALS['boot'])
+            wait_so_far += POLL_INTERVALS['boot']
+            if wait_so_far >= TIMEOUTS['boot']:
                 break
             
             resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
@@ -241,7 +261,7 @@ class DBFunctionalTests(unittest.TestCase):
             self.fail("Instance %s did not go to running after a reboot and waiting %s" % (self.instance_id, TIMEOUT_STR))
         else:
             # try to connect to mysql instance
-            time.sleep(20)
+            time.sleep(DELAYS['between_reboot_and_connect'])
             LOG.info("* Trying to connect to mysql DB after rebooting the instance: %s, %s, %s" %(db_user, db_new_passwd, pub_ip))
 
             conn = self.db_connect(db_user, db_new_passwd, pub_ip, db_name)
@@ -269,10 +289,10 @@ class DBFunctionalTests(unittest.TestCase):
                 self.assertFalse(each['id'] == self.instance_id, ("Instance %s did not actually get deleted" % self.instance_id))
 
         LOG.debug("Sleeping...")
-        time.sleep(10)
+        time.sleep(DELAYS['after_delete'])
 
 
-    def test_snapshot_api(self):
+    def disabled_snapshot_api(self):
         """Comprehensive snapshot API test using a snapshot lifecycle."""
 
         # Create a DB instance for snapshot tests
@@ -290,7 +310,7 @@ class DBFunctionalTests(unittest.TestCase):
             }
         }""" % INSTANCE_NAME
 
-        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=TIMEOUTS['http'], disable_ssl_certificate_validation=True)
         resp, content = self._execute_request(client, "instances", "POST", instance_body)
         
         self.assertEqual(201, resp.status, ("Expecting 201 response status to Instance Create but received %s" % resp.status))
@@ -324,9 +344,9 @@ class DBFunctionalTests(unittest.TestCase):
         status = content['instance']['status']
         while status != 'running':
             # wait a max of max_wait for instance status to show running
-            time.sleep(10)
-            wait_so_far += 10
-            if wait_so_far >= MAX_WAIT_RUNNING:
+            time.sleep(POLL_INTERVALS['boot'])
+            wait_so_far += POLL_INTERVALS['boot']
+            if wait_so_far >= TIMEOUTS['boot']:
                 break
             
             resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
@@ -412,9 +432,9 @@ class DBFunctionalTests(unittest.TestCase):
         status = content['snapshot']['status']
         while status != 'success':
             # wait a max of max_wait for snapshot status to show success
-            time.sleep(10)
-            wait_so_far += 10
-            if wait_so_far >= MAX_WAIT_RUNNING:
+            time.sleep(POLL_INTERVALS['snapshot'])
+            wait_so_far += POLL_INTERVALS['snapshot']
+            if wait_so_far >= TIMEOUTS['boot']:
                 break
 
             resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
@@ -455,9 +475,9 @@ class DBFunctionalTests(unittest.TestCase):
         status = content['instance']['status']
         while status != 'running':
             # wait a max of max_wait for instance status to show running
-            time.sleep(10)
-            wait_so_far += 10
-            if wait_so_far >= MAX_WAIT_RUNNING:
+            time.sleep(POLL_INTERVALS['boot'])
+            wait_so_far += POLL_INTERVALS['boot']
+            if wait_so_far >= TIMEOUTS['boot']:
                 break
 
             resp, content = self._execute_request(client, "instances/" + self.instance_id , "GET", "")
@@ -488,7 +508,7 @@ class DBFunctionalTests(unittest.TestCase):
         resp, content = self._execute_request(client, "snapshots/" + self.snapshot_id , "GET", "")
         self.assertEqual(404, resp.status)
         
-        time.sleep(10)
+        time.sleep(DELAYS['after_delete'])
 
         # Finally, delete the instance.
         LOG.info("* Deleting instance %s" % self.instance_id)
@@ -516,7 +536,7 @@ class DBFunctionalTests(unittest.TestCase):
            premature test failures."""
 
         LOG.debug("\n*** Starting cleanup...")
-        client = httplib2.Http(".cache", timeout=180, disable_ssl_certificate_validation=True)
+        client = httplib2.Http(".cache", timeout=TIMEOUTS['http'], disable_ssl_certificate_validation=True)
 
         # Get list of snapshots
         LOG.debug("- Getting list of snapshots")
@@ -597,7 +617,7 @@ class DBFunctionalTests(unittest.TestCase):
                     pass
 
                 attempt += 1
-                time.sleep(4)
+                time.sleep(POLL_INTERVALS['ssh'])
         except Exception, e:
             LOG.exception("Error connecting to instance")
         
@@ -711,27 +731,26 @@ class DBFunctionalTests(unittest.TestCase):
 
     def db_connect(self, username, password, hostname, db_name):
         trial_count = 1
-        MAX_TRIAL = 5
-        SLEEP_INTERVAL = 10
-
-        while True:
+        poll_interval = POLL_INTERVALS['mysql_connect']
+        timeout = TIMEOUTS['mysql_connect']
+        now = time.time()
+        end = now + timeout
+        while now < end:
             try:
-                LOG.info("* db connection trial # %d: %s, %s, %s, %s" % (trial_count,
-                                                                         username,
-                                                                         password,
-                                                                         hostname,
-                                                                         db_name))
-                connection = MySQLdb.connect(host = hostname,
+                log_info = (trial_count, username, password, hostname, db_name)
+                LOG.info("* db connection trial # %d: %s, %s, %s, %s" % log_info)
+                connection = MySQLdb.connect(
+                    host = hostname,
                     user = username,
                     passwd = password,
                     db = db_name)
                 LOG.info("* connection established, returning connection object")
                 return connection
             except MySQLdb.Error as ex:
-                if trial_count < MAX_TRIAL:
-                    trial_count += 1
-                    LOG.info("* db seems not ready for socket connection, sleep for %d seconds" % SLEEP_INTERVAL)
-                    time.sleep(SLEEP_INTERVAL)
-                else:
-                    LOG.exception("* maximum %d trials reached, db connection failed: " % MAX_TRIAL)
-                    return None
+                trial_count += 1
+                LOG.debug("* db seems not ready for socket connection, sleep for %ds" % poll_interval)
+            time.sleep(poll_interval)
+            now = time.time()
+        # We've fallen through at this point
+        LOG.error("* timed out trying to connect to database after %ss and %d attempts", timeout, trial_count)
+        return None

@@ -104,7 +104,7 @@ class PhoneHomeMessageHandler():
     def __call__(self, msg):
         """Called by the phone home consumer whenever a message from smart agent is received."""
         self.msg_count += 1
-        LOG.debug("Total number of phone home messages processed: %d", self.msg_count)
+        LOG.info("Processing message %d: %s", self.msg_count, msg)
         try:
             self._validate(msg)
             # execute the requested method from the RPC message
@@ -118,7 +118,7 @@ class PhoneHomeMessageHandler():
 
     def _validate(self, msg):
         """Validate that the request has all the required parameters"""
-        LOG.debug("Validating RPC Message: %s" % msg)
+        LOG.debug("Validating RPC Message: %s", msg)
         if not msg:
             raise exception.NotFound("Phone home message is empty.")
         if not msg['method']:
@@ -137,7 +137,7 @@ class PhoneHomeMessageHandler():
         
     def update_instance_state(self, msg):
         """Update instance state in guest_status table."""
-        LOG.info("Received PhoneHome to Update Instance State: %s" % msg)
+        LOG.debug("Updating instance state: %s", msg)
         # validate input message
         if not msg['args']['hostname']:
             raise exception.NotFound("Required element/key 'hostname' was not specified in phone home message.")
@@ -177,7 +177,7 @@ class PhoneHomeMessageHandler():
     
     def update_snapshot_state(self, msg):
         """Update snapshot state in database_snapshots table."""
-        LOG.debug("Received PhoneHome to Update Snapshot State: %s" % msg)
+        LOG.debug("Updating snapshot state: %s", msg)
 
         # validate input message
         if not msg['args']['sid']:
