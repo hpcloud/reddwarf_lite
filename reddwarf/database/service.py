@@ -178,14 +178,17 @@ class InstanceController(wsgi.Controller):
             return wsgi.Result(errors.wrap(errors.Instance.QUOTA_EXCEEDED, "You are only allowed to create %s instances on you account." % maximum_instances_allowed), 413)
         
         # Extract any snapshot info from the request
-        try:
-            snapshot = self._extract_snapshot(body, tenant_id)
-        except exception.ReddwarfError, e:
-            LOG.exception("Error creating new instance")
-            return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 500)
-        except Exception, e:
-            LOG.exception("Error creating new instance")
-            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
+        snapshot = None
+        snapshot_support = CONFIG.get('reddwarf_snapshot_support', True)
+        if utils.bool_from_string(snapshot_support):
+            try:
+                snapshot = self._extract_snapshot(body, tenant_id)
+            except exception.ReddwarfError, e:
+                LOG.exception("Error creating new instance")
+                return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 500)
+            except Exception, e:
+                LOG.exception("Error creating new instance")
+                return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
 
         # Extract volume size info from the request and check Quota
         try:
@@ -720,6 +723,10 @@ class SnapshotController(wsgi.Controller):
         LOG.info("Creating a database snapshot for tenant '%s'" % tenant_id)
         LOG.info("req : '%s'\n\n" % req)
         LOG.info("body : '%s'\n\n" % body)
+
+        snapshot_support = CONFIG.get('reddwarf_snapshot_support', True)
+        if not utils.bool_from_string(snapshot_support):
+            raise exception.NotImplemented("This resource is temporarily not available")
 
         # Return if instance is not running
         instance_id = body['snapshot']['instanceId']
