@@ -27,12 +27,15 @@ def create_boot_config(configuration_manager, credential, storage_uri, password)
                    'rabbit_use_ssl': 'False',
                    'rabbit_userid': 'user',
                    'rabbit_password': 'password',
-                   'rabbit_virtual_host': '/'}
+                   'rabbit_virtual_host': '/',
+                   'amqp_connection_uri': None }
     
     section = 'messaging'
     config.add_section(section) 
-    for each in rabbit_dict.keys():
-        config.set(section, each, configuration_manager.get(each, rabbit_dict[each]))
+    for k in rabbit_dict.keys():
+        v = configuration_manager.get(k, rabbit_dict[k])
+        if v:
+          config.set(section, k, v)
 
     section = 'database'
     config.add_section(section)
