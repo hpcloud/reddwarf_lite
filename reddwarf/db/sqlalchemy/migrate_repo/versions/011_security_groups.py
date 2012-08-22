@@ -35,37 +35,34 @@ from sqlalchemy.sql.expression import false
 meta = MetaData()
 
 security_group_instance_association = Table('security_group_instance_association', meta,
-    Column('created_at', DateTime),
-    Column('updated_at', DateTime),
-    Column('deleted_at', DateTime),
-    Column('deleted', Boolean, server_default=false()),
     Column('id', String(36), primary_key=True, nullable=False),
     Column('security_group_id', String(36), nullable=False),
-    Column('instance_id', String(36), nullable=False)
-)
+    Column('instance_id', String(36), nullable=False),
+    Column('deleted', Boolean(), server_default=false()),
+    Column('created_at', DateTime()),
+    Column('updated_at', DateTime()),
+    Column('deleted_at', DateTime()))
 
 security_group_rules = Table('security_group_rules', meta,
-    Column('created_at', DateTime),
-    Column('updated_at', DateTime),
-    Column('deleted_at', DateTime),
-    Column('deleted', Boolean, server_default=false()),
     Column('id', String(36), primary_key=True, nullable=False),
     Column('protocol', String(length=255)),
     Column('cidr', String(length=255)),
-    Column('security_group_id', String(length=36), nullable=False)
-)
+    Column('security_group_id', String(length=36), nullable=False),
+    Column('deleted', Boolean(), server_default=false()),
+    Column('created_at', DateTime()),
+    Column('updated_at', DateTime()),
+    Column('deleted_at', DateTime()))
 
 security_groups = Table('security_groups', meta,
-    Column('created_at', DateTime),
-    Column('updated_at', DateTime),
-    Column('deleted_at', DateTime),
-    Column('deleted', Boolean, server_default=false()),
     Column('id', String(36), primary_key=True, nullable=False),
     Column('name', String(length=255), nullable=False),
     Column('description', String(length=255)),
     Column('user_id', String(length=255)),
-    Column('tenant_id', String(length=255))
-)
+    Column('tenant_id', String(length=255)),
+    Column('deleted', Boolean(), server_default=false()),
+    Column('created_at', DateTime()),
+    Column('updated_at', DateTime()),
+    Column('deleted_at', DateTime()))
 
 def upgrade(migrate_engine):
     meta.bind = migrate_engine
