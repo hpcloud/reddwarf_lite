@@ -469,6 +469,15 @@ class Quota(DatabaseModelBase):
 class DBVolume(DatabaseModelBase):
     _data_fields = ['volume_id', 'instance_id', 'size', 'availability_zone']
     
+
+class SecurityGroup(DatabaseModelBase):
+    _data_fields = ['name', 'description', 'user_id', 'tenant_id']
+
+class SecurityGroupRule(DatabaseModelBase):
+    _data_fields = ['protocol', 'cidr', 'security_group_id']
+
+class SecurityGroupInstanceAssociation(DatabaseModelBase):
+    _data_fields = ['security_group_id', 'instance_id']
        
 def persisted_models():
     return {
@@ -483,5 +492,8 @@ def persisted_models():
         'service_secgroup': ServiceSecgroup,
         'service_keypair': ServiceKeypair,
         'service_zone': ServiceZone,
-        'volume' : DBVolume
+        'volume' : DBVolume,
+        'security_group': SecurityGroup,
+        'security_group_rule': SecurityGroupRule,
+        'security_group_instance_association': SecurityGroupInstanceAssociation
     }
