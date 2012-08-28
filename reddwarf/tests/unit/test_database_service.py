@@ -56,7 +56,7 @@ class DummyQueryResult():
 
 class TestInstanceController(ControllerTestBase):
 
-    DUMMY_INSTANCE_ID = "123"
+    DUMMY_INSTANCE_ID = "12345678-1234-1234-1234-123456789abc"
     DUMMY_INSTANCE = {"id": DUMMY_INSTANCE_ID,
     "name": "DUMMY_NAME",
     "status": "BUILD",
@@ -70,7 +70,7 @@ class TestInstanceController(ControllerTestBase):
     
     DUMMY_GUEST_STATUS = DummyQueryResult ()
     DUMMY_GUEST_STATUS.id = '123456789'
-    DUMMY_GUEST_STATUS.instance_id = '123'
+    DUMMY_GUEST_STATUS.instance_id = '12345678-1234-1234-1234-123456789abc'
     DUMMY_GUEST_STATUS.state = 'BUILDING'
     
     DUMMY_SERVER = {

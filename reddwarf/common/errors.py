@@ -46,3 +46,6 @@ class Snapshot():
     CREATE = "There was a problem creating the requested snapshot."
     SWIFT_DELETE = "There was a problem deleting the specified snapshot."
     QUOTA_EXCEEDED= "Quota has been reached for snapshot creation on this account."
+
+class Input():
+    NONALLOWED_CHARACTERS_ID = "The id value contains non-allowed characters.  Only alphanumeric characters are allowed." 

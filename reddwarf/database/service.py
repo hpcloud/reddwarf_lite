@@ -39,12 +39,13 @@ from reddwarf.database import quota
 from reddwarf.admin import service as admin
 from reddwarf.database.utils import create_boot_config
 from reddwarf.database.utils import file_dict_as_userdata
+from reddwarf.database.utils import Sanitizer
 from swiftapi import swift
 
 
 CONFIG = config.Config
 LOG = logging.getLogger(__name__)
-
+Sanitizer = Sanitizer()
 
 class InstanceController(wsgi.Controller):
     """Controller for instance functionality"""
@@ -87,6 +88,7 @@ class InstanceController(wsgi.Controller):
         # TODO(hub-cap): turn this into middleware
         context = req.context
         LOG.debug("Context: %s" % context.to_dict())
+        
         servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
         
@@ -105,6 +107,11 @@ class InstanceController(wsgi.Controller):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
+        
+        # sanitize id
+        if not Sanitizer.whitelist_uuid(id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))
+        
         try:
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:

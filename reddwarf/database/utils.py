@@ -13,6 +13,8 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
+import re
+
 import ConfigParser
 import StringIO
 
@@ -71,3 +73,19 @@ EOS\n
         result += "chmod %s %s\n" % (file_info.get('chmod', default_chmod), filename)
 
     return result
+
+class Sanitizer():
+    
+    def _init__(self):
+        pass
+    
+    def whitelist_uuid(self, input, default_accept=False):
+        whitelist = re.compile("[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}")
+        match = whitelist.match(input)
+        
+        if match and input == match.group():
+            default_accept = True
+        
+        return default_accept
+        
+        
