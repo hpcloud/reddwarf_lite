@@ -87,7 +87,7 @@ class TestInstanceController(ControllerTestBase):
     def setUp(self):
         super(TestInstanceController, self).setUp()
         self.headers = {'X-Auth-Token': 'abc:123',
-                        'X-Roles': 'mysql-user',
+                        'X-Role': 'mysql-user',
                         'X-User-Id': '999',
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']
@@ -270,7 +270,7 @@ class TestSnapshotController(ControllerTestBase):
     def setUp(self):
         super(TestSnapshotController, self).setUp()
         self.headers = {'X-Auth-Token': 'abc:123',
-                        'X-Roles': 'mysql-user',
+                        'X-Role': 'mysql-user',
                         'X-User-Id': '999',
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']
@@ -367,7 +367,7 @@ class TestSnapshotController(ControllerTestBase):
         
         self.mock.ReplayAll()
 
-        response = self.app.post_json("RESPONSE: %s" % (self.snapshots_path), body=body,
+        response = self.app.post_json("%s" % (self.snapshots_path), body=body,
                                            headers=self.headers, expect_errors=True
                                            )
         
