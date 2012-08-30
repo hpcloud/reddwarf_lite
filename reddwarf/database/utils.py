@@ -80,7 +80,7 @@ class Sanitizer():
         pass
     
     def whitelist_uuid(self, input, default_accept=False):
-        whitelist = re.compile("[A-Za-z0-9]{8}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{4}-[A-Za-z0-9]{12}")
+        whitelist = re.compile("[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12}")
         match = whitelist.match(input)
         
         if match and input == match.group():

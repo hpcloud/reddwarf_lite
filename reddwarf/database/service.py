@@ -108,13 +108,6 @@ class InstanceController(wsgi.Controller):
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
         
-        # 1) We can assume that the endpoint matching filters out null or empty strings
-        # 2) We can dodge the whole issue of SQL injection by whitelisting against only alphanumeric chars
-        # 3) SqlAlchemy also automatically input checks and escapes quotes, making SQL injection basically impossible
-        # 4) Input length: we don't use any statically allocated data structures, so Python manages memory 
-        # for us in strings and lists.  This should prevent basic buffer overflow attacks.  Maximum
-        # string length is determined by the machine's physical memory.
-        
         # Sanitize id
         if not Sanitizer.whitelist_uuid(id):
             return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))
