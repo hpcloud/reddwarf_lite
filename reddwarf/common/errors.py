@@ -45,7 +45,12 @@ class Snapshot():
     DELETE = "There was a problem deleting the specified snapshot."
     CREATE = "There was a problem creating the requested snapshot."
     SWIFT_DELETE = "There was a problem deleting the specified snapshot."
-    QUOTA_EXCEEDED= "Quota has been reached for snapshot creation on this account."
+    QUOTA_EXCEEDED = "Quota has been reached for snapshot creation on this account."
+    NO_BODY_INSTANCE_ID = "The request body must contain an instanceId key."
+    NO_BODY_NAME = "The request body must contain a name key."    
 
 class Input():
     NONALLOWED_CHARACTERS_ID = "The id value contains non-allowed characters.  Only alphanumeric characters are allowed." 
+    NONALLOWED_CHARACTERS_SNAPSHOT_ID = "The snapshotId value contains non-allowed characters.  Only alphanumeric characters are allowed."
+    NONALLOWED_CHARACTERS_INSTANCE_ID = "The instanceId value contains non-allowed characters.  Only alphanumeric characters are allowed."    
+    NONINTEGER_VOLUME_SIZE = "The volume size must be an integer value."

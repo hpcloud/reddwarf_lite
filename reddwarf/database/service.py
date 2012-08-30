@@ -108,7 +108,14 @@ class InstanceController(wsgi.Controller):
                           tenant=tenant_id)
         LOG.debug("Context: %s" % context.to_dict())
         
-        # sanitize id
+        # 1) We can assume that the endpoint matching filters out null or empty strings
+        # 2) We can dodge the whole issue of SQL injection by whitelisting against only alphanumeric chars
+        # 3) SqlAlchemy also automatically input checks and escapes quotes, making SQL injection basically impossible
+        # 4) Input length: we don't use any statically allocated data structures, so Python manages memory 
+        # for us in strings and lists.  This should prevent basic buffer overflow attacks.  Maximum
+        # string length is determined by the machine's physical memory.
+        
+        # Sanitize id
         if not Sanitizer.whitelist_uuid(id):
             return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))
         
@@ -135,6 +142,11 @@ class InstanceController(wsgi.Controller):
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
+        
+        # Sanitize id
+        if not Sanitizer.whitelist_uuid(id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))        
+        
         try:
             server = models.DBInstance().find_by(id=id, tenant_id=tenant_id, deleted=False)
         except exception.ReddwarfError, e:
@@ -249,6 +261,10 @@ class InstanceController(wsgi.Controller):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)        
 
+        # Sanitize id
+        if not Sanitizer.whitelist_uuid(id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))  
+
         try:
             instance = models.DBInstance().find_by(id=id)
         except exception.ReddwarfError, e:
@@ -292,6 +308,10 @@ class InstanceController(wsgi.Controller):
         """Resets DB password on remote instance"""
         LOG.info("Resets DB password on Instance %s", id)
         LOG.debug("Req.environ: %s" % req.environ)
+
+        # Sanitize id
+        if not Sanitizer.whitelist_uuid(id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))  
 
         # Return if instance is not found
         try:
@@ -512,7 +532,9 @@ class InstanceController(wsgi.Controller):
 
         if 'snapshotId' in body['instance']:
             snapshot_id = body['instance']['snapshotId']
-            if snapshot_id and len(snapshot_id) > 0:
+            if snapshot_id:
+                if not Sanitizer.whitelist_uuid(snapshot_id):
+                    return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID)) 
                 try:
                     snapshot = models.Snapshot().find_by(id=snapshot_id, tenant_id=tenant_id, deleted=False)
                     return snapshot
@@ -526,6 +548,9 @@ class InstanceController(wsgi.Controller):
                 volume_size = int(body['instance']['volume']['size'])
             except ValueError as e:
                 raise exception.BadValue(msg=e)
+            
+            if not volume_size.isdigit():
+                return wsgi.Result(errors.wrap(errors.Input.NONINTEGER_VOLUME_SIZE))
         else:
             volume_size = None
             
@@ -627,6 +652,10 @@ class SnapshotController(wsgi.Controller):
         LOG.debug("Snapshots.show() called with %s, %s" % (tenant_id, id))
         LOG.debug("Showing all snapshots")
         
+        # Sanitize id
+        if not Sanitizer.whitelist_uuid(id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))        
+        
 #        context = rd_context.ReddwarfContext(
 #                          auth_tok=req.headers["X-Auth-Token"],
 #                          tenant=tenant_id)
@@ -680,6 +709,10 @@ class SnapshotController(wsgi.Controller):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         LOG.debug("Delete() context") 
+        
+        # Sanitize id
+        if not Sanitizer.whitelist_uuid(id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_ID))          
         
         snapshot = None
         try:
@@ -736,7 +769,16 @@ class SnapshotController(wsgi.Controller):
             raise exception.NotImplemented("This resource is temporarily not available")
 
         # Return if instance is not running
-        instance_id = body['snapshot']['instanceId']
+        try:
+            instance_id = body['snapshot']['instanceId']
+        except exception.ReddwarfError, e:
+            LOG.exception("body['snapshot']['instanceId'] does not exist")
+            return wsgi.Result(errors.wrap(errors.Snapshot.NO_BODY_INSTANCE_ID))
+        
+        # Sanitize instance_id
+        if not Sanitizer.whitelist_uuid(instance_id):
+            return wsgi.Result(errors.wrap(errors.Input.NONALLOWED_CHARACTERS_INSTANCE_ID))          
+        
         try:
             guest_status = models.GuestStatus().find_by(instance_id=instance_id)
         except exception.ReddwarfError, e:
@@ -780,11 +822,18 @@ class SnapshotController(wsgi.Controller):
             return wsgi.Result(errors.wrap(errors.Snapshot.QUOTA_EXCEEDED, "You are only allowed to create %s snapshots for you account." % maximum_snapshots_allowed), 413)
         
         SWIFT_AUTH_URL = CONFIG.get('reddwarf_proxy_swift_auth_url', 'localhost')
+        
+        try:
+            name = body['snapshot']['name']
+        except exception.ReddwarfError, e:
+            LOG.exception("body['snapshot']['name'] does not exist")
+            return wsgi.Result(errors.wrap(errors.Snapshot.NO_BODY_NAME))
+        
         try:
             credential = models.Credential.find_by(type='object-store')
             LOG.debug("Got credential: %s" % credential)
 
-            snapshot = models.Snapshot().create(name=body['snapshot']['name'],
+            snapshot = models.Snapshot().create(name=name,
                                      instance_id=instance_id,
                                      state='building',
                                      user_id=context.user,

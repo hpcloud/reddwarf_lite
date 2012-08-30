@@ -69,7 +69,7 @@ class TestInstanceController(ControllerTestBase):
     "address" : "ipaddress"}
     
     DUMMY_GUEST_STATUS = DummyQueryResult ()
-    DUMMY_GUEST_STATUS.id = '123456789'
+    DUMMY_GUEST_STATUS.id = '87654321-1234-1234-1234-123456789abc'
     DUMMY_GUEST_STATUS.instance_id = '12345678-1234-1234-1234-123456789abc'
     DUMMY_GUEST_STATUS.state = 'BUILDING'
     
@@ -256,8 +256,8 @@ class TestInstanceController(ControllerTestBase):
 
 class TestSnapshotController(ControllerTestBase):
 
-    DUMMY_SNAPSHOT_ID = "123"
-    DUMMY_INSTANCE_ID = "123456"
+    DUMMY_SNAPSHOT_ID = "87654321-1234-1234-1234-123456789abc"
+    DUMMY_INSTANCE_ID = "12345678-1234-1234-1234-123456789abc"
     DUMMY_SNAPSHOT = {"id": DUMMY_SNAPSHOT_ID,
     "name": "DUMMY_NAME",
     "instance_id": DUMMY_INSTANCE_ID,
