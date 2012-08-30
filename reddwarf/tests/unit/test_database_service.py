@@ -56,7 +56,7 @@ class DummyQueryResult():
 
 class TestInstanceController(ControllerTestBase):
 
-    DUMMY_INSTANCE_ID = "123"
+    DUMMY_INSTANCE_ID = "12345678-1234-1234-1234-123456789abc"
     DUMMY_INSTANCE = {"id": DUMMY_INSTANCE_ID,
     "name": "DUMMY_NAME",
     "status": "BUILD",
@@ -69,8 +69,8 @@ class TestInstanceController(ControllerTestBase):
     "address" : "ipaddress"}
     
     DUMMY_GUEST_STATUS = DummyQueryResult ()
-    DUMMY_GUEST_STATUS.id = '123456789'
-    DUMMY_GUEST_STATUS.instance_id = '123'
+    DUMMY_GUEST_STATUS.id = '87654321-1234-1234-1234-123456789abc'
+    DUMMY_GUEST_STATUS.instance_id = '12345678-1234-1234-1234-123456789abc'
     DUMMY_GUEST_STATUS.state = 'BUILDING'
     
     DUMMY_SERVER = {
@@ -87,7 +87,7 @@ class TestInstanceController(ControllerTestBase):
     def setUp(self):
         super(TestInstanceController, self).setUp()
         self.headers = {'X-Auth-Token': 'abc:123',
-                        'X-Roles': 'user',
+                        'X-Role': 'mysql-user',
                         'X-User-Id': '999',
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']
@@ -256,8 +256,8 @@ class TestInstanceController(ControllerTestBase):
 
 class TestSnapshotController(ControllerTestBase):
 
-    DUMMY_SNAPSHOT_ID = "123"
-    DUMMY_INSTANCE_ID = "123456"
+    DUMMY_SNAPSHOT_ID = "87654321-1234-1234-1234-123456789abc"
+    DUMMY_INSTANCE_ID = "12345678-1234-1234-1234-123456789abc"
     DUMMY_SNAPSHOT = {"id": DUMMY_SNAPSHOT_ID,
     "name": "DUMMY_NAME",
     "instance_id": DUMMY_INSTANCE_ID,
@@ -270,7 +270,7 @@ class TestSnapshotController(ControllerTestBase):
     def setUp(self):
         super(TestSnapshotController, self).setUp()
         self.headers = {'X-Auth-Token': 'abc:123',
-                        'X-Roles': 'user',
+                        'X-Role': 'mysql-user',
                         'X-User-Id': '999',
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']

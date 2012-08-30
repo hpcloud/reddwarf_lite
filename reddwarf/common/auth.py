@@ -71,11 +71,10 @@ class ServiceBasedAuth(object):
     # based on whether the mysql-admin role is enabled.
     def authorize(self, request, tenant_id, roles):
         
-        return True
-#        if 'mysql-admin' in [role.lower() for role in roles]:
-#            LOG.debug("Authorized MySQL service: %s" % request)
-#            return True
-#        raise webob.exc.HTTPForbidden(_("This service is not available for this account."))
+        if 'mysql-admin' in [role.lower() for role in roles] or 'mysql-user' in [role.lower() for role in roles]:
+            LOG.debug("Authorized MySQL service: %s" % request)
+            return True
+        raise webob.exc.HTTPForbidden(_("This service is not available for this account."))
 
 
 class TenantBasedAuth(object):
