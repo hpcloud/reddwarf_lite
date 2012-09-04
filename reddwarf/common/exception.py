@@ -136,6 +136,10 @@ class VolumeDeletionFailure(ReddwarfError):
 
     message = _("Failed to delete a volume in Nova.")
 
+class SecurityGroupCreationFailure(ReddwarfError):
+
+    message = _("Failed to create a Security Group in Nova.")
+
 class PollTimeOut(ReddwarfError):
     message = _("Polling request timed out.")
 

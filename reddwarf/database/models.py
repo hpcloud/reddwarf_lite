@@ -332,7 +332,7 @@ class Volume(RemoteModelBase):
                 raise rd_exceptions.NotFound(uuid=volume_id)
             except nova_exceptions.ClientException, e:
                 raise rd_exceptions.VolumeDeletionFailure(str(e))
-        
+
 class Instances(Instance):
 
     def __init__(self, credential, region):
@@ -492,8 +492,5 @@ def persisted_models():
         'service_secgroup': ServiceSecgroup,
         'service_keypair': ServiceKeypair,
         'service_zone': ServiceZone,
-        'volume' : DBVolume,
-        'security_group': SecurityGroup,
-        'security_group_rule': SecurityGroupRule,
-        'security_group_instance_association': SecurityGroupInstanceAssociation
+        'volume' : DBVolume
     }
