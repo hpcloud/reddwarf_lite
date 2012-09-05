@@ -110,7 +110,9 @@ class SecurityGroupController(wsgi.Controller):
 
         region_az = service_zone['availability_zone']
         
-        sec_group = self._try_create_secgroup(context, credential, region_az, body['security_group']['name'], body['security_group']['description'])
+        description = body['security_group'].get('description', None)
+
+        sec_group = self._try_create_secgroup(context, credential, region_az, body['security_group']['name'], description)
         
         return wsgi.Result(views.SecurityGroupView(sec_group, None, req, tenant_id).create(), 201)
 
@@ -128,6 +130,7 @@ class SecurityGroupController(wsgi.Controller):
                 # Create db record
                 sec_group = models.SecurityGroup.create(name=name,
                                                         description=description,
+                                                        remote_secgroup_id=remote_sec_group['id'],
                                                         user_id=context.user,
                                                         tenant_id=context.tenant)
                 return sec_group
