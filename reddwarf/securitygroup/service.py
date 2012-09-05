@@ -66,7 +66,7 @@ class SecurityGroupController(wsgi.Controller):
     def show(self, req, tenant_id, id):
         """Return a single security group."""
         LOG.debug("Show() called with %s, %s" % (tenant_id, id))
-        # TODO(hub-cap): turn this into middleware
+
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
@@ -81,12 +81,19 @@ class SecurityGroupController(wsgi.Controller):
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
         LOG.debug("Delete() called with %s, %s" % (tenant_id, id))
-        # TODO(hub-cap): turn this into middleware
+
         context = rd_context.ReddwarfContext(
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
 
         sec_group = models.SecurityGroup.find_by(id=id, tenant_id=tenant_id, deleted=False)
+        
+        try:
+            credential = instance_models.Credential().find_by(id=sec_group['credential'])
+            models.RemoteSecurityGroup.delete(credential, sec_group['availability_zone'], sec_group['remote_secgroup_id'])
+        except exception.ReddwarfError, e:
+            LOG.exception('Failed to delete security group')
+            raise exception.ReddwarfError("Failed to delete Security Group")
         
         return wsgi.Result(None, 204)
 
@@ -134,7 +141,9 @@ class SecurityGroupController(wsgi.Controller):
                                                         description=description,
                                                         remote_secgroup_id=remote_sec_group.data()['id'],
                                                         user_id=context.user,
-                                                        tenant_id=context.tenant)
+                                                        tenant_id=context.tenant,
+                                                        credential=credential['id'],
+                                                        availability_zone=region)
                 return sec_group
         except exception.SecurityGroupCreationFailure, e:
             LOG.exception("Failed to create remote security group")
