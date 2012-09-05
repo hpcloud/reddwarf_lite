@@ -46,7 +46,7 @@ class SecurityGroupView(object):
                     "id": self.secgroup['id'],
                     "description": self.secgroup['description'],
                     "name": self.secgroup['name'], 
-                    "rules": [],
+                    "rules": self._build_rules(),
                     "links": self._build_links(),
                     "created": self.secgroup['created_at']
         }
@@ -56,7 +56,7 @@ class SecurityGroupView(object):
                     "id": self.secgroup['id'],                        
                     "description": self.secgroup['description'],
                     "name": self.secgroup['name'], 
-                    "rules": [],
+                    "rules": self._build_rules(),
                     "links": self._build_links(),    
                     "created": self.secgroup['created_at'],
                     "updated": self.instance['updated_at'],
@@ -76,6 +76,18 @@ class SecurityGroupView(object):
         ]
         return links       
 
+    def _build_rules(self):
+        rules = []
+        
+        for rule in self.rules:
+            rules.append({
+                            'id': rule['id'],
+                            'ip_range': {
+                                'cidr': rule['cidr']
+                            }
+                        })
+        return rules
+       
     def list(self):
         return self._build_list()
     
@@ -98,6 +110,7 @@ class SecurityGroupsView(object):
         data = []
 
         for secgroup in self.secgroups:
-            data.append(SecurityGroupView(secgroup, self.rules[secgroup['id']], self.request, self.tenant_id).list())
+            rules = self.rules[secgroup['id']] if self.rules is not None else None
+            data.append(SecurityGroupView(secgroup, rules, self.request, self.tenant_id).list())
 
-        return {"instances": data}
+        return {"security_groups": data}

@@ -130,7 +130,7 @@ class SecurityGroupController(wsgi.Controller):
                 # Create db record
                 sec_group = models.SecurityGroup.create(name=name,
                                                         description=description,
-                                                        remote_secgroup_id=remote_sec_group['id'],
+                                                        remote_secgroup_id=remote_sec_group.data()['id'],
                                                         user_id=context.user,
                                                         tenant_id=context.tenant)
                 return sec_group
