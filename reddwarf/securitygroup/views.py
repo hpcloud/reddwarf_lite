@@ -59,7 +59,7 @@ class SecurityGroupView(object):
                     "rules": self._build_rules(),
                     "links": self._build_links(),    
                     "created": self.secgroup['created_at'],
-                    "updated": self.instance['updated_at'],
+                    "updated": self.secgroup['updated_at'],
                 } 
         }         
         
