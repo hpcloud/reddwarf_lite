@@ -79,6 +79,9 @@ class SecurityGroupView(object):
     def _build_rules(self):
         rules = []
         
+        if self.rules is None:
+            return rules
+        
         for rule in self.rules:
             rules.append({
                             'id': rule['id'],
