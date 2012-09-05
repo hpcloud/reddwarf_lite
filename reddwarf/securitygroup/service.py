@@ -31,6 +31,7 @@ from reddwarf.common import exception
 from reddwarf.common import result_state
 from reddwarf.common import utils
 from reddwarf.common import wsgi
+from reddwarf.database import models as instance_models
 from reddwarf.securitygroup import models
 from reddwarf.securitygroup import views
 
@@ -96,5 +97,55 @@ class SecurityGroupController(wsgi.Controller):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
         
+        self.validate(body)
+
+        # Get the credential to use for proxy compute resource
+        credential = instance_models.Credential.find_by(type='compute', deleted=False)
+
+        try:
+            service_zone = instance_models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
+        except exception.ModelNotFoundError, e:
+            LOG.info("Service Zone for tenant %s not found, using zone for 'default_tenant'" % tenant_id)
+            service_zone = instance_models.ServiceZone.find_by(service_name='database', tenant_id='default_tenant', deleted=False)
+
+        region_az = service_zone['availability_zone']
         
-        return wsgi.Result(views.SecurityGroupView(sec_groups, req, tenant_id).create(), 201)
+        sec_group = self._try_create_secgroup(context, credential, region_az, body['security_group']['name'], body['security_group']['description'])
+        
+        return wsgi.Result(views.SecurityGroupView(sec_group, None, req, tenant_id).create(), 201)
+
+
+    def _try_create_secgroup(self, context, credential, region, name, description):
+        try:
+            remote_sec_group = models.RemoteSecurityGroup.create(credential=credential, 
+                                                                 region=region, 
+                                                                 name=name, 
+                                                                 description=description)
+            
+            if not remote_sec_group:
+                raise exception.ReddwarfError("Failed to create Security Group")
+            else:
+                # Create db record
+                sec_group = models.SecurityGroup.create(name=name,
+                                                        description=description,
+                                                        user_id=context.user,
+                                                        tenant_id=context.tenant)
+                return sec_group
+        except exception.SecurityGroupCreationFailure, e:
+            LOG.exception("Failed to create remote security group")
+            raise exception.ReddwarfError("Failed to create Security Group")
+
+        
+
+    def validate(self, body):
+        try:
+            body['security_group']
+            body['security_group']['name']
+        except KeyError as e:
+            LOG.error(_("Create Security Group Required field(s) - %s") % e)
+            raise exception.ReddwarfError("Required element/key - %s "
+                                       "was not specified" % e)
+        
+        
+        
+        
