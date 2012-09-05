@@ -127,10 +127,11 @@ class SecurityGroupController(wsgi.Controller):
 
 
     def _try_create_secgroup(self, context, credential, region, name, description):
+        remote_name = 'dbaas-' + utils.generate_uuid()
         try:
             remote_sec_group = models.RemoteSecurityGroup.create(credential=credential, 
                                                                  region=region, 
-                                                                 name=name, 
+                                                                 name=remote_name, 
                                                                  description=description)
             
             if not remote_sec_group:
