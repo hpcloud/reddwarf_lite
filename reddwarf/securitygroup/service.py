@@ -86,6 +86,8 @@ class SecurityGroupController(wsgi.Controller):
                           auth_tok=req.headers["X-Auth-Token"],
                           tenant=tenant_id)
 
+        sec_group = models.SecurityGroup.find_by(id=id, tenant_id=tenant_id, deleted=False)
+        
         return wsgi.Result(None, 204)
 
     def create(self, req, body, tenant_id):

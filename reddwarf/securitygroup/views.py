@@ -51,7 +51,7 @@ class SecurityGroupView(object):
                     "created": self.secgroup['created_at']
         }
         
-    def _build_show(self, rules):
+    def _build_show(self):
         return {"security_group": {
                     "id": self.secgroup['id'],                        
                     "description": self.secgroup['description'],
