@@ -157,11 +157,97 @@ class SecurityGroupController(wsgi.Controller):
         try:
             body['security_group']
             body['security_group']['name']
+            body['security_group']['description']
         except KeyError as e:
             LOG.error(_("Create Security Group Required field(s) - %s") % e)
             raise exception.ReddwarfError("Required element/key - %s "
                                        "was not specified" % e)
         
         
+
+class SecurityGroupRuleController(wsgi.Controller):
+    """Controller for security group rule functionality"""        
+
+    def delete(self, req, tenant_id, id):
+        LOG.debug("Delete Security Group called with %s, %s" % (tenant_id, id))
+
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+
+        sec_group_rule = models.SecurityGroupRule.find_by(id=id, deleted=False)
+        sec_group = models.SecurityGroup.find_by(id=sec_group_rule['security_group_id'], tenant_id=tenant_id, deleted=False)
         
+        if sec_group is None:
+            LOG.error("Attempting to delete Group Rule that does not belong to tenant %s" % tenant_id)
+            raise exception.Forbidden("Unauthorized")
         
+        try:
+            credential = instance_models.Credential().find_by(id=sec_group['credential'])
+            models.RemoteSecurityGroup.delete_rule(credential, sec_group['availability_zone'], id)
+            sec_group_rule.delete()
+        except exception.ReddwarfError, e:
+            LOG.exception('Failed to delete security group')
+            raise exception.ServerError("Failed to delete Security Group")
+        
+        return wsgi.Result(None, 204)
+
+    def create(self, req, body, tenant_id):
+        
+        LOG.debug("Creating a Security Group Rule for tenant '%s'" % tenant_id)
+        context = rd_context.ReddwarfContext(
+                          auth_tok=req.headers["X-Auth-Token"],
+                          tenant=tenant_id)
+        
+        self.validate(body)
+
+        sec_group_id = body['security_group_rule']['security_group_id']
+        
+        sec_group = models.SecurityGroup.find_by(id=sec_group_id, tenant_id=tenant_id, deleted=False)
+
+        credential = instance_models.Credential.find_by(id=sec_group['credential'])
+        region_az = sec_group['availability_zone']
+        
+        cidr = body['security_group_rule']['cidr']
+        from_port = body['security_group_rule']['from_port']
+        to_port = body['security_group_rule']['to_port']
+       
+        sec_group = self._try_create_secgroup_rule(context, credential, region_az, sec_group, from_port, to_port, cidr)
+        
+        return wsgi.Result(views.SecurityGroupView(sec_group, None, req, tenant_id).create(), 201)
+    
+    def _try_create_secgroup_rule(self, context, credential, region, secgroup, from_port, to_port, cidr):
+        remote_name = 'dbaas-' + utils.generate_uuid()
+        try:
+            remote_rule_id = models.RemoteSecurityGroup.add_rule(credential=credential, 
+                                                                 region=region, 
+                                                                 secgroup_id=secgroup['remote_secgroup_id'], 
+                                                                 from_port=from_port,
+                                                                 to_port=to_port,
+                                                                 cidr=cidr)
+            
+            if not remote_rule_id:
+                raise exception.ReddwarfError("Failed to create Security Group Rule")
+            else:
+                # Create db record
+                sec_group_rule = models.SecurityGroupRule.create(protocol='tcp',
+                                                                 cidr=cidr,
+                                                                 security_group_id=secgroup['id'],
+                                                                 remote_secgroup_rule_id=remote_rule_id)
+                return sec_group_rule
+            
+        except exception.SecurityGroupCreationFailure, e:
+            LOG.exception("Failed to create remote security group")
+            raise exception.ReddwarfError("Failed to create Security Group")
+
+    def validate(self, body):
+        try:
+            body['security_group_rule']
+            body['security_group_rule']['security_group_id']
+            body['security_group_rule']['cidr']
+            body['security_group_rule']['from_port']
+            body['security_group_rule']['to_port']
+        except KeyError as e:
+            LOG.error(_("Create Security Group Rules Required field(s) - %s") % e)
+            raise exception.ReddwarfError("Required element/key - %s "
+                                       "was not specified" % e)
