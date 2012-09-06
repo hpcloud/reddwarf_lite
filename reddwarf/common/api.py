@@ -19,6 +19,7 @@ from reddwarf.common import wsgi
 from reddwarf.database.service import InstanceController
 from reddwarf.database.service import SnapshotController
 from reddwarf.securitygroup.service import SecurityGroupController
+from reddwarf.securitygroup.service import SecurityGroupRuleController
 
 LOG = logging.getLogger(__name__)
 
@@ -134,6 +135,19 @@ class API(wsgi.Router):
         path = "/{tenant_id}/security-groups"
         mapper.resource("security-group", path, controller=secgroup_resource)
         
-        
+    def _security_group_rules_router(self, mapper):
+        secgroup_rule_resource = SecurityGroupRuleController().create_resource()
+        path = "/{tenant_id}/security-group-rules"
+        mapper.connect(path,
+                       controller=secgroup_rule_resource,
+                       action="create", conditions=dict(method=["POST"],
+                                                        function=self._has_body))
+        mapper.connect(path + "/{id}",
+                       controller=secgroup_rule_resource,
+                       action="delete", conditions=dict(method=["DELETE"],
+                                                        function=self._has_no_body))
+
+
+
 def app_factory(global_conf, **local_conf):
     return API()
