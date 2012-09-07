@@ -114,7 +114,7 @@ class SecurityGroup(DatabaseModelBase):
     _data_fields = ['name', 'description', 'user_id', 'tenant_id']
 
 class SecurityGroupRule(DatabaseModelBase):
-    _data_fields = ['protocol', 'cidr', 'security_group_id']
+    _data_fields = ['protocol', 'cidr', 'from_port', 'to_port', 'security_group_id']
 
 class SecurityGroupInstanceAssociation(DatabaseModelBase):
     _data_fields = ['security_group_id', 'instance_id']

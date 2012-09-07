@@ -184,7 +184,7 @@ class SecurityGroupRuleController(wsgi.Controller):
         
         try:
             credential = instance_models.Credential().find_by(id=sec_group['credential'])
-            models.RemoteSecurityGroup.delete_rule(credential, sec_group['availability_zone'], id)
+            models.RemoteSecurityGroup.delete_rule(credential, sec_group['availability_zone'], sec_group_rule['remote_secgroup_rule_id'])
             sec_group_rule.delete()
         except exception.ReddwarfError, e:
             LOG.exception('Failed to delete security group')
@@ -217,7 +217,6 @@ class SecurityGroupRuleController(wsgi.Controller):
         return wsgi.Result(views.SecurityGroupRulesView(sec_group_rule, req, tenant_id).create(), 201)
     
     def _try_create_secgroup_rule(self, context, credential, region, secgroup, from_port, to_port, cidr):
-        remote_name = 'dbaas-' + utils.generate_uuid()
         try:
             remote_rule_id = models.RemoteSecurityGroup.add_rule(credential=credential, 
                                                                  region=region, 
