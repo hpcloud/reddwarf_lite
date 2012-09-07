@@ -117,3 +117,27 @@ class SecurityGroupsView(object):
             data.append(SecurityGroupView(secgroup, rules, self.request, self.tenant_id).list())
 
         return {"security_groups": data}
+    
+    
+    
+class SecurityGroupRulesView(object):
+    
+    def __init__(self, rule, req, tenant_id):
+        self.rule = rule
+        self.request = req
+        self.tenant_id = tenant_id
+        
+    def _build_create(self):
+        return {"security_group_rule": {
+                    "id": self.rule['id'],
+                    "security_group_id": self.rule['security_group_id'],
+                    "from_port": self.rule['from_port'],
+                    "to_port": self.rule['to_port'],
+                    "cidr": self.rule['cidr'],
+                    "created": self.rule['created_at']
+                } 
+        } 
+ 
+    def create(self):
+        return self._build_create()
+    

@@ -212,9 +212,9 @@ class SecurityGroupRuleController(wsgi.Controller):
         from_port = body['security_group_rule']['from_port']
         to_port = body['security_group_rule']['to_port']
        
-        sec_group = self._try_create_secgroup_rule(context, credential, region_az, sec_group, from_port, to_port, cidr)
+        sec_group_rule = self._try_create_secgroup_rule(context, credential, region_az, sec_group, from_port, to_port, cidr)
         
-        return wsgi.Result(views.SecurityGroupView(sec_group, None, req, tenant_id).create(), 201)
+        return wsgi.Result(views.SecurityGroupRulesView(sec_group_rule, req, tenant_id).create(), 201)
     
     def _try_create_secgroup_rule(self, context, credential, region, secgroup, from_port, to_port, cidr):
         remote_name = 'dbaas-' + utils.generate_uuid()
@@ -232,6 +232,8 @@ class SecurityGroupRuleController(wsgi.Controller):
                 # Create db record
                 sec_group_rule = models.SecurityGroupRule.create(protocol='tcp',
                                                                  cidr=cidr,
+                                                                 from_port=from_port,
+                                                                 to_port=to_port,
                                                                  security_group_id=secgroup['id'],
                                                                  remote_secgroup_rule_id=remote_rule_id)
                 return sec_group_rule
