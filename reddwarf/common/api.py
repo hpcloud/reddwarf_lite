@@ -54,6 +54,7 @@ class API(wsgi.Router):
         self._instance_router(mapper)
         self._snapshot_router(mapper)
         self._security_group_router(mapper)
+        self._security_group_rules_router(mapper)
         
     def _has_body(self, environ, result):
         LOG.debug("has body ENVIRON: %s" % environ)
