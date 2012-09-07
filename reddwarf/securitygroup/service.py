@@ -55,6 +55,11 @@ class SecurityGroupController(wsgi.Controller):
         LOG.debug(sec_groups)
         
         id_list = [sec_group['id'] for sec_group in sec_groups]
+        rules_map = dict()
+        for secgroup_id in id_list:
+            rules = models.SecurityGroupRule().find_all(deleted=False, security_group_id=secgroup_id)
+            rules_map[secgroup_id] = rules
+            
         #group_rules = models.SecurityGroupRule().find_all(deleted=False, models.SecurityGroupRule.security_group_id.in_(id_list))
         
         #rules_map = dict([(r.security_group_id, r) for r in group_rules])
@@ -150,8 +155,6 @@ class SecurityGroupController(wsgi.Controller):
         except exception.SecurityGroupCreationFailure, e:
             LOG.exception("Failed to create remote security group")
             raise exception.ReddwarfError("Failed to create Security Group")
-
-        
 
     def validate(self, body):
         try:
