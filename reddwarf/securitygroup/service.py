@@ -60,11 +60,6 @@ class SecurityGroupController(wsgi.Controller):
             rules = models.SecurityGroupRule().find_all(deleted=False, security_group_id=secgroup_id)
             rules_map[secgroup_id] = rules
             
-        #group_rules = models.SecurityGroupRule().find_all(deleted=False, models.SecurityGroupRule.security_group_id.in_(id_list))
-        
-        #rules_map = dict([(r.security_group_id, r) for r in group_rules])
-        rules_map = None
-        
         return wsgi.Result(views.SecurityGroupsView(sec_groups, rules_map, req, tenant_id).list(), 200)
 
 
