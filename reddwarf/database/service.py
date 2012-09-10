@@ -536,16 +536,13 @@ class InstanceController(wsgi.Controller):
                     raise e
 
     def _extract_volume_size(self, body):
+        volume_size = None
+        
         if body['instance'].get('volume', None) is not None:
             try:
                 volume_size = int(body['instance']['volume']['size'])
             except ValueError as e:
-                raise exception.BadValue(msg=e)
-            
-            if not volume_size.isdigit():
                 return wsgi.Result(errors.wrap(errors.Input.NONINTEGER_VOLUME_SIZE))
-        else:
-            volume_size = None
             
         return volume_size
         
