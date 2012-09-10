@@ -136,12 +136,13 @@ class SecurityGroupController(wsgi.Controller):
                                                                  description=description)
             
             if not remote_sec_group:
-                raise exception.ReddwarfError("Failed to create Security Group")
+                raise exception.SecurityGroupCreationFailure("Failed to create Security Group")
             else:
                 # Create db record
                 sec_group = models.SecurityGroup.create(name=name,
                                                         description=description,
                                                         remote_secgroup_id=remote_sec_group.data()['id'],
+                                                        remote_secgroup_name=remote_name,
                                                         user_id=context.user,
                                                         tenant_id=context.tenant,
                                                         credential=credential['id'],
@@ -149,7 +150,7 @@ class SecurityGroupController(wsgi.Controller):
                 return sec_group
         except exception.SecurityGroupCreationFailure, e:
             LOG.exception("Failed to create remote security group")
-            raise exception.ReddwarfError("Failed to create Security Group")
+            raise e
 
     def validate(self, body):
         try:
@@ -158,7 +159,7 @@ class SecurityGroupController(wsgi.Controller):
             body['security_group']['description']
         except KeyError as e:
             LOG.error(_("Create Security Group Required field(s) - %s") % e)
-            raise exception.ReddwarfError("Required element/key - %s "
+            raise exception.SecurityGroupCreationFailure("Required element/key - %s "
                                        "was not specified" % e)
         
         
@@ -186,7 +187,7 @@ class SecurityGroupRuleController(wsgi.Controller):
             sec_group_rule.delete()
         except exception.ReddwarfError, e:
             LOG.exception('Failed to delete security group')
-            raise exception.ServerError("Failed to delete Security Group")
+            raise exception.SecurityGroupRuleDeletionFailure("Failed to delete Security Group")
         
         return wsgi.Result(None, 204)
 
@@ -224,7 +225,7 @@ class SecurityGroupRuleController(wsgi.Controller):
                                                                  cidr=cidr)
             
             if not remote_rule_id:
-                raise exception.ReddwarfError("Failed to create Security Group Rule")
+                raise exception.SecurityGroupRuleCreationFailure("Failed to create Security Group Rule")
             else:
                 # Create db record
                 sec_group_rule = models.SecurityGroupRule.create(protocol='tcp',
@@ -235,9 +236,9 @@ class SecurityGroupRuleController(wsgi.Controller):
                                                                  remote_secgroup_rule_id=remote_rule_id)
                 return sec_group_rule
             
-        except exception.SecurityGroupCreationFailure, e:
+        except exception.SecurityGroupRuleCreationFailure, e:
             LOG.exception("Failed to create remote security group")
-            raise exception.ReddwarfError("Failed to create Security Group")
+            raise e
 
     def validate(self, body):
         try:
@@ -248,5 +249,5 @@ class SecurityGroupRuleController(wsgi.Controller):
             body['security_group_rule']['to_port']
         except KeyError as e:
             LOG.error(_("Create Security Group Rules Required field(s) - %s") % e)
-            raise exception.ReddwarfError("Required element/key - %s "
+            raise exception.SecurityGroupRuleCreationFailure("Required element/key - %s "
                                        "was not specified" % e)

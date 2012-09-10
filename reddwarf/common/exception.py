@@ -144,6 +144,14 @@ class SecurityGroupDeletionFailure(ReddwarfError):
 
     message = _("Failed to delete a Security Group in Nova.")
 
+class SecurityGroupRuleCreationFailure(ReddwarfError):
+
+    message = _("Failed to create a Security Group Rule in Nova.")
+
+class SecurityGroupRuleDeletionFailure(ReddwarfError):
+
+    message = _("Failed to delete a Security Group Rule in Nova.")
+
 class PollTimeOut(ReddwarfError):
     message = _("Polling request timed out.")
 

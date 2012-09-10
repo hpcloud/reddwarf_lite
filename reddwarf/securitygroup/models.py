@@ -79,7 +79,7 @@ class RemoteSecurityGroup(RemoteModelBase):
             client.security_groups.delete(secgroup_id)
         except nova_exceptions.ClientException, e:
             LOG.exception('Failed to delete remote security group')
-            raise rd_exceptions.SecurityGroupDeletionFailure(str(e))
+            raise rd_exceptions.SecurityGroupRuleDeletionFailure(str(e))
 
     @classmethod
     def add_rule(cls, credential, region, secgroup_id, from_port, to_port, cidr):
@@ -95,7 +95,7 @@ class RemoteSecurityGroup(RemoteModelBase):
             return secgroup_rule.id
         except nova_exceptions.ClientException, e:
             LOG.exception('Failed to add rule to remote security group')
-            raise rd_exceptions.SecurityGroupCreationFailure(str(e))
+            raise rd_exceptions.SecurityGroupRuleCreationFailure(str(e))
      
     @classmethod
     def delete_rule(cls, credential, region, secgroup_rule_id):

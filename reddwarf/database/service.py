@@ -520,11 +520,11 @@ class InstanceController(wsgi.Controller):
         
         secgroup = security_group.SecurityGroupController().create(req, secgroup_req_body, context.tenant)
         
-        secgroup_id = secgroup['id']
+        secgroup_json = secgroup.data('application/json')
         
         rule_req_body = { 
                           "security_group_rule" : {
-                            "security_group_id" : secgroup_id,
+                            "security_group_id" : secgroup_json['security_group']['id'],
                             "cidr" : "15.0.0.0/0",
                             "from_port" : port,
                             "to_port" : port
@@ -533,7 +533,7 @@ class InstanceController(wsgi.Controller):
         
         security_group.SecurityGroupRuleController().create(req, rule_req_body, context.tenant)
         
-        return secgroup
+        return secgroup_json
 
     def _extract_snapshot(self, body, tenant_id):
 
