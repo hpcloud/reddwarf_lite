@@ -34,7 +34,7 @@ from sqlalchemy.sql.expression import false
 
 meta = MetaData()
 
-security_group_instance_association = Table('security_group_instance_associations', meta,
+security_group_instance_association = Table('security_group_instances', meta,
     Column('id', String(36), primary_key=True, nullable=False),
     Column('security_group_id', String(36), nullable=False),
     Column('instance_id', String(36), nullable=False),
@@ -61,6 +61,7 @@ security_groups = Table('security_groups', meta,
     Column('name', String(length=255), nullable=False),
     Column('description', String(length=255)),
     Column('remote_secgroup_id', String(length=36)),
+    Column('remote_secgroup_name', String(length=255)),
     Column('user_id', String(length=255)),
     Column('tenant_id', String(length=255)),
     Column('availability_zone', String(length=255), nullable=false),

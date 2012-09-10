@@ -37,6 +37,8 @@ from reddwarf.database import guest_api
 from reddwarf.database import worker_api
 from reddwarf.database import quota
 from reddwarf.admin import service as admin
+from reddwarf.securitygroup import service as security_group
+from reddwarf.securitygroup import models as security_group_models
 from reddwarf.database.utils import create_boot_config
 from reddwarf.database.utils import file_dict_as_userdata
 from swiftapi import swift
@@ -213,8 +215,24 @@ class InstanceController(wsgi.Controller):
 
         password = utils.generate_password()
         
+        
+        
         try:
-            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor, snapshot, password)
+            secgroup = self._try_create_security_group(req, context, 3306)
+            db_secgroup = security_group_models.SecurityGroup().find_by(id=secgroup['security_group']['id'])
+            
+            remote_secgroups = [db_secgroup['remote_secgroup_name']]
+            
+            instance, guest_status, file_dict = self._try_create_server(context, 
+                                                                        body, 
+                                                                        credential, 
+                                                                        region_az, 
+                                                                        remote_secgroups, 
+                                                                        keypair_name, 
+                                                                        image_id, 
+                                                                        flavor, 
+                                                                        snapshot, 
+                                                                        password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -327,7 +345,7 @@ class InstanceController(wsgi.Controller):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
-    def _try_create_server(self, context, body, credential, region, keypair, image_id, flavor, snapshot=None, password=None):
+    def _try_create_server(self, context, body, credential, region, sec_groups, keypair, image_id, flavor, snapshot=None, password=None):
         """Create remote Server """
         # Create DB Instance record
         try:
@@ -351,7 +369,7 @@ class InstanceController(wsgi.Controller):
         try:
             # TODO (vipulsabhaya) move this into the db we should
             # have a service_secgroup table for mapping
-            sec_group = ['dbaas-instance']
+            sec_group = ['dbaas-instance'].extend(sec_groups)
 
             file_dict = self._create_boot_config_file(snapshot, password)
             LOG.debug('%s',file_dict)
@@ -496,7 +514,27 @@ class InstanceController(wsgi.Controller):
                 raise e
         else:
             raise exception.ReddwarfError("Failed to delete instance")
+
+    def _try_create_security_group(self, req, context, port):
+        secgroup_req_body = { "security_group" : { "name" : "default", "description" : "Default DBaaS Security Group" } }
         
+        secgroup = security_group.SecurityGroupController().create(req, secgroup_req_body, context.tenant)
+        
+        secgroup_id = secgroup['id']
+        
+        rule_req_body = { 
+                          "security_group_rule" : {
+                            "security_group_id" : secgroup_id,
+                            "cidr" : "15.0.0.0/0",
+                            "from_port" : port,
+                            "to_port" : port
+                          }
+                        }
+        
+        security_group.SecurityGroupRuleController().create(req, rule_req_body, context.tenant)
+        
+        return secgroup
+
     def _extract_snapshot(self, body, tenant_id):
 
         if 'instance' not in body:
