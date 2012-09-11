@@ -40,7 +40,19 @@ def configure_db(options, models_mapper=None):
     if models_mapper:
         models_mapper.map(_ENGINE)
     else:
-        mappers.map(_ENGINE, database.models.persisted_models())
+        from reddwarf.database import models as base_models
+        from reddwarf.securitygroup import models as secgroup_models
+
+        model_modules = [
+            base_models,
+            secgroup_models,
+        ]
+
+        models = {}
+        for module in model_modules:
+            models.update(module.persisted_models())
+        mappers.map(_ENGINE, models)
+                
 
 # (vipulsabhaya) No longer calling this method, logging should be configured in .conf
 def configure_sqlalchemy_log(options):
