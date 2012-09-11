@@ -152,7 +152,15 @@ class DistributedCreateTest(unittest.TestCase):
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, rd_utils.file_dict_as_userdata(file_dict))
         
-        
+        # Wait 20 seconds, and mark guest-status as failed
+        time.sleep(20)
+
+        try:
+            guest_status.update(state='failed')
+        except Exception, e:
+            LOG.exception("Error updating GuestStatus record to failed %s" % db_instance.data()['id'])
+            self.fail("Unable to update GuestStatus entry to 'failed' for recreate")
+
 
         # Test getting a specific db instance.
         # ------------------------------------
