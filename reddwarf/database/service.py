@@ -37,6 +37,8 @@ from reddwarf.database import guest_api
 from reddwarf.database import worker_api
 from reddwarf.database import quota
 from reddwarf.admin import service as admin
+from reddwarf.securitygroup import service as security_group
+from reddwarf.securitygroup import models as security_group_models
 from reddwarf.database.utils import create_boot_config
 from reddwarf.database.utils import file_dict_as_userdata
 from reddwarf.database.utils import Sanitizer
@@ -154,7 +156,7 @@ class InstanceController(wsgi.Controller):
             LOG.exception("Attempting to Delete Instance - Exception occurred finding volume by instance_id %s, ignore?" % id)
 
         try:
-            self._try_delete_instance(credential, server, volume)
+            self._try_delete_instance(req, context, credential, server, volume)
         except exception.ReddwarfError as e:
             LOG.exception("Failed to delete instance")
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_DELETE), 500)
@@ -225,16 +227,43 @@ class InstanceController(wsgi.Controller):
 
         password = utils.generate_password()
         
+        
+        
         try:
-            instance, guest_status, file_dict = self._try_create_server(context, body, credential, region_az, keypair_name, image_id, flavor, snapshot, password)
+            secgroup = self._try_create_security_group(req, context, 3306)
+            db_secgroup = security_group_models.SecurityGroup().find_by(id=secgroup['security_group']['id'], deleted=False)
+            
+            remote_secgroups = [db_secgroup['remote_secgroup_name']]
+            
+            instance, guest_status, file_dict = self._try_create_server(context, 
+                                                                        body, 
+                                                                        credential, 
+                                                                        region_az, 
+                                                                        remote_secgroups, 
+                                                                        keypair_name, 
+                                                                        image_id, 
+                                                                        flavor, 
+                                                                        snapshot, 
+                                                                        password)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
                 return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
                 LOG.exception("Error creating DBaaS instance")
+                #Cleanup
+                try:
+                    secgroup = security_group.SecurityGroupController().delete(req, context.tenant, secgroup['security_group']['id'])
+                except exception.SecurityGroupDeletionFailure, e:
+                    LOG.error("Failed to delete Security Group after Instance Creation Failure. Ignoring..")
+                    
                 return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Instance creation failure"), 500)
+        else:
+            # Associate Security group to Instance
+            security_group_models.SecurityGroupInstances().create(security_group_id=secgroup['security_group']['id'],
+                                                                  instance_id=instance['id'])
             
+        # Attempt to attach a volume    
         try:
             self._try_attach_volume(context, body, credential, region_az, volume_size, instance)
         except exception.ReddwarfError, e:
@@ -347,7 +376,7 @@ class InstanceController(wsgi.Controller):
             return wsgi.Result(errors.wrap(errors.Instance.RESET_PASSWORD), 500)
 
 
-    def _try_create_server(self, context, body, credential, region, keypair, image_id, flavor, snapshot=None, password=None):
+    def _try_create_server(self, context, body, credential, region, sec_groups, keypair, image_id, flavor, snapshot=None, password=None):
         """Create remote Server """
         # Create DB Instance record
         try:
@@ -369,18 +398,13 @@ class InstanceController(wsgi.Controller):
             raise e
 
         try:
-            # TODO (vipulsabhaya) move this into the db we should
-            # have a service_secgroup table for mapping
             sec_group = ['dbaas-instance']
+            sec_group.extend(sec_groups)
 
             file_dict = self._create_boot_config_file(snapshot, password)
             LOG.debug('%s',file_dict)
 
-            #TODO (vipulsabhaya) move this to config or db
-            #keypair = 'dbaas-dev'
-            
             userdata = file_dict_as_userdata(file_dict)
-            #userdata = open('../development/bootstrap/dbaas-image.sh')
 
             server = models.Instance.create(credential, region, body, image_id, flavor['flavor_id'],
                                             security_groups=sec_group, key_name=keypair,
@@ -460,7 +484,7 @@ class InstanceController(wsgi.Controller):
                 LOG.exception("Failed to update DB Volume with instance id")
                 raise exception.ReddwarfError(e)
 
-    def _try_delete_instance(self, credential, server, db_volume):
+    def _try_delete_instance(self, req, context, credential, server, db_volume):
         
         remote_uuid = server["remote_uuid"]
         region_az = server['availability_zone']
@@ -500,6 +524,18 @@ class InstanceController(wsgi.Controller):
                     LOG.exception("Failed to Delete DB Volume record")
                     raise e
             
+            # Attempt to delete the Associated security group
+            association_count = security_group_models.SecurityGroupInstances().find_all(instance_id=server['id'], deleted=False).count()
+            if association_count > 1:
+                LOG.error("Security group associated to more than 1 instance.  This should not be possible.")
+            else:
+                try:
+                    sec_group = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
+                    security_group.SecurityGroupController().delete(req, context.tenant, sec_group['security_group_id'])
+                except exception.ModelNotFoundError as e:
+                    pass
+                    # This shouldn't happen, but ignore if we don't have a security group to delete
+                
             # Try to delete the Reddwarf lite instance
             try:
                 server = server.delete()
@@ -516,7 +552,33 @@ class InstanceController(wsgi.Controller):
                 raise e
         else:
             raise exception.ReddwarfError("Failed to delete instance")
+
+    def _try_create_security_group(self, req, context, port):
+        secgroup_req_body = { "security_group" : { "name" : "default", "description" : "Default DBaaS Security Group" } }
         
+        secgroup = security_group.SecurityGroupController().create(req, secgroup_req_body, context.tenant)
+        secgroup_json = secgroup.data('application/json')
+        
+        try:
+            rule_req_body = { 
+                              "security_group_rule" : {
+                                "security_group_id" : secgroup_json['security_group']['id'],
+                                "cidr" : "15.0.0.0/0",
+                                "from_port" : port,
+                                "to_port" : port
+                              }
+                            }
+            
+            security_group.SecurityGroupRuleController().create(req, rule_req_body, context.tenant)
+
+        except exception.ReddwarfError, e:
+            LOG.exception("Failed creating a security group rule, deleting security group")
+            security_group.SecurityGroupController().delete(req, context.tenant, secgroup_json['security_group']['id'])
+            raise e
+        
+        return secgroup_json
+
+
     def _extract_snapshot(self, body, tenant_id):
 
         if 'instance' not in body:
@@ -869,108 +931,3 @@ class SnapshotController(wsgi.Controller):
         return num_snapshots
    
 
-class API(wsgi.Router):
-    """API"""
-    def __init__(self):
-        mapper = routes.Mapper()
-        super(API, self).__init__(mapper)
-        self._instance_router(mapper)
-        self._snapshot_router(mapper)
-        #self._admin_router(mapper)
-        
-    def _has_body(self, environ, result):
-        LOG.debug("has body ENVIRON: %s" % environ)
-        LOG.debug("RESULT: %s" % result)
-        if environ.get("CONTENT_LENGTH") and int(environ.get("CONTENT_LENGTH")) > 0:
-            return True
-        else:
-            return False
-        
-    def _has_no_body(self, environ, result):
-        LOG.debug("has no body ENVIRON: %s" % environ)
-        LOG.debug("RESULT: %s" % result)
-        LOG.debug(environ.get("CONTENT_LENGTH"))
-        
-        if not environ.get("CONTENT_LENGTH"):
-            return True  
-        elif int(environ.get("CONTENT_LENGTH")) > 0:
-            return False
-        else:            
-            return True
-
-    def _instance_router(self, mapper):
-        instance_resource = InstanceController().create_resource()
-        path = "/{tenant_id}/instances"
-
-        #mapper.resource("instance", path, controller=instance_resource)      
-        mapper.connect(path,
-                       controller=instance_resource,
-                       action="create", conditions=dict(method=["POST"],
-                                                        function=self._has_body))
-        mapper.connect(path,
-                       controller=instance_resource,
-                       action="index", conditions=dict(method=["GET"],
-                                                       function=self._has_no_body))                  
-        mapper.connect(path + "/{id}",
-                       controller=instance_resource,
-                       action="show", conditions=dict(method=["GET"],
-                                                      function=self._has_no_body))
-        mapper.connect(path + "/{id}",
-                       controller=instance_resource,
-                       action="delete", conditions=dict(method=["DELETE"],
-                                                        function=self._has_no_body))              
-        mapper.connect(path +"/{id}/restart",
-                       controller=instance_resource,
-                       action="restart", conditions=dict(method=["POST"],
-                                                         function=self._has_no_body))
-        mapper.connect(path + "/{id}/resetpassword",
-                       controller=instance_resource,
-                       action="reset_password", conditions=dict(method=["POST"],
-                                                                function=self._has_no_body))
-        mapper.connect(path +"/{id}/action",
-                       controller=instance_resource,
-                       action="action", conditions=dict(method=["POST"],
-                                                         function=self._has_body))
-        
-    def _snapshot_router(self, mapper):
-        snapshot_resource = SnapshotController().create_resource()
-        path = "/{tenant_id}/snapshots"
-        #mapper.resource("snapshot", path, controller=snapshot_resource)
-        mapper.connect(path,
-                       controller=snapshot_resource,
-                       action="create", conditions=dict(method=["POST"],
-                                                        function=self._has_body))        
-        mapper.connect(path,
-                       controller=snapshot_resource,
-                       action="index", conditions=dict(method=["GET"],
-                                                       function=self._has_no_body))
-        mapper.connect(path + "/{id}",
-                       controller=snapshot_resource,
-                       action="show", conditions=dict(method=["GET"],
-                                                      function=self._has_no_body))
-        mapper.connect(path + "/{id}",
-                       controller=snapshot_resource,
-                       action="delete", conditions=dict(method=["DELETE"],
-                                                        function=self._has_no_body))  
-
-#    def _admin_router(self, mapper):
-#        admin_resource = admin.AdminController().create_resource()
-#        mapper.connect("/{tenant_id}/mgmt/{id}/agent",
-#                       controller=admin_resource,
-#                       action="agent", conditions=dict(method=["POST"]))
-#        mapper.connect("/{tenant_id}/mgmt/{id}/messageserver",
-#                       controller=admin_resource,
-#                       action="message_server", conditions=dict(method=["POST"]))
-#        mapper.connect("/{tenant_id}/mgmt/{id}/database",
-#                       controller=admin_resource,
-#                       action="database", conditions=dict(method=["POST"]))
-#        mapper.connect("/{tenant_id}/mgmt/instances",
-#                       controller=admin_resource,
-#                       action="index_instances", conditions=dict(method=["GET"]))
-#        mapper.connect("/{tenant_id}/mgmt/snapshots",
-#                       controller=admin_resource,
-#                       action="index_snapshots", conditions=dict(method=["GET"])) 
-        
-
-def app_factory(global_conf, **local_conf):
-    return API()
