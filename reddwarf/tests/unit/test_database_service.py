@@ -214,7 +214,7 @@ class TestInstanceController(ControllerTestBase):
                                                               mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(default_secgroup_api_response)
 
         self.mock.StubOutWithMock(secgroup_models.SecurityGroup, 'find_by')
-        secgroup_models.SecurityGroup.find_by(id='123').AndReturn(dummy_db_secgroup)                
+        secgroup_models.SecurityGroup.find_by(id='123', deleted=False).AndReturn(dummy_db_secgroup)                
 
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         
