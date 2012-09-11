@@ -116,12 +116,12 @@ class SecurityGroup(DatabaseModelBase):
 class SecurityGroupRule(DatabaseModelBase):
     _data_fields = ['protocol', 'cidr', 'from_port', 'to_port', 'security_group_id']
 
-class SecurityGroupInstanceAssociation(DatabaseModelBase):
+class SecurityGroupInstances(DatabaseModelBase):
     _data_fields = ['security_group_id', 'instance_id']
        
 def persisted_models():
     return {
         'security_group': SecurityGroup,
         'security_group_rule': SecurityGroupRule,
-        'security_group_instance_association': SecurityGroupInstanceAssociation
+        'security_group_instances': SecurityGroupInstances
     }

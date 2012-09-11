@@ -62,8 +62,8 @@ def map(engine, models):
     orm.mapper(models['security_group_rule'],
                Table('security_group_rules', meta, autoload=True))
 
-    orm.mapper(models['security_group_instance_association'],
-               Table('security_group_instance_associations', meta, autoload=True))
+    orm.mapper(models['security_group_instances'],
+               Table('security_group_instances', meta, autoload=True))
 
 
 def mapping_exists(model):

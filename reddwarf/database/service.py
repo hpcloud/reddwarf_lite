@@ -144,7 +144,7 @@ class InstanceController(wsgi.Controller):
             LOG.exception("Attempting to Delete Instance - Exception occurred finding volume by instance_id %s, ignore?" % id)
 
         try:
-            self._try_delete_instance(credential, server, volume)
+            self._try_delete_instance(req, context, credential, server, volume)
         except exception.ReddwarfError as e:
             LOG.exception("Failed to delete instance")
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_DELETE), 500)
@@ -219,7 +219,7 @@ class InstanceController(wsgi.Controller):
         
         try:
             secgroup = self._try_create_security_group(req, context, 3306)
-            db_secgroup = security_group_models.SecurityGroup().find_by(id=secgroup['security_group']['id'])
+            db_secgroup = security_group_models.SecurityGroup().find_by(id=secgroup['security_group']['id'], deleted=False)
             
             remote_secgroups = [db_secgroup['remote_secgroup_name']]
             
@@ -239,8 +239,19 @@ class InstanceController(wsgi.Controller):
                 return wsgi.Result(errors.wrap(errors.Instance.RAM_QUOTA_EXCEEDED), 500)
             else:
                 LOG.exception("Error creating DBaaS instance")
+                #Cleanup
+                try:
+                    secgroup = security_group.SecurityGroupController().delete(req, context.tenant, secgroup['security_group']['id'])
+                except exception.SecurityGroupDeletionFailure, e:
+                    LOG.error("Failed to delete Security Group after Instance Creation Failure. Ignoring..")
+                    
                 return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Instance creation failure"), 500)
+        else:
+            # Associate Security group to Instance
+            security_group_models.SecurityGroupInstances().create(security_group_id=secgroup['security_group']['id'],
+                                                                  instance_id=instance['id'])
             
+        # Attempt to attach a volume    
         try:
             self._try_attach_volume(context, body, credential, region_az, volume_size, instance)
         except exception.ReddwarfError, e:
@@ -367,18 +378,13 @@ class InstanceController(wsgi.Controller):
             raise e
 
         try:
-            # TODO (vipulsabhaya) move this into the db we should
-            # have a service_secgroup table for mapping
-            sec_group = ['dbaas-instance'].extend(sec_groups)
+            sec_group = ['dbaas-instance']
+            sec_group.extend(sec_groups)
 
             file_dict = self._create_boot_config_file(snapshot, password)
             LOG.debug('%s',file_dict)
 
-            #TODO (vipulsabhaya) move this to config or db
-            #keypair = 'dbaas-dev'
-            
             userdata = file_dict_as_userdata(file_dict)
-            #userdata = open('../development/bootstrap/dbaas-image.sh')
 
             server = models.Instance.create(credential, region, body, image_id, flavor['flavor_id'],
                                             security_groups=sec_group, key_name=keypair,
@@ -458,7 +464,7 @@ class InstanceController(wsgi.Controller):
                 LOG.exception("Failed to update DB Volume with instance id")
                 raise exception.ReddwarfError(e)
 
-    def _try_delete_instance(self, credential, server, db_volume):
+    def _try_delete_instance(self, req, context, credential, server, db_volume):
         
         remote_uuid = server["remote_uuid"]
         region_az = server['availability_zone']
@@ -498,6 +504,18 @@ class InstanceController(wsgi.Controller):
                     LOG.exception("Failed to Delete DB Volume record")
                     raise e
             
+            # Attempt to delete the Associated security group
+            association_count = security_group_models.SecurityGroupInstances().find_all(instance_id=server['id'], deleted=False).count()
+            if association_count > 1:
+                LOG.error("Security group associated to more than 1 instance.  This should not be possible.")
+            else:
+                try:
+                    sec_group = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
+                    security_group.SecurityGroupController().delete(req, context.tenant, sec_group['security_group_id'])
+                except exception.ModelNotFoundError as e:
+                    pass
+                    # This shouldn't happen, but ignore if we don't have a security group to delete
+                
             # Try to delete the Reddwarf lite instance
             try:
                 server = server.delete()
@@ -519,21 +537,27 @@ class InstanceController(wsgi.Controller):
         secgroup_req_body = { "security_group" : { "name" : "default", "description" : "Default DBaaS Security Group" } }
         
         secgroup = security_group.SecurityGroupController().create(req, secgroup_req_body, context.tenant)
-        
         secgroup_json = secgroup.data('application/json')
         
-        rule_req_body = { 
-                          "security_group_rule" : {
-                            "security_group_id" : secgroup_json['security_group']['id'],
-                            "cidr" : "15.0.0.0/0",
-                            "from_port" : port,
-                            "to_port" : port
-                          }
-                        }
-        
-        security_group.SecurityGroupRuleController().create(req, rule_req_body, context.tenant)
+        try:
+            rule_req_body = { 
+                              "security_group_rule" : {
+                                "security_group_id" : secgroup_json['security_group']['id'],
+                                "cidr" : "15.0.0.0/0",
+                                "from_port" : port,
+                                "to_port" : port
+                              }
+                            }
+            
+            security_group.SecurityGroupRuleController().create(req, rule_req_body, context.tenant)
+
+        except exception.ReddwarfError, e:
+            LOG.exception("Failed creating a security group rule, deleting security group")
+            security_group.SecurityGroupController().delete(req, context.tenant, secgroup_json['security_group']['id'])
+            raise e
         
         return secgroup_json
+
 
     def _extract_snapshot(self, body, tenant_id):
 
