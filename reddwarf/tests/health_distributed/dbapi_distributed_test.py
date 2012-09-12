@@ -72,7 +72,7 @@ AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN,
 TENANT_ID = content['access']['token']['tenant']['id']
 API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"
 
-logging.basicConfig()
+logging.basicConfig(format='%(levelname)-8s [%(asctime)s] %(name)s: %(message)s', level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
