@@ -34,7 +34,8 @@ class FlavorController(wsgi.Controller):
         self._validate_flavor_id(id)
         flavor = models.Flavor(context=context, flavor_id=int(id))
         # Pass in the request to build accurate links.
-        return wsgi.Result(views.FlavorView(flavor, req).data(), 200)
+        return wsgi.Result("testing", 200)
+        #return wsgi.Result(views.FlavorView(flavor, req).data(), 200)
 
     def index(self, req, tenant_id):
         """Return all flavors."""
