@@ -176,7 +176,7 @@ class DistributedCreateTest(unittest.TestCase):
             self.fail("Instance did not switch to running after App Server teardown and recreate")
 
 
-    def disabled_test_create_instance(self):
+    def disabled_create_instance(self):
         image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
         
         remote_hostname = utils.generate_uuid()
@@ -249,7 +249,7 @@ class DistributedCreateTest(unittest.TestCase):
             
         self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % instance_id))
 
-    def disabled_test_teardown_recreate_instance(self):
+    def disabled_teardown_recreate_instance(self):
         image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
         
         remote_hostname = utils.generate_uuid()
