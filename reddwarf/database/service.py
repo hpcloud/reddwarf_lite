@@ -549,8 +549,10 @@ class InstanceController(wsgi.Controller):
                 LOG.error("Security group associated to more than 1 instance.  This should not be possible.")
             else:
                 try:
+                    # Find the Association
                     sec_group = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
                     security_group.SecurityGroupController().delete(req, context.tenant, sec_group['security_group_id'])
+                    sec_group.delete()
                 except exception.ModelNotFoundError as e:
                     pass
                     # This shouldn't happen, but ignore if we don't have a security group to delete

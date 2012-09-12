@@ -91,6 +91,12 @@ class SecurityGroupController(wsgi.Controller):
         try:
             credential = instance_models.Credential().find_by(id=sec_group['credential'])
             models.RemoteSecurityGroup.delete(credential, sec_group['availability_zone'], sec_group['remote_secgroup_id'])
+            
+            secgroup_rules = models.SecurityGroupRule().find_all(security_group_id=id)
+            if secgroup_rules is not None:
+                for rule in secgroup_rules:
+                    rule.delete()
+            
             sec_group.delete()
         except exception.ReddwarfError, e:
             LOG.exception('Failed to delete security group')
