@@ -126,9 +126,24 @@ class InstanceController(wsgi.Controller):
             LOG.exception("Exception occurred when finding instance guest_status by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
+        # Find the security group associated with this server
+        try:
+            secgroup_association = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
+            secgroup = security_group_models.SecurityGroup().find_by(id=secgroup_association['security_group_id'], deleted=False)
+        except exception.ModelNotFoundError as e:
+            # instances created prior to Security Groups feature will not have a security group
+            pass
+            
+
+        try:
+            guest_status = models.GuestStatus().find_by(instance_id=server['id'], deleted=False)
+        except exception.ReddwarfError, e:
+            LOG.exception("Exception occurred when finding instance guest_status by id %s" % id)
+            return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, guest_status, req, tenant_id).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, [secgroup], req, tenant_id).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -277,7 +292,7 @@ class InstanceController(wsgi.Controller):
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
-        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
+        return wsgi.Result(views.DBInstanceView(instance, guest_status, [secgroup], req, tenant_id).create('dbas', password), 201)
 
 
     def restart(self, req, tenant_id, id):
