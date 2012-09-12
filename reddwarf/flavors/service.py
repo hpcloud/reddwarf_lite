@@ -30,7 +30,11 @@ class FlavorController(wsgi.Controller):
 
     def show(self, req, tenant_id, id):
         """Return a single flavor."""
-        context = req.environ[wsgi.CONTEXT_KEY]
+        #context = req.environ[wsgi.CONTEXT_KEY]
+        context = rd_context.ReddwarfContext(
+                  auth_tok=req.headers["X-Auth-Token"],
+                  tenant=tenant_id)
+        
         self._validate_flavor_id(id)
         flavor = models.Flavor(context=context, flavor_id=int(id))
         # Pass in the request to build accurate links.
@@ -42,6 +46,12 @@ class FlavorController(wsgi.Controller):
         context = req.environ[wsgi.CONTEXT_KEY]
         flavors = models.Flavors(context=context)
         return wsgi.Result(views.FlavorsView(flavors, req).data(), 200)
+    
+    def index_detail(self, req, tenant_id):
+        """Return all flavors with detail."""
+        context = req.environ[wsgi.CONTEXT_KEY]
+        flavors = models.Flavors(context=context)
+        return wsgi.Result(views.FlavorsView(flavors, req).data(), 200)    
 
     def _validate_flavor_id(self, id):
         try:

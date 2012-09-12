@@ -142,8 +142,13 @@ class API(wsgi.Router):
                                                        function=self._has_no_body))
         mapper.connect(path + "/detail", 
                        controller=flavor_resource,
+                       action="index_detail", conditions=dict(method=["GET"],
+                                                              function=self._has_no_body))
+        
+        mapper.connect(path + "/{id}", 
+                       controller=flavor_resource,
                        action="show", conditions=dict(method=["GET"],
-                                                       function=self._has_no_body))
+                                                      function=self._has_no_body))        
 
     def _security_group_router(self, mapper):
         secgroup_resource = SecurityGroupController().create_resource()
