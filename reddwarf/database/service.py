@@ -245,6 +245,9 @@ class InstanceController(wsgi.Controller):
                                                                         flavor, 
                                                                         snapshot, 
                                                                         password)
+        except exception.SecurityGroupCreationFailure, e:
+            LOG.exception("Error creating DBaaS Instance")
+            return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Instance creation failure"), 500)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -253,7 +256,8 @@ class InstanceController(wsgi.Controller):
                 LOG.exception("Error creating DBaaS instance")
                 #Cleanup
                 try:
-                    secgroup = security_group.SecurityGroupController().delete(req, context.tenant, secgroup['security_group']['id'])
+                    if secgroup is not None:
+                        secgroup = security_group.SecurityGroupController().delete(req, context.tenant, secgroup['security_group']['id'])
                 except exception.SecurityGroupDeletionFailure, e:
                     LOG.error("Failed to delete Security Group after Instance Creation Failure. Ignoring..")
                     
