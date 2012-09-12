@@ -32,6 +32,7 @@ from reddwarf.database import service
 from reddwarf.database import views
 from reddwarf.database import worker_api
 from reddwarf.database import guest_api
+from reddwarf.securitygroup import models as secgroup_models
 from reddwarf.db.sqlalchemy import api
 from reddwarf.tests import unit
 
@@ -185,6 +186,9 @@ class TestInstanceController(ControllerTestBase):
                           { "tenant_id": self.tenant, "hard_limit": 10, "resource":"snapshots"},
                           { "tenant_id": self.tenant, "hard_limit": 20, "resource":"volume_space"}]
         
+        default_secgroup_api_response = { 'security_group' : { 'id' : '123' } }
+        dummy_db_secgroup = { 'id': '123', 'remote_secgroup_name': 'test' }
+        
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
@@ -205,9 +209,16 @@ class TestInstanceController(ControllerTestBase):
         mock_dbinstance = {'id': 'id', 'name': 'name', 'created_at': 'created_at', 'address': 'address'}
 #        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))       
 
+        self.mock.StubOutWithMock(service.InstanceController, '_try_create_security_group')
+        service.InstanceController._try_create_security_group(mox.IgnoreArg(),
+                                                              mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(default_secgroup_api_response)
+
+        self.mock.StubOutWithMock(secgroup_models.SecurityGroup, 'find_by')
+        secgroup_models.SecurityGroup.find_by(id='123', deleted=False).AndReturn(dummy_db_secgroup)                
+
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_server')
         
-        service.InstanceController._try_create_server(mox.IgnoreArg(),
+        service.InstanceController._try_create_server(mox.IgnoreArg(), mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, self.DUMMY_GUEST_STATUS, {'/home/nova/agent.config':'blah'}))
         

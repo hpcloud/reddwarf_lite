@@ -56,6 +56,16 @@ def map(engine, models):
     orm.mapper(models['volume'],
                Table('volumes', meta, autoload=True))
 
+    orm.mapper(models['security_group'],
+               Table('security_groups', meta, autoload=True))
+
+    orm.mapper(models['security_group_rule'],
+               Table('security_group_rules', meta, autoload=True))
+
+    orm.mapper(models['security_group_instances'],
+               Table('security_group_instances', meta, autoload=True))
+
+
 def mapping_exists(model):
     try:
         orm.class_mapper(model)
