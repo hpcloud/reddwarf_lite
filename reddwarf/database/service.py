@@ -126,9 +126,17 @@ class InstanceController(wsgi.Controller):
             LOG.exception("Exception occurred when finding instance guest_status by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
 
+        # Find the security group associated with this server
+        try:
+            secgroup_association = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
+            secgroup = security_group_models.SecurityGroup().find_by(id=secgroup_association['security_group_id'], deleted=False)
+        except exception.ModelNotFoundError as e:
+            # instances created prior to Security Groups feature will not have a security group
+            pass
+
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, guest_status, req, tenant_id).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, [secgroup], req, tenant_id).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -245,6 +253,9 @@ class InstanceController(wsgi.Controller):
                                                                         flavor, 
                                                                         snapshot, 
                                                                         password)
+        except exception.SecurityGroupCreationFailure, e:
+            LOG.exception("Error creating DBaaS Instance")
+            return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Instance creation failure"), 500)
         except exception.ReddwarfError, e:
             if "RAMLimitExceeded" in e.message:
                 LOG.error("Remote Nova Quota exceeded on create instance: %s" % e.message)
@@ -253,7 +264,8 @@ class InstanceController(wsgi.Controller):
                 LOG.exception("Error creating DBaaS instance")
                 #Cleanup
                 try:
-                    secgroup = security_group.SecurityGroupController().delete(req, context.tenant, secgroup['security_group']['id'])
+                    if secgroup is not None:
+                        secgroup = security_group.SecurityGroupController().delete(req, context.tenant, secgroup['security_group']['id'])
                 except exception.SecurityGroupDeletionFailure, e:
                     LOG.error("Failed to delete Security Group after Instance Creation Failure. Ignoring..")
                     
@@ -273,7 +285,7 @@ class InstanceController(wsgi.Controller):
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
-        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
+        return wsgi.Result(views.DBInstanceView(instance, guest_status, [db_secgroup], req, tenant_id).create('dbas', password), 201)
 
 
     def restart(self, req, tenant_id, id):
@@ -530,8 +542,10 @@ class InstanceController(wsgi.Controller):
                 LOG.error("Security group associated to more than 1 instance.  This should not be possible.")
             else:
                 try:
+                    # Find the Association
                     sec_group = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
                     security_group.SecurityGroupController().delete(req, context.tenant, sec_group['security_group_id'])
+                    sec_group.delete()
                 except exception.ModelNotFoundError as e:
                     pass
                     # This shouldn't happen, but ignore if we don't have a security group to delete

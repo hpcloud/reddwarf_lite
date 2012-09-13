@@ -51,9 +51,10 @@ class InstanceView(object):
 
 class DBInstanceView(object):
     
-    def __init__(self, instance, guest_status, req, tenant_id):
+    def __init__(self, instance, guest_status, security_groups, req, tenant_id):
         self.instance = instance
         self.guest_status = guest_status
+        self.security_groups = security_groups
         self.request = req
         self.tenant_id = tenant_id
         
@@ -66,6 +67,7 @@ class DBInstanceView(object):
                     "name": self.instance['name'],
                     "id": self.instance['id'],                        
                     "hostname": "" if self.instance['address'] is None else self.instance['address'],
+                    "security_groups": self._build_secgroups(),
                     "created": self.instance['created_at'],            
                     "credential": credential
                 } 
@@ -87,6 +89,7 @@ class DBInstanceView(object):
                     "name": self.instance['name'],
                     "id": self.instance['id'],            
                     "hostname": "" if self.instance['address'] is None else self.instance['address'],
+                    "security_groups": self._build_secgroups(),
                     "created": self.instance['created_at'],  
                     "port": self.instance['port'],          
                     "updated": self.instance['updated_at'],
@@ -105,6 +108,32 @@ class DBInstanceView(object):
             }
         ]
         return links       
+    
+    def _build_secgroups(self):
+        groups = []
+        
+        if self.security_groups is None:
+            return groups
+        
+        for group in self.security_groups:
+            groups.append({
+                            'id': group['id'],
+                            'links': self._build_secgroup_links(group['id'])
+                        })
+        return groups        
+        
+    def _build_secgroup_links(self, id):
+        """Build the links for the instance"""
+        base_url = _base_url(self.request)
+        href = os.path.join(base_url, self.tenant_id,
+                            "security-groups", str(id))
+        links = [
+            {
+                'rel': 'self',
+                'href': href
+            }
+        ]
+        return links   
 
     def list(self):
         return self._build_list()
@@ -205,7 +234,7 @@ class DBInstancesView(object):
             LOG.debug("Instance to include into List: %s" % instance)
             guest_status = self.guest_statuses[instance['id']]
             LOG.debug("GuestStatus for instance: %s" % guest_status)
-            data.append(DBInstanceView(instance, guest_status, self.request, self.tenant_id).list())
+            data.append(DBInstanceView(instance, guest_status, None, self.request, self.tenant_id).list())
         LOG.debug("Returning from DBInstancesView.data()")
         return {"instances": data}
 
