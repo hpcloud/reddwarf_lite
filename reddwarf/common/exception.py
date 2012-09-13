@@ -136,6 +136,22 @@ class VolumeDeletionFailure(ReddwarfError):
 
     message = _("Failed to delete a volume in Nova.")
 
+class SecurityGroupCreationFailure(ReddwarfError):
+
+    message = _("Failed to create a Security Group in Nova.")
+
+class SecurityGroupDeletionFailure(ReddwarfError):
+
+    message = _("Failed to delete a Security Group in Nova.")
+
+class SecurityGroupRuleCreationFailure(ReddwarfError):
+
+    message = _("Failed to create a Security Group Rule in Nova.")
+
+class SecurityGroupRuleDeletionFailure(ReddwarfError):
+
+    message = _("Failed to delete a Security Group Rule in Nova.")
+
 class PollTimeOut(ReddwarfError):
     message = _("Polling request timed out.")
 
@@ -156,3 +172,7 @@ class InvalidModelError(ReddwarfError):
 class ModelNotFoundError(NotFound):
 
     message = _("Not Found")
+    
+class ServerError(ReddwarfError):
+
+    message = _("Unknown Server Error")

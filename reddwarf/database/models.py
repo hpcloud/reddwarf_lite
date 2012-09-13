@@ -28,6 +28,7 @@ from reddwarf.common import exception as rd_exceptions
 from reddwarf.common import utils
 from novaclient.v1_1.client import Client
 from novaclient import exceptions as nova_exceptions
+from sqlalchemy.sql import func as mysql_func
 
 CONFIG = config.Config
 LOG = logging.getLogger('reddwarf.database.models')
@@ -332,7 +333,7 @@ class Volume(RemoteModelBase):
                 raise rd_exceptions.NotFound(uuid=volume_id)
             except nova_exceptions.ClientException, e:
                 raise rd_exceptions.VolumeDeletionFailure(str(e))
-        
+
 class Instances(Instance):
 
     def __init__(self, credential, region):
@@ -349,7 +350,7 @@ class DatabaseModelBase(ModelBase):
     @classmethod
     def create(cls, **values):
         values['id'] = utils.generate_uuid()
-        values['created_at'] = utils.utcnow()
+        values['created_at'] = mysql_func.now()
 #        values['remote_hostname'] = None
 #        values['tenant_id'] = "12345"
 #        values['availability_zone'] = "1"
@@ -364,9 +365,10 @@ class DatabaseModelBase(ModelBase):
             raise rd_exceptions.InvalidModelError(self.errors)
 #        self._convert_columns_to_proper_type()
 #        self._before_save()
-        self['updated_at'] = utils.utcnow()
+        self['updated_at'] = mysql_func.now()
         LOG.debug("Saving %s: %s" % (self.__class__.__name__, self.__dict__))
-        return db.db_api.save(self)
+        instance = db.db_api.save(self)
+        return self.find_by(id=self['id'])
 
     def update(self, **values):
         attrs = utils.exclude(values, *self._auto_generated_attrs)
@@ -376,7 +378,7 @@ class DatabaseModelBase(ModelBase):
         return result
     
     def delete(self):
-        return self.update(deleted=True, deleted_at=utils.utcnow())   
+        return self.update(deleted=True, deleted_at=mysql_func.now())   
     
     def __init__(self, **kwargs):
         self.merge_attributes(kwargs)
@@ -415,7 +417,7 @@ class DBInstance(DatabaseModelBase):
     _data_fields = ['name', 'status', 'remote_id', 'remote_uuid', 'user_id',
                     'tenant_id', 'credential', 'address', 'port', 'flavor', 
                     'remote_hostname', 'availability_zone', 'deleted',
-                    'created_at', 'deleted_at']
+                    'updated_at', 'deleted_at']
     
 
 class User(DatabaseModelBase):
@@ -469,6 +471,15 @@ class Quota(DatabaseModelBase):
 class DBVolume(DatabaseModelBase):
     _data_fields = ['volume_id', 'instance_id', 'size', 'availability_zone']
     
+
+class SecurityGroup(DatabaseModelBase):
+    _data_fields = ['name', 'description', 'user_id', 'tenant_id']
+
+class SecurityGroupRule(DatabaseModelBase):
+    _data_fields = ['protocol', 'cidr', 'security_group_id']
+
+class SecurityGroupInstanceAssociation(DatabaseModelBase):
+    _data_fields = ['security_group_id', 'instance_id']
        
 def persisted_models():
     return {

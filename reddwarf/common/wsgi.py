@@ -225,10 +225,14 @@ class Controller(object):
             exception.VolumeQuotaExceeded,
             ],
         webob.exc.HTTPServerError: [
-            exception.VolumeCreationFailure
+            exception.VolumeCreationFailure,
+            exception.ServerError
             ],
         webob.exc.HTTPNotImplemented: [
             exception.NotImplemented
+            ],
+        webob.exc.HTTPForbidden: [
+            exception.Forbidden
             ],
         }
 

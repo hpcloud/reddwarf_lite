@@ -72,7 +72,7 @@ AUTH_HEADER = {'X-Auth-Token': AUTH_TOKEN,
 TENANT_ID = content['access']['token']['tenant']['id']
 API_URL = API_ENDPOINT + "/v1.0/" + TENANT_ID + "/"
 
-logging.basicConfig()
+logging.basicConfig(format='%(levelname)-8s [%(asctime)s] %(name)s: %(message)s', level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
 
@@ -95,6 +95,11 @@ RABBIT_PASSWORD = os.environ['RABBIT_PASSWORD']
 
 INSTANCE_NAME = 'dbapi_dist_health_' + utils.generate_uuid()
 
+TIMEOUTS = {
+    'http': 270,
+    'boot': 900,
+    'mysql_connect': 90
+}
 
 class DistributedCreateTest(unittest.TestCase):
 
@@ -111,7 +116,67 @@ class DistributedCreateTest(unittest.TestCase):
         
         super(DistributedCreateTest, self).setUp()
 
-    def test_create_instance(self):
+    def test_api_create_app_recreate(self):
+
+        # Test creating a db instance.
+        # ----------------------------
+        LOG.info("* Creating db instance via API call")
+        body = r"""
+        {"instance": {
+            "name": "%s"
+          }
+        }""" % INSTANCE_NAME
+
+        client = httplib2.Http(".cache", timeout=TIMEOUTS['http'], disable_ssl_certificate_validation=True)
+        resp, content = self._execute_request(client, "instances", "POST", body)
+
+        # Assert 1) that the request was accepted and 2) that the response
+        # is in the expected format.
+        self.assertEqual(201, resp.status, ("Expecting 201 as response status of create instance but received %s" % resp.status))
+        content = self._load_json(content,'Create Instance')
+        self.assertTrue(content.has_key('instance'), "Response body of create instance does not have 'instance' field")
+
+        self.instance_id = content['instance']['id']
+        LOG.debug("Instance ID: %s" % self.instance_id)
+        
+        
+        # Wait 20 seconds, and mark guest-status as failed
+        time.sleep(20)
+
+        try:
+            guest_status = models.GuestStatus.find_by(instance_id=self.instance_id)
+            guest_status.update(state='failed')
+        except Exception, e:
+            LOG.exception("Error updating GuestStatus record to failed %s" % self.instance_id)
+            self.fail("Unable to update GuestStatus entry to 'failed' for recreate")
+
+
+        # Poll until the instance is running
+        def instance_is_running():
+            try:
+                resp, content = req.request(API_URL + "instances/" + self.instance_id, "GET", "", AUTH_HEADER)
+                self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
+                LOG.debug("Content: %s" % content)
+                content = json.loads(content)
+                status = content['instance']['status']
+                if status=='running':
+                    return True
+                
+                return False
+            except Exception as e:
+                LOG.debug(e)
+                return False
+
+        try:
+            # Wait up to 15 minutes for instance to go running
+            utils.poll_until(instance_is_running, sleep_time=10,
+                             time_out=int(960))
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout waiting for instance to switch to running")
+            self.fail("Instance did not switch to running after App Server teardown and recreate")
+
+
+    def disabled_create_instance(self):
         image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
         
         remote_hostname = utils.generate_uuid()
@@ -151,8 +216,6 @@ class DistributedCreateTest(unittest.TestCase):
         
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, rd_utils.file_dict_as_userdata(file_dict))
-        
-        
 
         # Test getting a specific db instance.
         # ------------------------------------
@@ -186,7 +249,7 @@ class DistributedCreateTest(unittest.TestCase):
             
         self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % instance_id))
 
-    def test_teardown_recreate_instance(self):
+    def disabled_teardown_recreate_instance(self):
         image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
         
         remote_hostname = utils.generate_uuid()
@@ -295,6 +358,21 @@ class DistributedCreateTest(unittest.TestCase):
         
         return (image_id, flavor_id, keypair_name, region_az, credential)
             
+
+    def _execute_request(self, client, path, method, body=None):
+        resp, content = client.request(API_URL + path, method, body, AUTH_HEADER)
+        LOG.debug(resp)
+        LOG.debug(content)
+        return resp,content
+    
+    def _load_json(self, content, operation):
+        try:
+            content = json.loads(content)
+        except Exception, e:
+            LOG.exception("Error parsing response JSON")
+            self.fail("Response to %s was not proper JSON: $s" % (operation,content))
+
+        return content
 
     def tearDown(self):
         """Run a clean-up check to catch orphaned instances/snapshots due to
