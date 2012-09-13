@@ -25,7 +25,7 @@ class FlavorView(object):
         self.flavor = flavor
         self.req = req
 
-    def data(self):
+    def index(self):
         return {
             "flavor": {
                 'id': int(self.flavor.id),
@@ -34,6 +34,26 @@ class FlavorView(object):
                 'ram': self.flavor.ram,
             }
         }
+        
+    def index_details(self):
+        return {
+            "flavor": {
+                'id': int(self.flavor.id),
+                'links': self._build_links(),
+                'name': self.flavor.name,
+                'ram': self.flavor.ram,
+            }
+        }
+        
+    def show(self):
+        return {
+            "flavor": {
+                'id': int(self.flavor.id),
+                'links': self._build_links(),
+                'name': self.flavor.name,
+                'ram': self.flavor.ram,
+            }
+        }        
 
     def _build_links(self):
         return create_links("flavors", self.req, self.flavor.id)
