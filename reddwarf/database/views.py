@@ -89,6 +89,7 @@ class DBInstanceView(object):
                     "name": self.instance['name'],
                     "id": self.instance['id'],            
                     "hostname": "" if self.instance['address'] is None else self.instance['address'],
+                    "security_groups": self._build_secgroups(),
                     "created": self.instance['created_at'],  
                     "port": self.instance['port'],          
                     "updated": self.instance['updated_at'],
