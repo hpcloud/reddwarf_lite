@@ -111,6 +111,12 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(models.GuestStatus, 'find_by')
         models.GuestStatus.find_by(deleted=False,instance_id=id).AndReturn({'instance_id': id, 'state': 'running'})
 
+        self.mock.StubOutWithMock(secgroup_models.SecurityGroupInstances, 'find_by')
+        secgroup_models.SecurityGroupInstances.find_by(instance_id=id, deleted=False).AndReturn({'security_group_id': '123'})
+        
+        self.mock.StubOutWithMock(secgroup_models.SecurityGroup, 'find_by')
+        secgroup_models.SecurityGroup.find_by(id='123', deleted=False).AndReturn({'id': '234'})
+        
         self.mock.ReplayAll()
 
         response = self.app.get("%s/%s" % (self.instances_path,

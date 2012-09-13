@@ -233,7 +233,7 @@ class DBInstancesView(object):
             LOG.debug("Instance to include into List: %s" % instance)
             guest_status = self.guest_statuses[instance['id']]
             LOG.debug("GuestStatus for instance: %s" % guest_status)
-            data.append(DBInstanceView(instance, guest_status, self.request, self.tenant_id).list())
+            data.append(DBInstanceView(instance, guest_status, None, self.request, self.tenant_id).list())
         LOG.debug("Returning from DBInstancesView.data()")
         return {"instances": data}
 
