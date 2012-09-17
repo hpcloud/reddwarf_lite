@@ -16,35 +16,15 @@
 #    under the License.
 
 
-from reddwarf.common.views import create_links
-
+import os
 
 class FlavorView(object):
 
-    def __init__(self, flavor, req=None):
+    def __init__(self, flavor, tenant_id, request=None):
         self.flavor = flavor
-        self.req = req
+        self.tenant_id = tenant_id
+        self.request = request
 
-    def index(self):
-        return {
-            "flavor": {
-                'id': int(self.flavor.id),
-                'links': self._build_links(),
-                'name': self.flavor.name,
-                'ram': self.flavor.ram,
-            }
-        }
-        
-    def index_details(self):
-        return {
-            "flavor": {
-                'id': int(self.flavor.id),
-                'links': self._build_links(),
-                'name': self.flavor.name,
-                'ram': self.flavor.ram,
-            }
-        }
-        
     def show(self):
         return {
             "flavor": {
@@ -53,21 +33,38 @@ class FlavorView(object):
                 'name': self.flavor.name,
                 'ram': self.flavor.ram,
             }
-        }        
+        }     
 
     def _build_links(self):
-        return create_links("flavors", self.req, self.flavor.id)
+        """Build the links for the flavor information."""
+        base_url = self.request.application_url
+        href = os.path.join(base_url, self.tenant_id,
+                            "flavors", str(self.flavor.id))
+        links= [
+            {
+                'rel': 'self',
+                'href': href
+            }
+        ]
+        return links
 
 
 class FlavorsView(object):
     view = FlavorView
 
-    def __init__(self, flavors, req=None):
+    def __init__(self, flavors, tenant_id, request=None):
         self.flavors = flavors
-        self.req = req
+        self.tenant_id = tenant_id        
+        self.request = request
 
-    def data(self):
+    def index(self):
         data = []
         for flavor in self.flavors:
-            data.append(self.view(flavor, req=self.req).data()['flavor'])
+            data.append(self.view(flavor, self.tenant_id, request=self.request).show()['flavor'])
+        return {"flavors": data}
+    
+    def index_detail(self):
+        data = []
+        for flavor in self.flavors:
+            data.append(self.view(flavor, self.tenant_id, request=self.request).show()['flavor'])
         return {"flavors": data}

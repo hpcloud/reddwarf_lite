@@ -22,8 +22,8 @@ from reddwarf import db
 from novaclient import exceptions as nova_exceptions
 from reddwarf.common import exception
 from reddwarf.common import utils
-from reddwarf.common.models import NovaRemoteModelBase
-from reddwarf.common.remote import create_nova_client
+from reddwarf.database.models import Credential
+from reddwarf.database.models import RemoteModelBase
 
 
 class Flavor(object):
@@ -36,8 +36,8 @@ class Flavor(object):
             return
         if flavor_id and context:
             try:
-                client = create_nova_client(context)
-                self.flavor = client.flavors.get(flavor_id)
+                credential = Credential.find_by(type='compute', deleted=False)
+                self.flavor = RemoteModelBase.get_client(credential).flavors.get(flavor_id)
             except nova_exceptions.NotFound, e:
                 raise exception.NotFound(uuid=flavor_id)
             except nova_exceptions.ClientException, e:
@@ -68,10 +68,11 @@ class Flavor(object):
         return self.flavor.links
 
 
-class Flavors(NovaRemoteModelBase):
+class Flavors(RemoteModelBase):
 
     def __init__(self, context):
-        nova_flavors = create_nova_client(context).flavors.list()
+        credential = Credential.find_by(type='compute', deleted=False)
+        nova_flavors = self.get_client(credential).flavors.list()
         self.flavors = [Flavor(flavor=item) for item in nova_flavors]
 
     def __iter__(self):

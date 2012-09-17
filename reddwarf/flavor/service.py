@@ -18,6 +18,7 @@
 import routes
 import webob.exc
 
+from reddwarf.common import context as rd_context
 from reddwarf.common import exception
 from reddwarf.common import utils
 from reddwarf.common import wsgi
@@ -28,30 +29,36 @@ from reddwarf.flavor import views
 class FlavorController(wsgi.Controller):
     """Controller for flavor functionality"""
 
-    def show(self, req, tenant_id, id):
+    def show(self, request, tenant_id, id):
         """Return a single flavor."""
-        #context = req.environ[wsgi.CONTEXT_KEY]
         context = rd_context.ReddwarfContext(
-                  auth_tok=req.headers["X-Auth-Token"],
+                  auth_tok=request.headers["X-Auth-Token"],
                   tenant=tenant_id)
         
         self._validate_flavor_id(id)
         flavor = models.Flavor(context=context, flavor_id=int(id))
         # Pass in the request to build accurate links.
-        return wsgi.Result("testing", 200)
-        #return wsgi.Result(views.FlavorView(flavor, req).show(), 200)
+        return wsgi.Result(views.FlavorView(flavor, tenant_id, request).show(), 200)
 
-    def index(self, req, tenant_id):
+    def index(self, request, tenant_id):
         """Return all flavors."""
-        context = req.environ[wsgi.CONTEXT_KEY]
-        flavors = models.Flavors(context=context)
-        return wsgi.Result(views.FlavorsView(flavors, req).index(), 200)
+        context = rd_context.ReddwarfContext(
+                  auth_tok=request.headers["X-Auth-Token"],
+                  tenant=tenant_id)   
+        
+        flavors = models.Flavors(context=context)        
+        # Pass in the request to build accurate links.        
+        return wsgi.Result(views.FlavorsView(flavors, tenant_id, request).index(), 200)
     
-    def index_detail(self, req, tenant_id):
+    def index_detail(self, request, tenant_id):
         """Return all flavors with detail."""
-        context = req.environ[wsgi.CONTEXT_KEY]
+        context = rd_context.ReddwarfContext(
+                  auth_tok=request.headers["X-Auth-Token"],
+                  tenant=tenant_id) 
+        
         flavors = models.Flavors(context=context)
-        return wsgi.Result(views.FlavorsView(flavors, req).index_detail(), 200)    
+        # Pass in the request to build accurate links.        
+        return wsgi.Result(views.FlavorsView(flavors, tenant_id, request).index_detail(), 200)    
 
     def _validate_flavor_id(self, id):
         try:
