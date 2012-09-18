@@ -24,6 +24,8 @@ def wrap (message=None, detail=None):
 
 class Instance():
     NOT_FOUND = "The requested instance does not exist."
+    FLAVOR_NOT_FOUND = "There was a problem retrieving flavor details for the requested instance."
+    FLAVOR_NOT_FOUND_CREATE = "There was a problem retrieving flavor details for the requested DBaaS instance."
     NOT_FOUND_NOVA = "The Nova instance pointed to by this instance does not exist."
     NOVA_DELETE = "There was a problem deleting the specified Nova instance."
     REDDWARF_DELETE = "There was a problem deleting the specified DBaaS instance."

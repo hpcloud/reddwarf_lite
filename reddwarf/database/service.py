@@ -97,9 +97,16 @@ class InstanceController(wsgi.Controller):
         id_list = [server['id'] for server in servers]
         guest_states = self.get_guest_state_mapping(id_list)
         
+        LOG.debug("server[flavor] = %s" % server['flavor'])
+        try:
+            flavor = models.ServiceFlavor().find_by(id=server['flavor'], deleted=False)
+        except exception.ReddwarfError, e:
+            LOG.exception("Exception occurred when finding service flavor for instance id %s" % id)
+            return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND), 404)     
+        
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id).list(), 200)
+        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id, flavor['flavor_id']).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -125,10 +132,16 @@ class InstanceController(wsgi.Controller):
         except exception.ReddwarfError, e:
             LOG.exception("Exception occurred when finding instance guest_status by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+        
+        try:
+            flavor = models.ServiceFlavor().find_by(id=server['flavor'], deleted=False)
+        except exception.ReddwarfError, e:
+            LOG.exception("Exception occurred when finding service flavor for instance id %s" % id)
+            return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND), 404)
 
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, guest_status, req, tenant_id).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, req, tenant_id, flavor['flavor_id']).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -273,7 +286,13 @@ class InstanceController(wsgi.Controller):
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
-        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id).create('dbas', password), 201)
+        try:
+            flavor = models.ServiceFlavor().find_by(id=instance['flavor'], deleted=False)
+        except exception.ReddwarfError, e:
+            LOG.exception("Exception occurred when finding service flavor for instance id %s" % id)
+            return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND_CREATE), 404)
+        
+        return wsgi.Result(views.DBInstanceView(instance, guest_status, req, tenant_id, flavor['flavor_id']).create('dbas', password), 201)
 
 
     def restart(self, req, tenant_id, id):

@@ -64,6 +64,7 @@ class TestInstanceController(ControllerTestBase):
     "created_at": "createtime",
     "updated_at": "updatedtime",
     "remote_hostname": "remotehost",
+    "flavor": "4",
     "port": "12345",
     "links": [],
     "credential": "credential",
@@ -79,6 +80,7 @@ class TestInstanceController(ControllerTestBase):
         "id": "76543",
         "name": "test_server",
         "remote_id": 22222,
+        "flavor": "4",
         "credential": "credential",
         "address" : "ipaddress" ,
         "created_at": "createtime",
@@ -93,6 +95,7 @@ class TestInstanceController(ControllerTestBase):
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']
         self.instances_path = "/v1.0/" + self.tenant + "/instances"
+        
 
     # TODO(hub-cap): Start testing the failure cases
     # def test_show_broken(self):
@@ -103,6 +106,7 @@ class TestInstanceController(ControllerTestBase):
 
     def test_show(self):
         id = self.DUMMY_INSTANCE_ID
+        flavor = self.DUMMY_INSTANCE['flavor']
         self.mock.StubOutWithMock(models.DBInstance, 'find_by')
         models.DBInstance.find_by(deleted=False,id=id,tenant_id=self.tenant).AndReturn(self.DUMMY_INSTANCE)
 #        self.mock.StubOutWithMock(models.DBInstance, '__init__')
@@ -110,6 +114,9 @@ class TestInstanceController(ControllerTestBase):
 
         self.mock.StubOutWithMock(models.GuestStatus, 'find_by')
         models.GuestStatus.find_by(deleted=False,instance_id=id).AndReturn({'instance_id': id, 'state': 'running'})
+
+        self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
+        models.ServiceFlavor.find_by(deleted=False, id=flavor).AndReturn({'id': '4', 'flavor_id': '104'})
 
         self.mock.ReplayAll()
 
@@ -119,17 +126,26 @@ class TestInstanceController(ControllerTestBase):
 
 
         self.assertEqual(response.status_int, 200)
+        self.mock.UnsetStubs()
 
     def test_index(self):
+        flavor = self.DUMMY_INSTANCE['flavor']
         self.mock.StubOutWithMock(models.DBInstance, 'find_all')
         models.DBInstance.find_all(tenant_id=self.tenant, deleted=False).AndReturn([self.DUMMY_INSTANCE])
-        #results = db.db_api.find_guest_statuses_for_instances(id_list)
+        
         self.mock.StubOutWithMock(api, 'find_guest_statuses_for_instances')
         api.find_guest_statuses_for_instances([self.DUMMY_INSTANCE_ID]).AndReturn([self.DUMMY_GUEST_STATUS])
+        
+        self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
+        models.ServiceFlavor.find_by(id=flavor, deleted=False).AndReturn({'id': '4', 'flavor_id': '104'})
+
         self.mock.ReplayAll()
+        
         response = self.app.get("%s" % (self.instances_path),
                                         headers=self.headers)
+        
         self.assertEqual(response.status_int, 200)
+        self.mock.UnsetStubs()
 
     def mock_out_client_create(self):
         """Stubs out a fake server returned from novaclient.
@@ -179,6 +195,7 @@ class TestInstanceController(ControllerTestBase):
                 "name": "json_rack_instance",
             }
         }
+        flavor = self.DUMMY_SERVER['flavor']
         
         mock_flip_data = {"ip": "blah"}
         
@@ -232,6 +249,8 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
         worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
 
+        models.ServiceFlavor.find_by(id=flavor, deleted=False).AndReturn({'id': '4', 'flavor_id': '104'})
+
         #self.mock_out_client_create()
         self.mock.ReplayAll()
 
@@ -239,7 +258,7 @@ class TestInstanceController(ControllerTestBase):
                                            headers=self.headers,
                                            )
         self.assertEqual(response.status_int, 201)
-
+        self.mock.UnsetStubs()
 
     def test_create_quota_error(self):
         
@@ -264,6 +283,7 @@ class TestInstanceController(ControllerTestBase):
                                            )
         
         self.assertEqual(response.status_int, 413)
+        self.mock.UnsetStubs()        
 
 class TestSnapshotController(ControllerTestBase):
 
