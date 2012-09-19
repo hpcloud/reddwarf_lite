@@ -23,6 +23,7 @@ import logging
 import re
 import sys
 import time
+import urlparse
 import uuid
 
 from eventlet import event
@@ -228,3 +229,16 @@ def poll_until(retriever, condition=lambda value: value,
             raise exception.PollTimeOut
     lc = LoopingCall(f=poll_and_check).start(sleep_time, True)
     return lc.wait()
+
+# Copied from nova.api.openstack.common in the old code.
+def get_id_from_href(href):
+    """Return the id or uuid portion of a url.
+
+    Given: 'http://www.foo.com/bar/123?q=4'
+    Returns: '123'
+
+    Given: 'http://www.foo.com/bar/abc123?q=4'
+    Returns: 'abc123'
+
+    """
+    return urlparse.urlsplit("%s" % href).path.split('/')[-1]
