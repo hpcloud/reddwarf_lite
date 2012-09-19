@@ -193,6 +193,7 @@ class TestInstanceController(ControllerTestBase):
         body = {
             "instance": {
                 "name": "json_rack_instance",
+                "flavorRef": "104"
             }
         }
         flavor = self.DUMMY_SERVER['flavor']
@@ -215,7 +216,7 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
         models.ServiceImage.find_by(service_name="database", tenant_id='123', availability_zone=self.ServiceZone["availability_zone"], deleted=False).AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
-        models.ServiceFlavor.find_by(service_name="database", deleted=False).AndReturn(self.ServiceFlavor)
+        models.ServiceFlavor.find_by(service_name="database", flavor_id='104', deleted=False).AndReturn(self.ServiceFlavor)
         self.mock.StubOutWithMock(models.ServiceKeypair, 'find_by')
         models.ServiceKeypair.find_by(service_name="database", deleted=False).AndReturn(self.ServiceKeypair)  
         self.mock.StubOutWithMock(models.Credential, 'find_by')
@@ -248,8 +249,6 @@ class TestInstanceController(ControllerTestBase):
         
         self.mock.StubOutWithMock(worker_api.API, 'ensure_create_instance')
         worker_api.API.ensure_create_instance(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
-
-        models.ServiceFlavor.find_by(id=flavor, deleted=False).AndReturn({'id': '4', 'flavor_id': '104'})
 
         #self.mock_out_client_create()
         self.mock.ReplayAll()
