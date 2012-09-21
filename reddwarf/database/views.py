@@ -18,6 +18,8 @@
 import logging
 import os
 
+from reddwarf.common.views import create_links
+
 LOG = logging.getLogger(__name__)
 
 def _base_url(req):
@@ -51,12 +53,13 @@ class InstanceView(object):
 
 class DBInstanceView(object):
     
-    def __init__(self, instance, guest_status, security_groups, req, tenant_id):
+    def __init__(self, instance, guest_status, security_groups, req, tenant_id, flavor):
         self.instance = instance
         self.guest_status = guest_status
         self.security_groups = security_groups
         self.request = req
         self.tenant_id = tenant_id
+        instance['flavor'] = flavor
         
     def _build_create(self, initial_user, initial_password):
         credential = { "username" : initial_user,
@@ -68,7 +71,8 @@ class DBInstanceView(object):
                     "id": self.instance['id'],                        
                     "hostname": "" if self.instance['address'] is None else self.instance['address'],
                     "security_groups": self._build_secgroups(),
-                    "created": self.instance['created_at'],            
+                    "created": self.instance['created_at'],                    
+                    "flavor": self._build_flavor_info(),                                
                     "credential": credential
                 } 
         } 
@@ -79,7 +83,8 @@ class DBInstanceView(object):
                 "id": self.instance['id'],                
                 "links": self._build_links(),       
                 "name": self.instance['name'],
-                "created": self.instance['created_at'],                
+                "created": self.instance['created_at'],
+                "flavor": self._build_flavor_info()
         }
         
     def _build_show(self):
@@ -91,8 +96,9 @@ class DBInstanceView(object):
                     "hostname": "" if self.instance['address'] is None else self.instance['address'],
                     "security_groups": self._build_secgroups(),
                     "created": self.instance['created_at'],  
+                    "flavor": self._build_flavor_info(), 
                     "port": self.instance['port'],          
-                    "updated": self.instance['updated_at'],
+                    "updated": self.instance['updated_at']
                 } 
         }         
         
@@ -133,7 +139,17 @@ class DBInstanceView(object):
                 'href': href
             }
         ]
-        return links   
+        return links        
+    
+    def _build_flavor_info(self):
+        return {
+            "id": self.instance['flavor'],
+            "links": self._build_flavor_links()
+        }
+        
+    def _build_flavor_links(self):
+        return create_links("flavors", self.request,
+                            self.instance['flavor'], self.tenant_id)        
 
     def list(self):
         return self._build_list()
@@ -234,8 +250,8 @@ class DBInstancesView(object):
             LOG.debug("Instance to include into List: %s" % instance)
             guest_status = self.guest_statuses[instance['id']]
             LOG.debug("GuestStatus for instance: %s" % guest_status)
-            data.append(DBInstanceView(instance, guest_status, None, self.request, self.tenant_id).list())
-        LOG.debug("Returning from DBInstancesView.data()")
+            data.append(DBInstanceView(instance, guest_status, None, self.request, self.tenant_id, instance['flavor']).list())
+        LOG.debug("Returning from DBInstancesView.list()")
         return {"instances": data}
 
 class SnapshotsView(object):
