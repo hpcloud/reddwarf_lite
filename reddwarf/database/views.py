@@ -206,12 +206,11 @@ class InstancesView(object):
     
 class DBInstancesView(object):
 
-    def __init__(self, instances, guest_statuses, req, tenant_id, flavor):
+    def __init__(self, instances, guest_statuses, req, tenant_id):
         self.instances = instances
         self.guest_statuses = guest_statuses
         self.request = req
         self.tenant_id = tenant_id
-        self.flavor = flavor
         LOG.debug(dir(self.instances))
 
     def list(self):
@@ -222,7 +221,7 @@ class DBInstancesView(object):
             LOG.debug("Instance to include into List: %s" % instance)
             guest_status = self.guest_statuses[instance['id']]
             LOG.debug("GuestStatus for instance: %s" % guest_status)
-            data.append(DBInstanceView(instance, guest_status, self.request, self.tenant_id, self.flavor).list())
+            data.append(DBInstanceView(instance, guest_status, self.request, self.tenant_id, instance['flavor']).list())
         LOG.debug("Returning from DBInstancesView.list()")
         return {"instances": data}
 

@@ -39,8 +39,6 @@ def upgrade(migrate_engine):
     ramc.create(service_flavors)
     vcpusc = Column('vcpus', Integer())
     vcpusc.create(service_flavors)
-    diskc = Column('disk', Integer())
-    diskc.create(service_flavors)
 
 
 def downgrade(migrate_engine):
@@ -48,4 +46,3 @@ def downgrade(migrate_engine):
     service_flavors = Table('service_flavors', meta, autoload=True)
     service_flavors.c.ram.drop()
     service_flavors.c.vcpus.drop()
-    service_flavors.c.disk.drop()

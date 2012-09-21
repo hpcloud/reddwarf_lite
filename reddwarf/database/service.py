@@ -95,19 +95,23 @@ class InstanceController(wsgi.Controller):
         servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
         
-        id_list = [server['id'] for server in servers]
-        guest_states = self.get_guest_state_mapping(id_list)
+        flavors = models.ServiceFlavor().find_all()
+        flavor_list = []
+        for flavor in flavors:
+            flavor_list.append(flavor)
         
-        LOG.debug("server[flavor] = %s" % server['flavor'])
-        try:
-            flavor = models.ServiceFlavor().find_by(id=server['flavor'], deleted=False)
-        except exception.ReddwarfError, e:
-            LOG.exception("Exception occurred when finding service flavor for instance id %s" % id)
-            return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND), 404)     
+        id_list = []
+        for server in servers:
+            id_list.append(server['id'])
+            LOG.debug(server['flavor'])
+            LOG.debug(flavor_list[server['flavor']])
+            server['flavor'] = flavor_list[server['flavor']]['flavor_id']
+            
+        guest_states = self.get_guest_state_mapping(id_list)    
         
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id, flavor['flavor_id']).list(), 200)
+        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -242,7 +246,7 @@ class InstanceController(wsgi.Controller):
         except KeyError, e:
             LOG.info("The body does not contain an [instance][flavorRef] key - using default flavor of medium")
             try:
-                flavor_model = models.ServiceFlavor.find_by(service_name="database", flavor_name='medium', deleted=False)
+                flavor_model = models.ServiceFlavor.find_by(service_name="database", flavor_name='large', deleted=False)
             except:
                 LOG.exception("The ServiceFlavor table doesn't contain a default flavor named 'medium'!")
                 return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND_CREATE), 404)

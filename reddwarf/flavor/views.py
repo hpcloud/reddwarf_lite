@@ -28,10 +28,11 @@ class FlavorView(object):
     def show(self):
         return {
             "flavor": {
-                'id': int(self.flavor.id),
+                'id': int(self.flavor.flavor_id),
                 'links': self._build_links(),
-                'name': self.flavor.name,
+                'name': self.flavor.flavor_name,
                 'ram': self.flavor.ram,
+                'vcpu': self.flavor.vcpus,
             }
         }     
 
@@ -39,7 +40,7 @@ class FlavorView(object):
         """Build the links for the flavor information."""
         base_url = self.request.application_url
         href = os.path.join(base_url, self.tenant_id,
-                            "flavors", str(self.flavor.id))
+                            "flavors", str(self.flavor.flavor_id))
         links= [
             {
                 'rel': 'self',
