@@ -22,7 +22,7 @@ from reddwarf.common import context as rd_context
 from reddwarf.common import exception
 from reddwarf.common import utils
 from reddwarf.common import wsgi
-from reddwarf.flavor import models
+from reddwarf.database import models
 from reddwarf.flavor import views
 
 
@@ -36,7 +36,7 @@ class FlavorController(wsgi.Controller):
                   tenant=tenant_id)
         
         self._validate_flavor_id(id)
-        flavor = models.Flavor(context=context, flavor_id=int(id))
+        flavor = models.ServiceFlavor().find_by(flavor_id=int(id))
         # Pass in the request to build accurate links.
         return wsgi.Result(views.FlavorView(flavor, tenant_id, request).show(), 200)
 
@@ -46,7 +46,7 @@ class FlavorController(wsgi.Controller):
                   auth_tok=request.headers["X-Auth-Token"],
                   tenant=tenant_id)   
         
-        flavors = models.Flavors(context=context)        
+        flavors = models.ServiceFlavor().find_all()        
         # Pass in the request to build accurate links.        
         return wsgi.Result(views.FlavorsView(flavors, tenant_id, request).index(), 200)
     
@@ -56,7 +56,7 @@ class FlavorController(wsgi.Controller):
                   auth_tok=request.headers["X-Auth-Token"],
                   tenant=tenant_id) 
         
-        flavors = models.Flavors(context=context)
+        flavors = models.ServiceFlavor().find_all()
         # Pass in the request to build accurate links.        
         return wsgi.Result(views.FlavorsView(flavors, tenant_id, request).index_detail(), 200)    
 

@@ -42,6 +42,7 @@ from reddwarf.securitygroup import models as security_group_models
 from reddwarf.database.utils import create_boot_config
 from reddwarf.database.utils import file_dict_as_userdata
 from reddwarf.database.utils import Sanitizer
+from reddwarf.flavor import utils as flavor_utils
 from swiftapi import swift
 
 
@@ -238,9 +239,14 @@ class InstanceController(wsgi.Controller):
         # Extract flavor info from the request
         try:
             flavor_ref = body['instance']['flavorRef']
-        except exception.ReddwarfError, e:
-            LOG.exception("The body does not contain an [instance] and/or [instance][flavorRef] key")
-            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
+        except KeyError, e:
+            LOG.info("The body does not contain an [instance][flavorRef] key - using default flavor of medium")
+            try:
+                flavor_model = models.ServiceFlavor.find_by(service_name="database", flavor_name='medium', deleted=False)
+            except:
+                LOG.exception("The ServiceFlavor table doesn't contain a default flavor named 'medium'!")
+                return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND_CREATE), 404)
+            flavor_ref = flavor_utils.build_flavor_href(req, tenant_id, flavor_model['flavor_id'])
         
         # Validate the request
         try:

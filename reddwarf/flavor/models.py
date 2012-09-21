@@ -28,7 +28,7 @@ from reddwarf.database.models import RemoteModelBase
 
 class Flavor(object):
 
-    _data_fields = ['id', 'links', 'name', 'ram', 'vcpus']
+    _data_fields = ['disk', 'ram', 'vcpus']
 
     def __init__(self, flavor=None, context=None, flavor_id=None):
         if flavor:
