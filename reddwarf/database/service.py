@@ -99,13 +99,12 @@ class InstanceController(wsgi.Controller):
         flavor_list = []
         for flavor in flavors:
             flavor_list.append(flavor)
+        LOG.debug(flavor_list)
         
         id_list = []
         for server in servers:
             id_list.append(server['id'])
-            LOG.debug(server['flavor'])
-            LOG.debug(flavor_list[server['flavor']])
-            server['flavor'] = flavor_list[server['flavor']]['flavor_id']
+            server['flavor'] = flavor_list[int(server['flavor'])]['flavor_id']
             
         guest_states = self.get_guest_state_mapping(id_list)    
         

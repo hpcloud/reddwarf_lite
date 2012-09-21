@@ -132,13 +132,17 @@ class TestInstanceController(ControllerTestBase):
         flavor = self.DUMMY_INSTANCE['flavor']
         self.mock.StubOutWithMock(models.DBInstance, 'find_all')
         models.DBInstance.find_all(tenant_id=self.tenant, deleted=False).AndReturn([self.DUMMY_INSTANCE])
+
+        self.mock.StubOutWithMock(models.ServiceFlavor, 'find_all')
+        models.ServiceFlavor.find_all().AndReturn([{'id': '1', 'flavor_id': '101'},
+                                                  {'id': '2', 'flavor_id': '102'},
+                                                  {'id': '3', 'flavor_id': '103'},
+                                                  {'id': '4', 'flavor_id': '104'},
+                                                  {'id': '5', 'flavor_id': '105'}])
         
         self.mock.StubOutWithMock(api, 'find_guest_statuses_for_instances')
         api.find_guest_statuses_for_instances([self.DUMMY_INSTANCE_ID]).AndReturn([self.DUMMY_GUEST_STATUS])
         
-        self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
-        models.ServiceFlavor.find_by(id=flavor, deleted=False).AndReturn({'id': '4', 'flavor_id': '104'})
-
         self.mock.ReplayAll()
         
         response = self.app.get("%s" % (self.instances_path),
