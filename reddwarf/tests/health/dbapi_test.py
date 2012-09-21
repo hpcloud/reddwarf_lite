@@ -119,7 +119,7 @@ class DBFunctionalTests(unittest.TestCase):
         body = r"""
         {"instance": {
             "name": "%s",
-            "flavorRef": "medium",
+            "flavorRef": "103",
             "port": "3306",
             "dbtype": {
                 "name": "mysql",
@@ -301,7 +301,7 @@ class DBFunctionalTests(unittest.TestCase):
         instance_body = r"""
         {"instance": {
             "name": "%s",
-            "flavorRef": "medium",
+            "flavorRef": "103",
             "port": "3306",
             "dbtype": {
                 "name": "mysql",
