@@ -42,6 +42,7 @@ from reddwarf.securitygroup import models as security_group_models
 from reddwarf.database.utils import create_boot_config
 from reddwarf.database.utils import file_dict_as_userdata
 from reddwarf.database.utils import Sanitizer
+from reddwarf.flavor import utils as flavor_utils
 from swiftapi import swift
 
 
@@ -94,8 +95,18 @@ class InstanceController(wsgi.Controller):
         servers = models.DBInstance().find_all(tenant_id=tenant_id, deleted=False)
         LOG.debug(servers)
         
-        id_list = [server['id'] for server in servers]
-        guest_states = self.get_guest_state_mapping(id_list)
+        flavors = models.ServiceFlavor().find_all()
+        flavor_list = []
+        for flavor in flavors:
+            flavor_list.append(flavor)
+        LOG.debug(flavor_list)
+        
+        id_list = []
+        for server in servers:
+            id_list.append(server['id'])
+            server['flavor'] = flavor_list[int(server['flavor'])]['flavor_id']
+            
+        guest_states = self.get_guest_state_mapping(id_list)    
         
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
@@ -125,6 +136,12 @@ class InstanceController(wsgi.Controller):
         except exception.ReddwarfError, e:
             LOG.exception("Exception occurred when finding instance guest_status by id %s" % id)
             return wsgi.Result(errors.wrap(errors.Instance.NOT_FOUND), 404)
+        
+        try:
+            flavor = models.ServiceFlavor().find_by(id=server['flavor'], deleted=False)
+        except exception.ReddwarfError, e:
+            LOG.exception("Exception occurred when finding service flavor for instance id %s" % id)
+            return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND), 404)
 
         # Find the security group associated with this server
         try:
@@ -136,7 +153,7 @@ class InstanceController(wsgi.Controller):
 
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, guest_status, [secgroup], req, tenant_id).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, [secgroup], req, tenant_id, flavor['flavor_id']).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
@@ -229,9 +246,36 @@ class InstanceController(wsgi.Controller):
         except exception.ReddwarfError, e:
             LOG.exception()
             return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE), 500)
+        
+        # Extract flavor info from the request
+        try:
+            flavor_ref = body['instance']['flavorRef']
+        except KeyError, e:
+            LOG.info("The body does not contain an [instance][flavorRef] key - using default flavor of medium")
+            try:
+                flavor_model = models.ServiceFlavor.find_by(service_name="database", flavor_name='large', deleted=False)
+            except:
+                LOG.exception("The ServiceFlavor table doesn't contain a default flavor named 'medium'!")
+                return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND_CREATE), 404)
+            flavor_ref = flavor_utils.build_flavor_href(req, tenant_id, flavor_model['flavor_id'])
+        
+        # Validate the request
+        try:
+            flavor_id = utils.get_id_from_href(flavor_ref)
+            #if not Sanitizer.whitelist_uuid(flavor_id):
+            #TODO: (joshdorothy) we need to implement some sort of href sanitizer if we're 
+            #  going to be accepting them in a request body    
+            LOG.debug("retrieved flavor id %s from flavor ref %s" % (flavor_id, flavor_ref))
+        except:
+            LOG.exception("Could not parse %s" % flavor_ref)
+            return wsgi.Result(errors.wrap(errors.Instance.MALFORMED_BODY), 500)
+                    
             
         # Fetch all boot parameters from Database
-        image_id, flavor, keypair_name, region_az, credential = self._load_boot_params(tenant_id)
+        try:
+            image_id, flavor, keypair_name, region_az, credential = self._load_boot_params(tenant_id, flavor_id)
+        except exception.ModelNotFoundError:
+            return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND_CREATE), 404)
 
         password = utils.generate_password()
         
@@ -285,7 +329,7 @@ class InstanceController(wsgi.Controller):
         # Invoke worker to ensure instance gets created
         worker_api.API().ensure_create_instance(None, instance, file_dict_as_userdata(file_dict))
         
-        return wsgi.Result(views.DBInstanceView(instance, guest_status, [db_secgroup], req, tenant_id).create('dbas', password), 201)
+        return wsgi.Result(views.DBInstanceView(instance, guest_status, [db_secgroup], req, tenant_id, flavor['flavor_id']).create('dbas', password), 201)
 
 
     def restart(self, req, tenant_id, id):
@@ -623,7 +667,7 @@ class InstanceController(wsgi.Controller):
         return volume_size
         
         
-    def _load_boot_params(self, tenant_id):
+    def _load_boot_params(self, tenant_id, flavor_id):
         try:
             service_zone = models.ServiceZone.find_by(service_name='database', tenant_id=tenant_id, deleted=False)
         except exception.ModelNotFoundError, e:
@@ -641,7 +685,13 @@ class InstanceController(wsgi.Controller):
 
         image_id = service_image['image_id']
         
-        flavor = models.ServiceFlavor.find_by(service_name="database", deleted=False)
+        # Check to see if flavor exists
+        try:
+            flavor = models.ServiceFlavor.find_by(service_name="database", flavor_id=flavor_id, deleted=False)
+            LOG.debug("Searching by flavor id %s, found service flavor id %s" % (flavor_id, flavor['id']))
+        except exception.ModelNotFoundError, e:
+            LOG.exception("Error finding service flavor %s in database" % flavor_id)
+            raise e
         
         service_keypair = models.ServiceKeypair.find_by(service_name='database', deleted=False)
         keypair_name = service_keypair['key_name']

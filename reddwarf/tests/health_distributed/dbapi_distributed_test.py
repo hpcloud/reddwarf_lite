@@ -177,7 +177,7 @@ class DistributedCreateTest(unittest.TestCase):
 
 
     def disabled_create_instance(self):
-        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
+        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID, 103)
         
         remote_hostname = utils.generate_uuid()
         
@@ -188,7 +188,7 @@ class DistributedCreateTest(unittest.TestCase):
                                      tenant_id=TENANT_ID,
                                      credential=credential['id'],
                                      port='3306',
-                                     flavor=1,
+                                     flavor=103,
                                      availability_zone=region_az)
             
         except Exception, e:
@@ -250,7 +250,7 @@ class DistributedCreateTest(unittest.TestCase):
         self.assertTrue(status == 'running', ("Instance %s did not go to running after waiting 16 minutes" % instance_id))
 
     def disabled_teardown_recreate_instance(self):
-        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID)
+        image_id, flavor_id, keypair_name, region_az, credential = self._load_boot_params(TENANT_ID, 103)
         
         remote_hostname = utils.generate_uuid()
         
@@ -261,7 +261,7 @@ class DistributedCreateTest(unittest.TestCase):
                                      tenant_id=TENANT_ID,
                                      credential=credential['id'],
                                      port='3306',
-                                     flavor=1,
+                                     flavor=103,
                                      availability_zone=region_az)
             
         except Exception, e:
@@ -324,7 +324,7 @@ class DistributedCreateTest(unittest.TestCase):
             self.fail("Instance did not switch to running after App Server teardown and recreate")
 
         
-    def _load_boot_params(self, tenant_id):
+    def _load_boot_params(self, tenant_id, flavor_id):
         # Attempt to find Boot parameters for a specific tenant
         try:
             service_image = models.ServiceImage.find_by(service_name="database", tenant_id=tenant_id, deleted=False)
@@ -334,8 +334,7 @@ class DistributedCreateTest(unittest.TestCase):
 
         image_id = service_image['image_id']
         
-        flavor = models.ServiceFlavor.find_by(service_name="database", deleted=False)
-        flavor_id = flavor['flavor_id']
+        flavor = models.ServiceFlavor.find_by(service_name="database", flavor_id=flavor_id, deleted=False)
 
         service_keypair = models.ServiceKeypair.find_by(service_name='database', deleted=False)
         keypair_name = service_keypair['key_name']
