@@ -21,36 +21,64 @@ from xml.dom import minidom
 
 from reddwarf.common import wsgi
 
+VERSIONS = {
+    "1.0": {
+        "id": "v1.0",
+        "status": "CURRENT",
+        "updated": "2012-09-25T00:00:00Z",
+        "links": [],
+    },
+}
 
 class VersionsController(wsgi.Controller):
 
     def index(self, request):
         """Respond to a request for all OpenStack API versions."""
-        versions = [Version("v0.1", "CURRENT", request.application_url)]
+        versions = []
+        for key, data in VERSIONS.items():
+            v = BaseVersion(
+                data["id"],
+                data["status"],
+                request.application_url,
+                data["updated"])
+            versions.append(v)
         return wsgi.Result(VersionsDataView(versions))
+    
+    def show(self, request):
+        """Respond to a request for a specific API version."""
+        data = VERSIONS[request.url_version]
+        v = Version(data["id"], data["status"],
+                    request.application_url, data["updated"])
+        return wsgi.Result(VersionDataView(v))
 
 
-class Version(object):
+class BaseVersion(object):
 
-    def __init__(self, id, status, base_url):
+    def __init__(self, id, status, base_url, updated):
         self.id = id
         self.status = status
         self.base_url = base_url
+        self.updated = updated
 
     def data(self):
         return dict(id=self.id,
             status=self.status,
+            updated=self.updated,
             links=[dict(rel="self",
                 href=self.url())])
 
     def url(self):
-        return os.path.join(self.base_url, self.id)
+        url = os.path.join(self.base_url, self.id)
+        if not url.endswith("/"):
+            return url + "/"
+        return url    
 
     def to_xml(self):
         doc = minidom.Document()
         version_elem = doc.createElement("version")
         version_elem.setAttribute("id", self.id)
         version_elem.setAttribute("status", self.status)
+        version_elem.setAttribute("updated", self.updated)
         links_elem = doc.createElement("links")
         link_elem = doc.createElement("link")
         link_elem.setAttribute("href", self.url())
@@ -58,7 +86,24 @@ class Version(object):
         links_elem.appendChild(link_elem)
         version_elem.appendChild(links_elem)
         return version_elem
+    
+class Version(BaseVersion):
+    
+    def url(self):
+        if not self.base_url.endswith("/"):
+            return self.base_url + "/"
+        return self.base_url
 
+class VersionDataView(object):
+
+    def __init__(self, version):
+        self.version = version
+
+    def data_for_json(self):
+        return {'version': self.version.data()}
+
+    def data_for_xml(self):
+        return {'version': self.version}
 
 class VersionsDataView(object):
 
