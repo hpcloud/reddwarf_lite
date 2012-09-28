@@ -52,7 +52,7 @@ class Snapshot():
     NO_BODY_NAME = "The request body must contain a name key."    
 
 class Input():
-    NONALLOWED_CHARACTERS_ID = "The id value contains non-allowed characters.  Only lower-case alphanumeric characters are allowed." 
-    NONALLOWED_CHARACTERS_SNAPSHOT_ID = "The snapshotId value contains non-allowed characters.  Only lower-case alphanumeric characters are allowed."
-    NONALLOWED_CHARACTERS_INSTANCE_ID = "The instanceId value contains non-allowed characters.  Only lower-case alphanumeric characters are allowed."    
+    NONALLOWED_CHARACTERS_ID = "The id value contains non-allowed characters, or is not in a UUID format.  Only lower-case alphanumeric characters are allowed." 
+    NONALLOWED_CHARACTERS_SNAPSHOT_ID = "The snapshotId value contains non-allowed characters, or is not in a UUID format.  Only lower-case alphanumeric characters are allowed."
+    NONALLOWED_CHARACTERS_INSTANCE_ID = "The instanceId value contains non-allowed characters, or is not in a UUID format.  Only lower-case alphanumeric characters are allowed."    
     NONINTEGER_VOLUME_SIZE = "The volume size must be an integer value."

@@ -43,7 +43,7 @@ from reddwarf.database.utils import create_boot_config
 from reddwarf.database.utils import file_dict_as_userdata
 from reddwarf.database.utils import Sanitizer
 from reddwarf.flavor import utils as flavor_utils
-from swiftapi import swift
+from swiftclient import client as swift_client
 
 
 CONFIG = config.Config
@@ -759,6 +759,7 @@ class InstanceController(wsgi.Controller):
         """Returns a dictionary of guest statuses keyed by guest ids."""
         results = db.db_api.find_guest_statuses_for_instances(id_list)
         return dict([(r.instance_id, r) for r in results])
+    
 
 class SnapshotController(wsgi.Controller):
     """Controller for snapshot functionality"""
@@ -858,9 +859,14 @@ class SnapshotController(wsgi.Controller):
                 'auth_version' : '1.0'}
             
             try:
-                swift.st_delete(opts, container, file)
-            except exception.ReddwarfError, e:
-                LOG.exception("Fail to delete snapshot from Swift")
+                connection = self._get_swift_connection(opts)
+                connection.delete_object(container, file)
+            except Exception, e:
+                if "404" in "%s" % e:
+                    LOG.exception("Snapshot not found: %s" % e)
+                    return wsgi.Result(errors.wrap(errors.Snapshot.NOT_FOUND), 404)
+                
+                LOG.exception("Fail to delete snapshot from Swift: %s" % e)
                 return wsgi.Result(errors.wrap(errors.Snapshot.SWIFT_DELETE), 500)
         
         try:
@@ -994,4 +1000,9 @@ class SnapshotController(wsgi.Controller):
 
         return num_snapshots
    
-
+    def _get_swift_connection(self, options):
+        return swift_client.Connection(options['auth'],
+                                      options['user'],
+                                      options['key'],
+                                      options['snet'],
+                                      auth_version=options['auth_version'])

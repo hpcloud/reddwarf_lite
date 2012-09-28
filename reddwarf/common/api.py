@@ -60,6 +60,7 @@ class API(wsgi.Router):
         
     def _versions_router(self, mapper):
         versions_resource = VersionsController().create_resource()
+               
         mapper.connect("/",
                        controller=versions_resource,
                        action="show", conditions=dict(method=["GET"],
