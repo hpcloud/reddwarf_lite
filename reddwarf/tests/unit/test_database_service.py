@@ -238,7 +238,7 @@ class TestInstanceController(ControllerTestBase):
 #        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))       
 
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_security_group')
-        service.InstanceController._try_create_security_group(mox.IgnoreArg(),
+        service.InstanceController._try_create_security_group(mox.IgnoreArg(), mox.IgnoreArg(),
                                                               mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(default_secgroup_api_response)
 
         self.mock.StubOutWithMock(secgroup_models.SecurityGroup, 'find_by')
