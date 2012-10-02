@@ -15,44 +15,26 @@
 import routes
 import logging
 
+from reddwarf.versions import VersionsController
 from reddwarf.common import wsgi
 from reddwarf.database.service import InstanceController
 from reddwarf.database.service import SnapshotController
+from reddwarf.flavor.service import FlavorController
 from reddwarf.securitygroup.service import SecurityGroupController
 from reddwarf.securitygroup.service import SecurityGroupRuleController
 
 LOG = logging.getLogger(__name__)
 
-#class API(wsgi.Router):
-#    """API"""
-#    def __init__(self):
-#        mapper = routes.Mapper()
-#        super(API, self).__init__(mapper)
-#        self._instance_router(mapper)
-#        self._flavor_router(mapper)
-#
-#    def _instance_router(self, mapper):
-#        instance_resource = InstanceController().create_resource()
-#        path = "/{tenant_id}/instances"
-#        mapper.resource("instance", path, controller=instance_resource,
-#                        member={'action': 'POST'})
-#
-#    def _flavor_router(self, mapper):
-#        flavor_resource = FlavorController().create_resource()
-#        path = "/{tenant_id}/flavors"
-#        mapper.resource("flavor", path, controller=flavor_resource)
-#
-#
-#def app_factory(global_conf, **local_conf):
-#    return API()
 
 class API(wsgi.Router):
     """API"""
     def __init__(self):
         mapper = routes.Mapper()
         super(API, self).__init__(mapper)
+        self._versions_router(mapper)
         self._instance_router(mapper)
         self._snapshot_router(mapper)
+        self._flavor_router(mapper)
         self._security_group_router(mapper)
         self._security_group_rules_router(mapper)
         
@@ -75,12 +57,19 @@ class API(wsgi.Router):
             return False
         else:            
             return True
+        
+    def _versions_router(self, mapper):
+        versions_resource = VersionsController().create_resource()
+               
+        mapper.connect("/",
+                       controller=versions_resource,
+                       action="show", conditions=dict(method=["GET"],
+                                                      function=self._has_no_body))
 
     def _instance_router(self, mapper):
         instance_resource = InstanceController().create_resource()
         path = "/{tenant_id}/instances"
-
-        #mapper.resource("instance", path, controller=instance_resource)      
+      
         mapper.connect(path,
                        controller=instance_resource,
                        action="create", conditions=dict(method=["POST"],
@@ -113,7 +102,7 @@ class API(wsgi.Router):
     def _snapshot_router(self, mapper):
         snapshot_resource = SnapshotController().create_resource()
         path = "/{tenant_id}/snapshots"
-        #mapper.resource("snapshot", path, controller=snapshot_resource)
+
         mapper.connect(path,
                        controller=snapshot_resource,
                        action="create", conditions=dict(method=["POST"],
@@ -130,6 +119,23 @@ class API(wsgi.Router):
                        controller=snapshot_resource,
                        action="delete", conditions=dict(method=["DELETE"],
                                                         function=self._has_no_body))  
+
+    def _flavor_router(self, mapper):
+        flavor_resource = FlavorController().create_resource()
+        path = "/{tenant_id}/flavors"
+        mapper.connect(path, 
+                       controller=flavor_resource,
+                       action="index", conditions=dict(method=["GET"],
+                                                       function=self._has_no_body))
+        mapper.connect(path + "/detail", 
+                       controller=flavor_resource,
+                       action="index_detail", conditions=dict(method=["GET"],
+                                                              function=self._has_no_body))
+        
+        mapper.connect(path + "/{id}", 
+                       controller=flavor_resource,
+                       action="show", conditions=dict(method=["GET"],
+                                                      function=self._has_no_body))        
 
     def _security_group_router(self, mapper):
         secgroup_resource = SecurityGroupController().create_resource()

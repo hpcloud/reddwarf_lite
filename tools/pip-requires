@@ -14,6 +14,7 @@ factory_boy
 httplib2
 lxml
 python-novaclient
+python-swiftclient
 iso8601
 paramiko
 newrelic

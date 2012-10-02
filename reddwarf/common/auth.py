@@ -84,9 +84,13 @@ class TenantBasedAuth(object):
     tenant_scoped_url = re.compile("/(?P<tenant_id>.*?)/.*")
 
     def authorize(self, request, tenant_id, roles):
+        LOG.debug("REQUEST PATH INFO: %s" % request.path_info)
         if 'admin' in [role.lower() for role in roles]:
             LOG.debug("Authorized admin request: %s" % request)
             return True
+        if ('mysql-admin' in [role.lower() for role in roles] or 'mysql-user' in [role.lower() for role in roles]) and request.path_info == "/":
+            LOG.debug("Authorized mysql-user request for version API")
+            return True 
         match_for_tenant = self.tenant_scoped_url.match(request.path_info)
         if (match_for_tenant and
             tenant_id == match_for_tenant.group('tenant_id')):
