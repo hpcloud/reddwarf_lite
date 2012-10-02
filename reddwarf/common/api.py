@@ -140,7 +140,15 @@ class API(wsgi.Router):
     def _security_group_router(self, mapper):
         secgroup_resource = SecurityGroupController().create_resource()
         path = "/{tenant_id}/security-groups"
-        mapper.resource("security-group", path, controller=secgroup_resource)
+        mapper.connect(path, 
+                       controller=secgroup_resource,
+                       action="index", conditions=dict(method=["GET"],
+                                                       function=self._has_no_body))
+        
+        mapper.connect(path + "/{id}", 
+                       controller=secgroup_resource,
+                       action="show", conditions=dict(method=["GET"],
+                                                      function=self._has_no_body))        
         
     def _security_group_rules_router(self, mapper):
         secgroup_rule_resource = SecurityGroupRuleController().create_resource()

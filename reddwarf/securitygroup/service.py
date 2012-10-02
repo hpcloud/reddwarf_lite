@@ -79,6 +79,7 @@ class SecurityGroupController(wsgi.Controller):
 
 
     def delete(self, req, tenant_id, id):
+        """ *** NOTE *** This is not wired up as a externally exposed route """
         """Delete a single instance."""
         LOG.debug("Delete() called with %s, %s" % (tenant_id, id))
 
@@ -105,6 +106,7 @@ class SecurityGroupController(wsgi.Controller):
         return wsgi.Result(None, 204)
 
     def create(self, req, body, tenant_id):
+        """ *** NOTE *** This is not wired up as a externally exposed route """
         
         LOG.info("Creating a database instance for tenant '%s'" % tenant_id)
         LOG.info("req : '%s'\n\n" % req)
