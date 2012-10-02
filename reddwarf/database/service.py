@@ -612,7 +612,7 @@ class InstanceController(wsgi.Controller):
             raise exception.ReddwarfError("Failed to delete instance")
 
     def _try_create_security_group(self, req, context, instance_name, port):
-        security_group_name = "default_" % instance_name
+        security_group_name = "default_" + instance_name
         secgroup_req_body = { "security_group" : { "name" : security_group_name, "description" : "Default DBaaS Security Group" } }
         
         secgroup = security_group.SecurityGroupController().create(req, secgroup_req_body, context.tenant)
