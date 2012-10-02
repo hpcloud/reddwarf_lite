@@ -282,7 +282,7 @@ class InstanceController(wsgi.Controller):
         
         
         try:
-            secgroup = self._try_create_security_group(req, context, 3306)
+            secgroup = self._try_create_security_group(req, context, body['instance']['name'], 3306)
             db_secgroup = security_group_models.SecurityGroup().find_by(id=secgroup['security_group']['id'], deleted=False)
             
             remote_secgroups = [db_secgroup['remote_secgroup_name']]
@@ -611,8 +611,9 @@ class InstanceController(wsgi.Controller):
         else:
             raise exception.ReddwarfError("Failed to delete instance")
 
-    def _try_create_security_group(self, req, context, port):
-        secgroup_req_body = { "security_group" : { "name" : "default", "description" : "Default DBaaS Security Group" } }
+    def _try_create_security_group(self, req, context, instance_name, port):
+        security_group_name = "default_" % instance_name
+        secgroup_req_body = { "security_group" : { "name" : security_group_name, "description" : "Default DBaaS Security Group" } }
         
         secgroup = security_group.SecurityGroupController().create(req, secgroup_req_body, context.tenant)
         secgroup_json = secgroup.data('application/json')
