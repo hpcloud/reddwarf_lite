@@ -64,6 +64,7 @@ class TestInstanceController(ControllerTestBase):
     "created_at": "createtime",
     "updated_at": "updatedtime",
     "remote_hostname": "remotehost",
+    "flavor": "4",
     "port": "12345",
     "links": [],
     "credential": "credential",
@@ -79,6 +80,7 @@ class TestInstanceController(ControllerTestBase):
         "id": "76543",
         "name": "test_server",
         "remote_id": 22222,
+        "flavor": "4",
         "credential": "credential",
         "address" : "ipaddress" ,
         "created_at": "createtime",
@@ -93,6 +95,7 @@ class TestInstanceController(ControllerTestBase):
                         'X-Tenant-Id': '123'}
         self.tenant = self.headers['X-Tenant-Id']
         self.instances_path = "/v1.0/" + self.tenant + "/instances"
+        
 
     # TODO(hub-cap): Start testing the failure cases
     # def test_show_broken(self):
@@ -103,6 +106,7 @@ class TestInstanceController(ControllerTestBase):
 
     def test_show(self):
         id = self.DUMMY_INSTANCE_ID
+        flavor = self.DUMMY_INSTANCE['flavor']
         self.mock.StubOutWithMock(models.DBInstance, 'find_by')
         models.DBInstance.find_by(deleted=False,id=id,tenant_id=self.tenant).AndReturn(self.DUMMY_INSTANCE)
 #        self.mock.StubOutWithMock(models.DBInstance, '__init__')
@@ -110,6 +114,9 @@ class TestInstanceController(ControllerTestBase):
 
         self.mock.StubOutWithMock(models.GuestStatus, 'find_by')
         models.GuestStatus.find_by(deleted=False,instance_id=id).AndReturn({'instance_id': id, 'state': 'running'})
+
+        self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
+        models.ServiceFlavor.find_by(deleted=False, id=flavor).AndReturn({'id': '4', 'flavor_id': '104'})
 
         self.mock.StubOutWithMock(secgroup_models.SecurityGroupInstances, 'find_by')
         secgroup_models.SecurityGroupInstances.find_by(instance_id=id, deleted=False).AndReturn({'security_group_id': '123'})
@@ -125,17 +132,30 @@ class TestInstanceController(ControllerTestBase):
 
 
         self.assertEqual(response.status_int, 200)
+        self.mock.UnsetStubs()
 
     def test_index(self):
+        flavor = self.DUMMY_INSTANCE['flavor']
         self.mock.StubOutWithMock(models.DBInstance, 'find_all')
         models.DBInstance.find_all(tenant_id=self.tenant, deleted=False).AndReturn([self.DUMMY_INSTANCE])
-        #results = db.db_api.find_guest_statuses_for_instances(id_list)
+
+        self.mock.StubOutWithMock(models.ServiceFlavor, 'find_all')
+        models.ServiceFlavor.find_all().AndReturn([{'id': '1', 'flavor_id': '101'},
+                                                  {'id': '2', 'flavor_id': '102'},
+                                                  {'id': '3', 'flavor_id': '103'},
+                                                  {'id': '4', 'flavor_id': '104'},
+                                                  {'id': '5', 'flavor_id': '105'}])
+        
         self.mock.StubOutWithMock(api, 'find_guest_statuses_for_instances')
         api.find_guest_statuses_for_instances([self.DUMMY_INSTANCE_ID]).AndReturn([self.DUMMY_GUEST_STATUS])
+        
         self.mock.ReplayAll()
+        
         response = self.app.get("%s" % (self.instances_path),
                                         headers=self.headers)
+        
         self.assertEqual(response.status_int, 200)
+        self.mock.UnsetStubs()
 
     def mock_out_client_create(self):
         """Stubs out a fake server returned from novaclient.
@@ -183,8 +203,10 @@ class TestInstanceController(ControllerTestBase):
         body = {
             "instance": {
                 "name": "json_rack_instance",
+                "flavorRef": "104"
             }
         }
+        flavor = self.DUMMY_SERVER['flavor']
         
         mock_flip_data = {"ip": "blah"}
         
@@ -204,7 +226,7 @@ class TestInstanceController(ControllerTestBase):
         self.mock.StubOutWithMock(models.ServiceImage, 'find_by')
         models.ServiceImage.find_by(service_name="database", tenant_id='123', availability_zone=self.ServiceZone["availability_zone"], deleted=False).AndReturn(self.ServiceImage)
         self.mock.StubOutWithMock(models.ServiceFlavor, 'find_by')
-        models.ServiceFlavor.find_by(service_name="database", deleted=False).AndReturn(self.ServiceFlavor)
+        models.ServiceFlavor.find_by(service_name="database", flavor_id='104', deleted=False).AndReturn(self.ServiceFlavor)
         self.mock.StubOutWithMock(models.ServiceKeypair, 'find_by')
         models.ServiceKeypair.find_by(service_name="database", deleted=False).AndReturn(self.ServiceKeypair)  
         self.mock.StubOutWithMock(models.Credential, 'find_by')
@@ -216,7 +238,7 @@ class TestInstanceController(ControllerTestBase):
 #        mock_flip = self.mock.CreateMock(models.FloatingIP(floating_ip="flip", id=123))       
 
         self.mock.StubOutWithMock(service.InstanceController, '_try_create_security_group')
-        service.InstanceController._try_create_security_group(mox.IgnoreArg(),
+        service.InstanceController._try_create_security_group(mox.IgnoreArg(), mox.IgnoreArg(),
                                                               mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(default_secgroup_api_response)
 
         self.mock.StubOutWithMock(secgroup_models.SecurityGroup, 'find_by')
@@ -245,7 +267,7 @@ class TestInstanceController(ControllerTestBase):
                                            headers=self.headers,
                                            )
         self.assertEqual(response.status_int, 201)
-
+        self.mock.UnsetStubs()
 
     def test_create_quota_error(self):
         
@@ -270,6 +292,7 @@ class TestInstanceController(ControllerTestBase):
                                            )
         
         self.assertEqual(response.status_int, 413)
+        self.mock.UnsetStubs()        
 
 class TestSnapshotController(ControllerTestBase):
 

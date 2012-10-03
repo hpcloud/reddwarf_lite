@@ -24,6 +24,8 @@ def wrap (message=None, detail=None):
 
 class Instance():
     NOT_FOUND = "The requested instance does not exist."
+    FLAVOR_NOT_FOUND = "There was a problem retrieving flavor details for the requested instance."
+    FLAVOR_NOT_FOUND_CREATE = "There was a problem retrieving flavor details for the requested DBaaS instance."
     NOT_FOUND_NOVA = "The Nova instance pointed to by this instance does not exist."
     NOVA_DELETE = "There was a problem deleting the specified Nova instance."
     REDDWARF_DELETE = "There was a problem deleting the specified DBaaS instance."
@@ -50,7 +52,7 @@ class Snapshot():
     NO_BODY_NAME = "The request body must contain a name key."    
 
 class Input():
-    NONALLOWED_CHARACTERS_ID = "The id value contains non-allowed characters.  Only lower-case alphanumeric characters are allowed." 
-    NONALLOWED_CHARACTERS_SNAPSHOT_ID = "The snapshotId value contains non-allowed characters.  Only lower-case alphanumeric characters are allowed."
-    NONALLOWED_CHARACTERS_INSTANCE_ID = "The instanceId value contains non-allowed characters.  Only lower-case alphanumeric characters are allowed."    
+    NONALLOWED_CHARACTERS_ID = "The id value contains non-allowed characters, or is not in a UUID format.  Only lower-case alphanumeric characters are allowed." 
+    NONALLOWED_CHARACTERS_SNAPSHOT_ID = "The snapshotId value contains non-allowed characters, or is not in a UUID format.  Only lower-case alphanumeric characters are allowed."
+    NONALLOWED_CHARACTERS_INSTANCE_ID = "The instanceId value contains non-allowed characters, or is not in a UUID format.  Only lower-case alphanumeric characters are allowed."    
     NONINTEGER_VOLUME_SIZE = "The volume size must be an integer value."

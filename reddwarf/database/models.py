@@ -440,7 +440,7 @@ class ServiceImage(DatabaseModelBase):
 
 
 class ServiceFlavor(DatabaseModelBase):
-    _data_fields = ['service_name', 'flavor_name', 'flavor_id']
+    _data_fields = ['service_name', 'flavor_name', 'flavor_id', 'ram', 'vcpus']
 
 
 class ServiceSecgroup(DatabaseModelBase):
