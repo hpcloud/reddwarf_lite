@@ -102,15 +102,17 @@ class InstanceController(wsgi.Controller):
         LOG.debug(flavor_list)
         
         id_list = []
+        server_list = []
         for server in servers:
             id_list.append(server['id'])
             server['flavor'] = flavor_list[int(server['flavor'])]['flavor_id']
+            server_list.append(server)
             
         guest_states = self.get_guest_state_mapping(id_list)    
         
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id).list(), 200)
+        return wsgi.Result(views.DBInstancesView(server_list, guest_states, req, tenant_id).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
