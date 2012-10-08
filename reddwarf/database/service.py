@@ -146,16 +146,17 @@ class InstanceController(wsgi.Controller):
             return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND), 404)
 
         # Find the security group associated with this server
+        secgroups = None
         try:
             secgroup_association = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
-            secgroup = security_group_models.SecurityGroup().find_by(id=secgroup_association['security_group_id'], deleted=False)
+            secgroups = [ security_group_models.SecurityGroup().find_by(id=secgroup_association['security_group_id'], deleted=False) ]
         except exception.ModelNotFoundError as e:
             # instances created prior to Security Groups feature will not have a security group
             pass
 
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, guest_status, [secgroup], req, tenant_id, flavor['flavor_id']).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, secgroups, req, tenant_id, flavor['flavor_id']).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
