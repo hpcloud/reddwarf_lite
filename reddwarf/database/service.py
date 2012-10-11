@@ -102,15 +102,17 @@ class InstanceController(wsgi.Controller):
         LOG.debug(flavor_list)
         
         id_list = []
+        server_list = []
         for server in servers:
             id_list.append(server['id'])
             server['flavor'] = flavor_list[int(server['flavor'])]['flavor_id']
+            server_list.append(server)
             
         guest_states = self.get_guest_state_mapping(id_list)    
         
         LOG.debug("Index() executed correctly")
         # TODO(cp16net): need to set the return code correctly
-        return wsgi.Result(views.DBInstancesView(servers, guest_states, req, tenant_id).list(), 200)
+        return wsgi.Result(views.DBInstancesView(server_list, guest_states, req, tenant_id).list(), 200)
 
     def show(self, req, tenant_id, id):
         """Return a single instance."""
@@ -144,16 +146,17 @@ class InstanceController(wsgi.Controller):
             return wsgi.Result(errors.wrap(errors.Instance.FLAVOR_NOT_FOUND), 404)
 
         # Find the security group associated with this server
+        secgroups = None
         try:
             secgroup_association = security_group_models.SecurityGroupInstances().find_by(instance_id=server['id'], deleted=False)
-            secgroup = security_group_models.SecurityGroup().find_by(id=secgroup_association['security_group_id'], deleted=False)
+            secgroups = [ security_group_models.SecurityGroup().find_by(id=secgroup_association['security_group_id'], deleted=False) ]
         except exception.ModelNotFoundError as e:
             # instances created prior to Security Groups feature will not have a security group
             pass
 
         # TODO(cp16net): need to set the return code correctly
         LOG.debug("Show() executed correctly")
-        return wsgi.Result(views.DBInstanceView(server, guest_status, [secgroup], req, tenant_id, flavor['flavor_id']).show(), 200)
+        return wsgi.Result(views.DBInstanceView(server, guest_status, secgroups, req, tenant_id, flavor['flavor_id']).show(), 200)
 
     def delete(self, req, tenant_id, id):
         """Delete a single instance."""
