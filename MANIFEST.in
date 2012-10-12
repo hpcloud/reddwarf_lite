@@ -1,1 +1,10 @@
 include reddwarf/db/sqlalchemy/migrate_repo/migrate.cfg
+include tox.ini
+recursive-include bin *
+recursive-include build *
+recursive-include development *
+recursive-include dist *
+recursive-include etc *
+recursive-include reddwarf *
+recursive-include reddwarf.egg-info *
+recursive-include tools *
