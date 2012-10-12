@@ -79,7 +79,7 @@ class ServiceBasedAuth(object):
 
 class TenantBasedAuth(object):
 
-    # The paths differ from melange, so the regex must differ as well,
+    # The paths differ from melange, so the regex must differ as well
     # reddwarf starts with a tenant_id
     tenant_scoped_url = re.compile("/(?P<tenant_id>.*?)/.*")
 
