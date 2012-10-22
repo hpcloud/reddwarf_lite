@@ -36,8 +36,9 @@ from reddwarf.db.sqlalchemy.migrate_repo.schema import Table
 
 
 SERVICE_FLAVORS = [
-    {"id": "1", "flavor_name": "xsmall", "flavor_id": "101", "ram": 1, "vcpus": 1},
-    {"id": "2", "flavor_name": "small", "flavor_id": "102", "ram": 2, "vcpus": 2},
+    {"id": "0", "flavor_name": "xsmall", "flavor_id": "100", "ram": 1, "vcpus": 1},
+    {"id": "1", "flavor_name": "small", "flavor_id": "101", "ram": 2, "vcpus": 2},
+    {"id": "2", "flavor_name": "medium", "flavor_id": "102", "ram": 4, "vcpus": 2},    
     {"id": "3", "flavor_name": "large", "flavor_id": "103", "ram": 8, "vcpus": 4},
     {"id": "4", "flavor_name": "xlarge", "flavor_id": "104", "ram": 16, "vcpus": 4},
     {"id": "5", "flavor_name": "2xlarge", "flavor_id": "105", "ram": 32, "vcpus": 8}
