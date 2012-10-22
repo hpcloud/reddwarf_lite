@@ -96,6 +96,7 @@ class InstanceController(wsgi.Controller):
         LOG.debug(servers)
         
         flavors = models.ServiceFlavor().find_all()
+        flavor_list = []  # add a dummy value to fill index 0
         for flavor in flavors:
             flavor_list.append(flavor)
         LOG.debug(flavor_list)
