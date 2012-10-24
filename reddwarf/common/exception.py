@@ -152,6 +152,9 @@ class SecurityGroupRuleDeletionFailure(ReddwarfError):
 
     message = _("Failed to delete a Security Group Rule in Nova.")
 
+class FloatingIpAttachmentFailure(ReddwarfError):
+    message = _("Failed to assign a floating ip to server in Nova.")
+
 class PollTimeOut(ReddwarfError):
     message = _("Polling request timed out.")
 

@@ -465,6 +465,8 @@ class InstanceController(wsgi.Controller):
 
             userdata = file_dict_as_userdata(file_dict)
 
+            floating_ip = models.FloatingIP.create(credential, region).data()
+
             server = models.Instance.create(credential, region, body, image_id, flavor['flavor_id'],
                                             security_groups=sec_group, key_name=keypair,
                                             userdata=userdata, files=None).data()
@@ -472,22 +474,41 @@ class InstanceController(wsgi.Controller):
             if not server:
                 raise exception.ReddwarfError(errors.Instance.REDDWARF_CREATE)
             else:
+
+                # assign floating ip to the instance
+                self._try_assign_floating_ip(credential, region, server, floating_ip)
+
                 # update instance and guest_status
                 instance.update(remote_id=server['id'],
                                 remote_uuid=server['uuid'],
-                                remote_hostname=server['name'])
+                                remote_hostname=floating_ip['ip'])
                 
                 guest_status.update(state='building')
                 
 
             LOG.debug("Wrote remote server: %s" % server)
             
-        except (Exception) as e:
+        except Exception as e:
             LOG.exception("Error attempting to create a remote Server")
             raise exception.ReddwarfError(e)
 
         return instance, guest_status, file_dict
 
+    def _try_assign_floating_ip(self, credential, region, server, floating_ip):
+        LOG.debug("Attempt to assign IP %s to instance %s" %(floating_ip['ip'], server['id']))
+        success = False
+
+        try:
+            models.FloatingIP.assign(credential, region, floating_ip, server['id'])
+            success = True
+            break
+        except Exception:
+            success = False
+            eventlet.sleep(5)
+
+        if not success:
+            LOG.error("Failed to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
+            raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)
 
     def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
         

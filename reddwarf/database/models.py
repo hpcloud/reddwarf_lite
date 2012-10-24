@@ -227,11 +227,20 @@ class FloatingIP(RemoteModelBase):
     def assign(cls, credential, region, floating_ip, server_id):
         """Assigns a floating ip to a server"""
         client = cls.get_client(credential, region)
-        try:
-            client.servers.add_floating_ip(server_id, floating_ip['ip'])
-        except nova_exceptions.ClientException, e:
-            raise rd_exceptions.ReddwarfError(str(e))
 
+        def floating_ip_is_attached():
+            try:
+                client.servers.add_floating_ip(server_id, floating_ip['ip'])
+            except nova_exceptions.ClientException, e:
+                raise rd_exceptions.ReddwarfError(str(e))
+
+        try:
+            utils.poll_until(floating_ip_is_attached, sleep_time=5,
+                time_out=int(config.Config.get('floating_ip_attach_timeout', 150)))
+
+        except rd_exceptions.PollTimeOut as pto:
+            LOG.error("Timeout trying to assign floating ip %s to instance %s" %(floating_ip['ip'], server_id))
+            raise rd_exceptions.FloatingIpAttachmentFailure(str(pto))
 
 class Volume(RemoteModelBase):
 
