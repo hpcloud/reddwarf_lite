@@ -161,7 +161,8 @@ class PhoneHomeMessageHandler():
             credential = models.Credential.find_by(id=credential_id)
             try:
                 remote_instance = models.Instance(credential=credential, region=region, uuid=remote_uuid)
-                
+
+                # as of Oct 24, 2012, the phonehomehandler has not be executed anymore, app server does all the updates towards api db
                 public_ip = self._extract_public_ip(remote_instance.data())
                 LOG.debug("Updating Instance %s with IP: %s" % (instance['id'], public_ip))
 

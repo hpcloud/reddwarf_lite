@@ -36,6 +36,7 @@ def update_guest_status(instance_id, state):
     return guest.update(state=state)
 
 def update_instance_with_ip(instance_id, public_ip):
+    # public_ip might be public_ip or floating_ip
     instance = models.DBInstance().find_by(id=instance_id)
     # TODO: Handle situation where no matching record is found (e.g. if
     # a write to GuestStatus fails during create() for some reason)

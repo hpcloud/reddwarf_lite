@@ -321,8 +321,23 @@ class InstanceController(wsgi.Controller):
             # Associate Security group to Instance
             security_group_models.SecurityGroupInstances().create(security_group_id=secgroup['security_group']['id'],
                                                                   instance_id=instance['id'])
-            
-        # Attempt to attach a volume    
+
+        #Attempt to assign a floating ip to the server instance
+        try:
+            # fetch a free floating ip or allocate one if none if available
+            floating_ip = models.FloatingIP.create(credential, region_az).data()
+            # assign floating ip to the instance
+            self._try_assign_floating_ip(credential, region_az, instance['remote_id'], floating_ip)
+        except Exception as e:
+            LOG.exception("Error obtaining or assigning floating ip for db instance")
+            return wsgi.Result(errors.wrap(errors.Instance.REDDWARF_CREATE, "Floating ip fetch/attachment Failure"), 500)
+        else:
+            try:
+                instance.update(address=floating_ip)
+            except Exception as e:
+                LOG.error("Error updating DBass Instance table for floating ip")
+
+        # Attempt to attach a volume
         try:
             self._try_attach_volume(context, body, credential, region_az, volume_size, instance)
         except exception.ReddwarfError, e:
@@ -465,8 +480,6 @@ class InstanceController(wsgi.Controller):
 
             userdata = file_dict_as_userdata(file_dict)
 
-            floating_ip = models.FloatingIP.create(credential, region).data()
-
             server = models.Instance.create(credential, region, body, image_id, flavor['flavor_id'],
                                             security_groups=sec_group, key_name=keypair,
                                             userdata=userdata, files=None).data()
@@ -475,13 +488,10 @@ class InstanceController(wsgi.Controller):
                 raise exception.ReddwarfError(errors.Instance.REDDWARF_CREATE)
             else:
 
-                # assign floating ip to the instance
-                self._try_assign_floating_ip(credential, region, server, floating_ip)
-
                 # update instance and guest_status
                 instance.update(remote_id=server['id'],
                                 remote_uuid=server['uuid'],
-                                remote_hostname=floating_ip['ip'])
+                                remote_hostname=server['name'])
                 
                 guest_status.update(state='building')
                 
@@ -494,12 +504,12 @@ class InstanceController(wsgi.Controller):
 
         return instance, guest_status, file_dict
 
-    def _try_assign_floating_ip(self, credential, region, server, floating_ip):
-        LOG.debug("Attempt to assign IP %s to instance %s" %(floating_ip['ip'], server['id']))
+    def _try_assign_floating_ip(self, credential, region, server_id, floating_ip):
+        LOG.debug("Attempt to assign IP %s to instance %s" %(floating_ip['ip'], server_id))
         success = False
 
         try:
-            models.FloatingIP.assign(credential, region, floating_ip, server['id'])
+            models.FloatingIP.assign(credential, region, floating_ip, server_id)
             success = True
             break
         except Exception:
@@ -507,7 +517,7 @@ class InstanceController(wsgi.Controller):
             eventlet.sleep(5)
 
         if not success:
-            LOG.error("Failed to assign IP %s to instance %s" % (floating_ip['ip'], server['id']))
+            LOG.error("Failed to assign IP %s to instance %s" % (floating_ip['ip'], server_id))
             raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)
 
     def _try_attach_volume(self, context, body, credential, region, volume_size, instance):
