@@ -87,6 +87,8 @@ class TestInstanceController(ControllerTestBase):
         "updated_at": "updatedtime"
     }
 
+    DUMMY_FLOATING_IP = "10.10.10.10"
+
     def setUp(self):
         super(TestInstanceController, self).setUp()
         self.headers = {'X-Auth-Token': 'abc:123',
@@ -249,7 +251,10 @@ class TestInstanceController(ControllerTestBase):
         service.InstanceController._try_create_server(mox.IgnoreArg(), mox.IgnoreArg(),
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, self.DUMMY_GUEST_STATUS, {'/home/nova/agent.config':'blah'}))
-        
+
+        self.mock.StubOutWithMock(service.InstanceController, '_try_assign_floating_ip')
+        service.InstanceController._try_assign_floating_ip(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AddReturn(self.DUMMY_FLOATING_IP)
+
         self.mock.StubOutWithMock(service.InstanceController, '_try_attach_volume')
         
         service.InstanceController._try_attach_volume(mox.IgnoreArg(),
@@ -268,6 +273,9 @@ class TestInstanceController(ControllerTestBase):
                                            )
         self.assertEqual(response.status_int, 201)
         self.mock.UnsetStubs()
+
+    def test_floating_ip_assignment(self):
+        service.InstanceController._try_assign_floating_ip(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AddReturn(self.DEFAULT)
 
     def test_create_quota_error(self):
         
