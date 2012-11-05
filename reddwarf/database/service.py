@@ -513,7 +513,7 @@ class InstanceController(wsgi.Controller):
             models.FloatingIP.assign(credential, region, floating_ip, server_id)
 
         except Exception:
-            eventlet.sleep(5)
+#            eventlet.sleep(5)
             LOG.error("Failed to assign IP %s to instance %s" % (floating_ip['ip'], server_id))
             raise exception.ReddwarfError(errors.Instance.IP_ASSIGN)
 

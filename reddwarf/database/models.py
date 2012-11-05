@@ -90,6 +90,8 @@ class RemoteModelBase(ModelBase):
         PROXY_AUTH_URL = CONFIG.get('reddwarf_auth_url',
                                     'http://0.0.0.0:5000/v2.0')
 
+#        PROXY_AUTH_URL = 'https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/'
+
         if region is None:
             region = 'az-2.region-a.geo-1'
         
@@ -231,12 +233,15 @@ class FloatingIP(RemoteModelBase):
         def floating_ip_is_attached():
             try:
                 client.servers.add_floating_ip(server_id, floating_ip['ip'])
+                return True
             except nova_exceptions.ClientException, e:
-                raise rd_exceptions.ReddwarfError(str(e))
+#                raise rd_exceptions.ReddwarfError(str(e))
+                LOG.error(e)
+                return False
 
         try:
-            utils.poll_until(floating_ip_is_attached, sleep_time=5,
-                time_out=int(config.Config.get('floating_ip_attach_timeout', 150)))
+            utils.poll_until(floating_ip_is_attached, sleep_time=2,
+                time_out=int(config.Config.get('floating_ip_attach_timeout', 20)))
 
         except rd_exceptions.PollTimeOut as pto:
             LOG.error("Timeout trying to assign floating ip %s to instance %s" %(floating_ip['ip'], server_id))
