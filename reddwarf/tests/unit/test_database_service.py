@@ -252,8 +252,8 @@ class TestInstanceController(ControllerTestBase):
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), 
                             mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn((self.DUMMY_SERVER, self.DUMMY_GUEST_STATUS, {'/home/nova/agent.config':'blah'}))
 
-#        self.mock.StubOutWithMock(service.InstanceController, '_try_assign_floating_ip')
-#        service.InstanceController._try_assign_floating_ip(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(self.DUMMY_FLOATING_IP)
+        self.mock.StubOutWithMock(service.InstanceController, '_try_assign_floating_ip')
+        service.InstanceController._try_assign_floating_ip(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(self.DUMMY_FLOATING_IP)
 
         self.mock.StubOutWithMock(service.InstanceController, '_try_attach_volume')
         
@@ -276,21 +276,28 @@ class TestInstanceController(ControllerTestBase):
 
 #    def test_floating_ip_assignment(self):
 #
-#        default_floatingIp = {'ip': '10.10.10.10'}
+#        class StubModel(models.RemoteModelBase):
+#            def __init__(self, data_stub):
+#                self._data_object = data_stub
+#                self._data_fields = ['ip']
+#
+#
+#        serviceZone = {"availability_zone": "az2"}
+#        credential = {'id': '1'}
+#        default_floatingIp = {'instance_id': '1234567', 'fixed_ip':'1.1.1.1', 'id': '34567', 'ip': '10.10.10.10'}
 #        self.mock.StubOutWithMock(models.FloatingIP, 'create')
-#        models.FloatingIP.create(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(default_floatingIp)
+#        models.FloatingIP.create(mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(StubModel(default_floatingIp))
 #
 #        self.mock.StubOutWithMock(models.FloatingIP, 'assign')
-##        models.FloatingIP.assign(mox.IgnoreArg(), mox.IgnoreArg(), default_floatingIp, self.DUMMY_INSTANCE['id']).AndReturn(None)
-#        models.FloatingIP.assign(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
+#        #        models.FloatingIP.assign(mox.IgnoreArg(), mox.IgnoreArg(), default_floatingIp, self.DUMMY_INSTANCE['id']).AndReturn(None)
+#        models.FloatingIP.assign(mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg(), mox.IgnoreArg()).AndReturn(None)
 #
 #        self.mock.ReplayAll()
-##        self.mock.VerifyAll()
 #
-#        self.mock.UnsetStubs()
-##
-#    def _assign_floating_ip(self, server, floatingIp):
-#        server['address'] = floatingIp
+#        instanceController = service.InstanceController()
+#        instanceController._try_assign_floating_ip(credential, serviceZone, default_floatingIp['instance_id'])
+
+#        models.FloatingIP.create(cls, credential,       )
 
     def test_create_quota_error(self):
 
@@ -384,7 +391,7 @@ class TestSnapshotController(ControllerTestBase):
         
         self.mock.StubOutWithMock(models.Quota, 'find_all')
         models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
-        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
+#        models.Quota.find_all(tenant_id=self.tenant, deleted=False).AndReturn(default_quotas)
         
         # Ensure credential comes back
         self.mock.StubOutWithMock(models.Credential, 'find_by')
