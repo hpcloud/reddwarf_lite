@@ -42,6 +42,8 @@ def version_string():
 def vcs_version_string():
     return "%s:%s" % (version_info['branch_nick'], version_info['revision_id'])
 
+def vcs_branch_nick():
+    return version_info['branch_nick']
 
 def version_string_with_vcs():
     return "%s-%s" % (canonical_version_string(), vcs_version_string())
