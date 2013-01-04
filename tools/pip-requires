@@ -1,4 +1,4 @@
-SQLAlchemy
+SQLAlchemy==0.7.9
 eventlet
 kombu==1.5.1
 routes
