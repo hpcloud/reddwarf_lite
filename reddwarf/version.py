@@ -38,7 +38,6 @@ def version_string():
     else:
         return '%s-dev' % (canonical_version_string(),)
 
-
 def vcs_version_string():
     return "%s:%s" % (version_info['branch_nick'], version_info['revision_id'])
 
