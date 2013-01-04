@@ -73,7 +73,7 @@ depend_links = parse_dependency_links()
 write_requirements()
 write_vcsversion('reddwarf/vcsversion.py')
 
-setup(name='reddwarf',
+setup(name='reddwarf-' + version.vcs_branch_nick(),
     version=version.canonical_version_string(),
     description='PaaS services for Openstack',
     author='OpenStack',
