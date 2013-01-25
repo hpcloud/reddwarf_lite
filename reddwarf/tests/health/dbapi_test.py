@@ -48,7 +48,7 @@ import MySQLdb
 from reddwarf.common import ssh
 from reddwarf.common import utils
 
-AUTH_URL = "https://region-a.geo-1.identity.hpcloudsvc.com:35357/v2.0/tokens"
+AUTH_URL = r'''%s/tokens''' % (os.environ['OS_AUTH_URL'])
 TENANT_NAME = os.environ['DBAAS_TENANT_NAME']
 USERNAME = os.environ['DBAAS_USERNAME']
 PASSWORD = os.environ['DBAAS_PASSWORD']
