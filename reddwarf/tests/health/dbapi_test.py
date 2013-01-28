@@ -90,7 +90,7 @@ INSTANCE_NAME = 'dbapi_health_%s_%s' % (BUILD_NUMBER, utils.generate_uuid())
 TIMEOUTS = {
     'http': 270,
     'boot': 900,
-    'mysql_connect': 90
+    'mysql_connect': 300
 }
 
 POLL_INTERVALS = {
