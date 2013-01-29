@@ -173,7 +173,8 @@ class DBFunctionalTests(unittest.TestCase):
         # -----------------------------------------------------
         wait_so_far = 0
         status = content['instance']['status']
-        while status != 'running':
+        pub_ip = content['instance']['hostname']
+        while status != 'running' or pub_ip is None or len(pub_ip) <= 0:
             # wait a max of max_wait for instance status to show running
             time.sleep(POLL_INTERVALS['boot'])
             wait_so_far += POLL_INTERVALS['boot']
@@ -184,6 +185,7 @@ class DBFunctionalTests(unittest.TestCase):
             self.assertEqual(200, resp.status, ("Expecting 200 as response status of show instance but received %s" % resp.status))
             content = self._load_json(content,'Get Single Instance')
             status = content['instance']['status']
+            pub_ip = content['instance']['hostname']
 
         if status != 'running':
 
