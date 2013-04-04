@@ -29,13 +29,13 @@
 #Show All          X           X               -                 -
 #Apply             X           X               X                 -
 
-from dbapi_test import DBFunctionalTests
-from dbapi_test import DELAYS
-from dbapi_test import LOG
-from dbapi_test import INSTANCE_NAME
-from dbapi_test import TIMEOUTS
-from dbapi_test import TIMEOUT_STR
-from dbapi_test import POLL_INTERVALS
+from reddwarf.tests.health.dbapi_test import DBFunctionalTests
+from reddwarf.tests.health.dbapi_test import DELAYS
+from reddwarf.tests.health.dbapi_test import LOG
+from reddwarf.tests.health.dbapi_test import INSTANCE_NAME
+from reddwarf.tests.health.dbapi_test import TIMEOUTS
+from reddwarf.tests.health.dbapi_test import TIMEOUT_STR
+from reddwarf.tests.health.dbapi_test import POLL_INTERVALS
 
 import json
 import time
