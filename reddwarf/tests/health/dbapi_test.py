@@ -295,9 +295,9 @@ class DBFunctionalTests(unittest.TestCase):
         client = self._get_client()
 
         # Get list of snapshots
-        LOG.debug("- Getting list of snapshots")
-        resp, snapshots = self._execute_request(client, "snapshots", "GET", "")
-        snapshots = json.loads(snapshots)
+        #LOG.debug("- Getting list of snapshots")
+        #resp, snapshots = self._execute_request(client, "snapshots", "GET", "")
+        #snapshots = json.loads(snapshots)
 
         # Delete all orphaned instances and snapshots
         LOG.debug("- Deleting orphaned instances:")
@@ -307,13 +307,13 @@ class DBFunctionalTests(unittest.TestCase):
         for each in content['instances']:
 #            LOG.debug("EACH: %s" % each)
             if each['name'] == INSTANCE_NAME:
-                for snapshot in snapshots['snapshots']:
-                    # If any snapshots belong to an instance to be deleted, delete the snapshots too
-                    if snapshot['instanceId'] == each['id']:
-                        LOG.debug("Deleting snapshot: %s" % snapshot['id'])
-                        resp, content = self._execute_request(client, "snapshots/" + snapshot['id'], "DELETE", "")
-                        LOG.debug(resp)
-                        LOG.debug(content)
+                #for snapshot in snapshots['snapshots']:
+                 #   # If any snapshots belong to an instance to be deleted, delete the snapshots too
+                 #   if snapshot['instanceId'] == each['id']:
+                 #       LOG.debug("Deleting snapshot: %s" % snapshot['id'])
+                 #       resp, content = self._execute_request(client, "snapshots/" + snapshot['id'], "DELETE", "")
+                 #       LOG.debug(resp)
+                 #       LOG.debug(content)
                 LOG.debug("Deleting instance: %s" % each['id'])
                 resp, content = self._execute_request(client, "instances/" + each['id'], "DELETE", "")
                 LOG.debug(resp)
